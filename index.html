@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>反恐行动：3D 爆破</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="screen active">
+        <div class="background-overlay"></div>
+        <h1>反恐行动 <br><span class="subtitle">3D 爆破模式</span></h1>
+        
+        <div class="operator-selection">
+            <button id="start-btn" onclick="startGame()">开始匹配 (加入 T 阵营)</button>
+        </div>
+    </div>
+
+    <!-- In-Game Buy Menu -->
+    <div id="buy-menu" class="screen hidden glass-panel">
+        <div class="mod-header">
+            <h2><span class="highlight">购买菜单</span> BUY MENU</h2>
+            <div class="currency">资金：<span id="buy-credits">800</span> $</div>
+        </div>
+        
+        <div class="mod-content">
+            <div class="mod-options" style="flex: 1; align-items: center;">
+                <h3>主武器 (Primary)</h3>
+                <div class="mod-category">
+                    <button onclick="buyWeapon('rifle', 2700)"><img src="https://images.unsplash.com/photo-1595590424283-b8f1784cb2c6?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">突击步枪 (AK-47) <span class="price">2700$</span> <br><small>全自动，高伤害</small></button>
+                    <button onclick="buyWeapon('sniper', 4750)"><img src="https://images.unsplash.com/photo-1585523992015-626a575cbff7?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">狙击步枪 (AWP) <span class="price">4750$</span> <br><small>一击必杀，极慢射速</small></button>
+                    <button onclick="buyWeapon('smg', 2350)"><img src="https://images.unsplash.com/photo-1621345479624-9b578c7755e1?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">冲锋枪 (P90) <span class="price">2350$</span> <br><small>射速极快，高弹量</small></button>
+                    <button onclick="buyWeapon('shotgun', 1200)"><img src="https://images.unsplash.com/photo-1582236371192-f0b3558c7075?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">霰弹枪 (Nova) <span class="price">1200$</span> <br><small>近战爆发，射速慢</small></button>
+                    <button onclick="buyWeapon('m249', 5200)"><img src="https://images.unsplash.com/photo-1584282470557-07fb9671d2b7?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">重机枪 (M249) <span class="price">5200$</span> <br><small>超高弹量，火力压制</small></button>
+                </div>
+                <h3>副武器 (Secondary)</h3>
+                <div class="mod-category">
+                    <button onclick="buyWeapon('pistol', 200)"><img src="https://images.unsplash.com/photo-1592312040171-267aa90d4022?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">格洛克手枪 (Glock) <span class="price">200$</span> <br><small>射速快，伤害低</small></button>
+                    <button onclick="buyWeapon('deagle', 700)"><img src="https://images.unsplash.com/photo-1595590424283-b8f1784cb2c6?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">沙漠之鹰 (Deagle) <span class="price">700$</span> <br><small>高伤害，后坐力大</small></button>
+                    <!-- 投掷物 / 装备 -->
+                    <button id="btn-throwable-hegrenade" onclick="buyWeapon('hegrenade', 300)" style="grid-column: span 2;">购买 手雷 (HE Grenade) - $300</button>
+                    <button id="btn-throwable-flashbang" onclick="buyWeapon('flashbang', 200)" style="grid-column: span 2;">购买 闪光弹 (Flashbang) - $200</button>
+                    <button id="btn-throwable-molotov" onclick="buyWeapon('molotov', 400)" style="grid-column: span 2;">购买 燃烧瓶 (Molotov) - $400</button>
+                    <button id="btn-throwable-sandbag" onclick="buyWeapon('sandbag', 50)" style="grid-column: span 2;">购买 沙包 (Sandbag) - $50</button>
+                    <button id="btn-drone" onclick="buyWeapon('drone', 800)" style="grid-column: span 2; background-color: #2c3e50;">购买 战术无人机 (Drone) - $800</button>
+                </div>
+            </div>
+        </div>
+        
+        <button class="deploy-btn glass-btn" onclick="closeBuyMenu()">关闭菜单 (按 B)</button>
+    </div>
+
+    <!-- Game UI & 3D Canvas Container -->
+    <div id="game-screen" class="screen">
+        <div id="canvas-container"></div>
+        <div id="crosshair">
+            <div id="ch-top" class="ch-line"></div>
+            <div id="ch-bottom" class="ch-line"></div>
+            <div id="ch-left" class="ch-line"></div>
+            <div id="ch-right" class="ch-line"></div>
+            <div id="ch-dot"></div>
+        </div>
+        
+        <div id="hud">
+            <!-- Minimap -->
+            <div id="minimap-container" style="position: absolute; top: 20px; left: 20px; width: 240px; height: 240px; background: rgba(20, 25, 30, 0.6); border: 2px solid rgba(255,255,255,0.2); border-radius: 10px; overflow: hidden; z-index: 10; backdrop-filter: blur(5px);">
+                <canvas id="minimap-canvas" width="240" height="240"></canvas>
+            </div>
+            <div id="zoneA-label" style="position:absolute; top:-100px; left:-100px; color:yellow; font-size: 14px; font-weight:bold; text-shadow: 1px 1px 2px black; transform: translate(-50%, -50%); pointer-events: none; z-index: 5;"></div>
+            <div id="zoneB-label" style="position:absolute; top:-100px; left:-100px; color:yellow; font-size: 14px; font-weight:bold; text-shadow: 1px 1px 2px black; transform: translate(-50%, -50%); pointer-events: none; z-index: 5;"></div>
+            <div class="hud-top glass-bar">
+                <div class="team-score t-score" style="text-align: right;"><span id="label-t">T</span> 存活：<span id="score-t">0</span> <br><small style="font-size:0.9rem; color:#aaa;">胜利回合：<span id="wins-t">0</span></small></div>
+                <div class="round-timer" id="round-timer">02:00</div>
+                <div class="team-score ct-score"><span id="label-ct">CT</span> 存活：<span id="score-ct">0</span> <br><small style="font-size:0.9rem; color:#aaa;">胜利回合：<span id="wins-ct">0</span></small></div>
+            </div>
+            
+            <div id="controls-hint" style="position: absolute; top: 190px; left: 20px; color: rgba(255,255,255,0.7); font-size: 12px; font-family: monospace; pointer-events: none;">
+                [B] 购买菜单<br>
+                [U] 脱离卡死 (Unstuck)<br>
+                [E] 安装/拆除C4<br>
+                [R] 装弹
+            </div>
+            
+            <div class="hud-bottom">
+                <div class="hud-left glass-panel-small">
+                    <div class="health-text">HP <span id="hp-val">100</span></div>
+                    <div class="health-bar"><div id="hp-fill"></div></div>
+                </div>
+
+                <div class="weapon-inventory glass-panel-small">
+                    <div class="inv-slot" id="slot-1" onclick="switchWeapon(1)"><span class="key">1</span> 主武器</div>
+                    <div class="inv-slot active" id="slot-2" onclick="switchWeapon(2)"><span class="key">2</span> 副武器</div>
+                    <div class="inv-slot" id="slot-3" onclick="switchWeapon(3)"><span class="key">3</span> 近战</div>
+                    <div class="inv-slot hidden" id="slot-4" onclick="switchWeapon(4)"><span class="key">4</span> 投掷物</div>
+                </div>
+
+                <div class="hud-right glass-panel-small">
+                    <div class="ammo-text"><span id="ammo-clip">20</span><span class="ammo-sep">/</span><span id="ammo-reserve">120</span></div>
+                    <div class="weapon-name" id="weapon-name">格洛克手枪</div>
+                </div>
+
+                <div class="currency-hud glass-panel-small" style="bottom: 120px; right: 30px; position: absolute;">
+                    积分: <span id="hud-score">0</span> &nbsp;|&nbsp; $ <span id="hud-credits">800</span>
+                </div>
+                
+                <div id="kill-feed" class="kill-feed"></div>
+            </div>
+            
+            <!-- Touch UI -->
+            <div id="touch-ui" class="hidden-on-desktop">
+                <div id="joystick-zone"></div>
+                <div id="touch-look-zone"></div>
+                <div id="touch-actions">
+                    <button id="touch-shoot" class="touch-btn touch-btn-large">开火</button>
+                    <button id="touch-aim" class="touch-btn">瞄准</button>
+                    <button id="touch-jump" class="touch-btn">跳跃</button>
+                    <button id="touch-reload" class="touch-btn">换弹</button>
+                    <button id="touch-crouch" class="touch-btn">下蹲</button>
+                </div>
+                <button id="touch-buy" class="touch-btn" onclick="openBuyMenu()">购买</button>
+                <button id="touch-interact" class="touch-btn hidden">互动</button>
+            </div>
+            
+            <!-- Bomb Status Overlay -->
+            <div id="bomb-status" class="hidden">
+                <h2 id="bomb-text">正在安装 C4...</h2>
+                <div class="progress-bar"><div id="bomb-progress"></div></div>
+            </div>
+
+            <!-- Interation Prompt -->
+            <div id="interact-prompt" class="hidden">
+                长按 [E] 互动
+            </div>
+            
+            <!-- Buy Prompt -->
+            <div id="buy-prompt" class="hidden">
+                按 [B] 打开购买菜单
+            </div>
+
+            <!-- Spectator Prompt -->
+            <div id="spectator-prompt" class="hidden" style="position: absolute; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); padding: 10px 20px; color: white; border-radius: 4px; font-family: 'Inter', sans-serif; text-align: center; border: 1px solid #ff3c3c; pointer-events: none; z-index: 50;">
+                <h2 style="font-size: 1.2rem; margin: 0 0 5px 0;">你已阵亡 (Spectating)</h2>
+                <p style="color:#ccc; margin: 0; font-size: 0.9rem;">点击鼠标左键切换观战视角<br>(当前观战: <span id="spectator-target" style="color:#e67e22;">无</span>)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Result Overlay -->
+    <div id="result-screen" class="screen hidden">
+        <h1 id="result-title">回合结束</h1>
+        <p id="result-desc">恐怖分子获胜</p>
+        <div id="result-countdown" style="font-size: 1.5rem; color: #fff; margin-top: 15px; font-weight: bold;"></div>
+        <button onclick="nextRound()" style="margin-top: 20px;">强制下一回合</button>
+    </div>
+
+    <!-- Three.js and Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
