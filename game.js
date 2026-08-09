@@ -2702,6 +2702,15 @@ function setupTouchControls() {
     const btnCrouch = document.getElementById('touch-crouch');
     btnCrouch.addEventListener('touchstart', (e) => { e.preventDefault(); moveDown = true; });
     btnCrouch.addEventListener('touchend', (e) => { e.preventDefault(); moveDown = false; });
+
+    const btnShift = document.getElementById('touch-shift');
+    btnShift.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (playerState.isControllingDrone) {
+            const pd = activeDrones.find(d => d.isPlayer);
+            if (pd) pd.selfDestructing = true;
+        }
+    });
 }
 
 // --- FULLSCREEN & RESIZE HANDLING ---

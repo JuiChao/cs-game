@@ -695,11 +695,42 @@ h1, h2, h3, h4 {
     #touch-buy {
         left: 140px; /* Adjust for smaller minimap */
     }
+    #buy-menu {
+        width: 95%;
+        height: 90%;
+        top: 5%;
+        left: 2.5%;
+        padding: 20px;
+    }
+    .mod-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+    #main-menu h1 {
+        font-size: 2.5rem;
+    }
+    .subtitle {
+        font-size: 1.2rem;
+    }
+    #result-title {
+        font-size: 2.5rem;
+    }
+    #result-desc {
+        font-size: 1.5rem;
+    }
+    .mod-category button {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+    .mod-category button img {
+        height: 30px !important;
+    }
     #touch-actions {
         bottom: 80px;
         right: 10px;
         gap: 10px;
         transform: translateX(0);
+        grid-template-columns: 50px 50px 50px;
     }
     .touch-btn {
         width: 50px;
@@ -709,6 +740,7 @@ h1, h2, h3, h4 {
     .touch-btn-large {
         width: 65px;
         height: 65px;
+        grid-column: span 3;
     }
     #joystick-zone {
         left: 10px;
