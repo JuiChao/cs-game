@@ -2703,3 +2703,36 @@ function setupTouchControls() {
     btnCrouch.addEventListener('touchstart', (e) => { e.preventDefault(); moveDown = true; });
     btnCrouch.addEventListener('touchend', (e) => { e.preventDefault(); moveDown = false; });
 }
+
+// --- FULLSCREEN & RESIZE HANDLING ---
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
+            document.documentElement.webkitRequestFullscreen();
+        } else if (document.documentElement.msRequestFullscreen) { /* IE11 */
+            document.documentElement.msRequestFullscreen();
+        }
+        document.getElementById('touch-fullscreen').innerText = "退出";
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) { /* Safari */
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) { /* IE11 */
+            document.msExitFullscreen();
+        }
+        document.getElementById('touch-fullscreen').innerText = "全屏";
+    }
+}
+
+window.addEventListener('resize', onWindowResize, false);
+function onWindowResize() {
+    if (camera && renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+}
+
