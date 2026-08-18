@@ -12,6 +12,19 @@ body {
     overflow: hidden;
 }
 
+.damage-text {
+    position: absolute;
+    color: #ff3333;
+    font-weight: 800;
+    font-size: 24px;
+    font-family: 'Orbitron', sans-serif;
+    text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+    pointer-events: none;
+    z-index: 50;
+    transform: translate(-50%, -50%);
+    will-change: transform, opacity, left, top;
+}
+
 h1, h2, h3, h4 {
     font-family: 'Orbitron', sans-serif;
     text-transform: uppercase;
@@ -635,118 +648,257 @@ h1, h2, h3, h4 {
     z-index: 50;
 }
 
-/* Mobile HUD adjustments */
+/* === Mobile HUD: Tablet (≤800px) === */
 @media (max-width: 800px) {
+    /* Minimap */
     #minimap-container {
-        width: 120px !important;
-        height: 120px !important;
-        left: 10px !important;
-        top: 10px !important;
+        width: 140px !important;
+        height: 140px !important;
+        left: 8px !important;
+        top: 8px !important;
     }
     #minimap-canvas {
-        width: 120px !important;
-        height: 120px !important;
+        width: 140px !important;
+        height: 140px !important;
     }
+    /* Top bar */
     .hud-top {
-        padding: 5px 10px;
-        gap: 15px;
+        padding: 4px 8px;
+        gap: 12px;
         flex-direction: row;
         align-items: center;
         width: 100%;
         justify-content: center;
     }
-    .round-timer {
-        font-size: 1.2rem;
-    }
-    .team-score {
-        font-size: 1rem;
-    }
-    .hud-bottom {
-        padding: 10px;
-    }
-    .health-bar {
-        width: 120px;
-        height: 10px;
-    }
-    .health-text {
-        font-size: 1rem;
-    }
+    .round-timer { font-size: 1.1rem; }
+    .team-score { font-size: 0.85rem; }
+    .team-score small { font-size: 0.7rem !important; }
+    /* Bottom HUD */
+    .hud-bottom { padding: 8px 12px; }
+    .hud-left, .hud-right { gap: 4px; }
+    .glass-panel-small { padding: 8px 12px; }
+    .health-bar { width: 100px; height: 8px; }
+    .health-text { font-size: 0.85rem; margin-bottom: 2px; }
+    .ammo-text { font-size: 1.3rem; }
+    .weapon-name { font-size: 0.75rem; }
+    .currency-hud { bottom: 70px; right: 8px; font-size: 0.85rem; padding: 6px 10px; }
+    #hud-armor { bottom: 105px; right: 8px; font-size: 0.75rem; padding: 4px 8px; }
     .weapon-inventory {
-        bottom: 10px;
-        transform: translateX(-50%) scale(0.8);
+        bottom: 8px;
+        gap: 6px;
+        transform: translateX(-50%) scale(0.75);
     }
-    .ammo-text {
-        font-size: 1.5rem;
-    }
-    .weapon-name {
-        font-size: 0.9rem;
-    }
-    .currency-hud {
-        bottom: 80px;
-        right: 10px;
-        font-size: 1rem;
-    }
+    .inv-slot { padding: 6px 8px; }
+    .inv-slot .key { font-size: 0.65rem; padding: 1px 4px; }
+    /* Kill feed */
     .kill-feed {
-        top: 50px;
-        right: 10px;
-        transform: scale(0.8);
+        top: 45px;
+        right: 8px;
+        transform: scale(0.75);
         transform-origin: top right;
     }
-    #touch-buy {
-        left: 140px; /* Adjust for smaller minimap */
-    }
+    .kill-entry { font-size: 0.75rem; padding: 5px 10px; }
+    /* Buy menu */
     #buy-menu {
-        width: 95%;
-        height: 90%;
-        top: 5%;
-        left: 2.5%;
-        padding: 20px;
+        width: 96%;
+        height: 94%;
+        top: 3%;
+        left: 2%;
+        padding: 12px;
     }
-    .mod-content {
-        flex-direction: column;
-        gap: 15px;
-    }
-    #main-menu h1 {
-        font-size: 2.5rem;
-    }
-    .subtitle {
-        font-size: 1.2rem;
-    }
-    #result-title {
-        font-size: 2.5rem;
-    }
-    #result-desc {
-        font-size: 1.5rem;
-    }
+    .mod-header { padding-bottom: 8px; margin-bottom: 12px; }
+    .mod-header h2 { font-size: 1rem; }
+    .currency { font-size: 0.9rem; }
+    .mod-content { flex-direction: column; gap: 10px; padding-right: 8px; }
+    .mod-options { gap: 12px; }
+    .mod-category h3 { font-size: 0.85rem; margin-bottom: 6px; }
     .mod-category button {
-        padding: 10px;
-        font-size: 0.9rem;
+        padding: 6px 8px;
+        font-size: 0.75rem;
+        margin-bottom: 4px;
     }
-    .mod-category button img {
-        height: 30px !important;
-    }
+    .mod-category button small { font-size: 0.65rem; }
+    .mod-category button img { height: 28px !important; }
+    .deploy-btn { bottom: 12px; right: 12px; padding: 8px 16px; font-size: 0.9rem; }
+    /* Touch controls */
+    #touch-buy { left: 160px; top: 8px; padding: 6px 12px; font-size: 0.75rem; }
+    #touch-fullscreen { top: 8px; right: 8px; padding: 6px 12px; font-size: 0.75rem; }
+    #touch-interact { padding: 10px 20px; font-size: 0.85rem; }
     #touch-actions {
-        bottom: 80px;
-        right: 10px;
-        gap: 10px;
-        transform: translateX(0);
-        grid-template-columns: 50px 50px 50px;
+        bottom: 60px;
+        right: 8px;
+        gap: 8px;
+        grid-template-columns: 48px 48px 48px;
     }
-    .touch-btn {
-        width: 50px;
-        height: 50px;
-        font-size: 12px;
-    }
-    .touch-btn-large {
-        width: 65px;
-        height: 65px;
-        grid-column: span 3;
-    }
+    .touch-btn { width: 48px; height: 48px; font-size: 0.65rem; }
+    .touch-btn-large { width: 60px; height: 60px; grid-column: span 3; }
     #joystick-zone {
-        left: 10px;
-        bottom: 10px;
+        left: 8px;
+        bottom: 8px;
+        width: 120px;
+        height: 120px;
+        transform: scale(0.85);
+        transform-origin: bottom left;
+    }
+    /* Main menu */
+    #main-menu h1 { font-size: 2rem; }
+    .subtitle { font-size: 1rem; }
+    /* Result screen */
+    #result-title { font-size: 2rem; }
+    #result-desc { font-size: 1.2rem; }
+    #result-screen button { padding: 10px 24px; font-size: 1rem; }
+    /* Crosshair */
+    #ch-dot { width: 3px; height: 3px; }
+}
+
+/* === Mobile HUD: Phone (≤480px) === */
+@media (max-width: 480px) {
+    /* Minimap */
+    #minimap-container {
+        width: 100px !important;
+        height: 100px !important;
+        left: 4px !important;
+        top: 4px !important;
+    }
+    #minimap-canvas {
+        width: 100px !important;
+        height: 100px !important;
+    }
+    /* Top bar */
+    .hud-top {
+        padding: 2px 4px;
+        gap: 6px;
+    }
+    .round-timer { font-size: 0.8rem; }
+    .team-score { font-size: 0.65rem; }
+    .team-score small { font-size: 0.55rem !important; }
+    .team-score br { display: none; }
+    /* Bottom HUD */
+    .hud-bottom { padding: 4px 6px; }
+    .glass-panel-small { padding: 4px 8px; border-radius: 6px; }
+    .health-bar { width: 70px; height: 6px; }
+    .health-text { font-size: 0.7rem; margin-bottom: 1px; }
+    .ammo-text { font-size: 1rem; }
+    .ammo-sep { font-size: 0.8rem; }
+    #ammo-reserve { font-size: 0.7rem; }
+    .weapon-name { font-size: 0.6rem; }
+    #bullet-type-display { font-size: 0.55rem !important; }
+    .currency-hud { bottom: 55px; right: 4px; font-size: 0.65rem; padding: 3px 6px; }
+    #hud-armor { bottom: 82px; right: 4px; font-size: 0.6rem; padding: 2px 6px; }
+    .weapon-inventory {
+        bottom: 4px;
+        gap: 3px;
+        transform: translateX(-50%) scale(0.6);
+    }
+    .inv-slot { padding: 4px 6px; }
+    .inv-slot .key { font-size: 0.55rem; padding: 1px 3px; }
+    /* Kill feed */
+    .kill-feed {
+        top: 35px;
+        right: 4px;
+        transform: scale(0.6);
+        transform-origin: top right;
+    }
+    .kill-entry { font-size: 0.6rem; padding: 3px 6px; }
+    /* Buy menu */
+    #buy-menu {
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        padding: 8px;
+        border-radius: 0;
+    }
+    .mod-header { padding-bottom: 6px; margin-bottom: 8px; }
+    .mod-header h2 { font-size: 0.8rem; }
+    .currency { font-size: 0.7rem; }
+    .mod-content { gap: 6px; padding-right: 4px; }
+    .mod-options { gap: 8px; }
+    .mod-category h3 { font-size: 0.7rem; margin-bottom: 4px; padding-bottom: 3px; }
+    .mod-category button {
+        padding: 4px 6px;
+        font-size: 0.6rem;
+        margin-bottom: 3px;
+        border-radius: 4px;
+    }
+    .mod-category button small { font-size: 0.5rem; }
+    .mod-category button img { height: 20px !important; }
+    .deploy-btn { bottom: 6px; right: 6px; padding: 6px 12px; font-size: 0.7rem; }
+    /* Touch controls — larger for finger comfort */
+    #touch-buy { left: 110px; top: 4px; padding: 4px 8px; font-size: 0.6rem; }
+    #touch-fullscreen { top: 4px; right: 4px; padding: 4px 8px; font-size: 0.6rem; }
+    #touch-interact { padding: 8px 16px; font-size: 0.7rem; }
+    #touch-actions {
+        bottom: 45px;
+        right: 4px;
+        gap: 6px;
+        grid-template-columns: 44px 44px 44px;
+    }
+    .touch-btn { width: 44px; height: 44px; font-size: 0.55rem; border-width: 1.5px; }
+    .touch-btn-large { width: 54px; height: 54px; grid-column: span 3; }
+    #joystick-zone {
+        left: 4px;
+        bottom: 4px;
+        width: 100px;
+        height: 100px;
         transform: scale(0.8);
         transform-origin: bottom left;
     }
+    /* Main menu */
+    #main-menu h1 { font-size: 1.5rem; margin-bottom: 20px; }
+    .subtitle { font-size: 0.8rem; letter-spacing: 3px; }
+    /* Result screen */
+    #result-title { font-size: 1.5rem; }
+    #result-desc { font-size: 0.9rem; margin-bottom: 30px; }
+    #result-screen button { padding: 8px 20px; font-size: 0.85rem; }
+    /* Crosshair */
+    #ch-dot { width: 3px; height: 3px; }
+    .ch-line { box-shadow: 0 0 1px rgba(0,0,0,0.8); }
+    #ch-top, #ch-bottom { height: 8px; }
+    #ch-left, #ch-right { width: 8px; }
+    /* Damage numbers */
+    .damage-text { font-size: 16px; }
+    /* Bomb status */
+    #bomb-status { padding: 12px 20px; }
+    .progress-bar { width: 200px; height: 8px; }
+    /* Scope overlay mil dots */
+    #scope-overlay { background: radial-gradient(circle at center, transparent 30%, black 55%); }
+}
+
+/* === Landscape phone adjustments === */
+@media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
+    #minimap-container {
+        width: 90px !important;
+        height: 90px !important;
+    }
+    #minimap-canvas {
+        width: 90px !important;
+        height: 90px !important;
+    }
+    .hud-top { padding: 2px 6px; }
+    .round-timer { font-size: 0.85rem; }
+    .team-score { font-size: 0.7rem; }
+    .weapon-inventory { transform: translateX(-50%) scale(0.6); bottom: 4px; }
+    .health-bar { width: 80px; height: 6px; }
+    .health-text { font-size: 0.7rem; }
+    .ammo-text { font-size: 1.1rem; }
+    #touch-actions {
+        bottom: 30px;
+        right: 4px;
+        grid-template-columns: 40px 40px 40px;
+        gap: 5px;
+    }
+    .touch-btn { width: 40px; height: 40px; font-size: 0.5rem; }
+    .touch-btn-large { width: 50px; height: 50px; }
+    #joystick-zone {
+        width: 90px;
+        height: 90px;
+        bottom: 4px;
+        left: 4px;
+        transform: scale(0.75);
+        transform-origin: bottom left;
+    }
+    .currency-hud { bottom: 40px; font-size: 0.65rem; }
+    #hud-armor { bottom: 65px; font-size: 0.6rem; }
 }
 

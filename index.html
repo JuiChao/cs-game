@@ -16,6 +16,18 @@
         
         <div class="operator-selection">
             <button id="start-btn" onclick="startGame()">开始匹配 (加入 T 阵营)</button>
+            <button id="range-btn" onclick="startShootingRange()" style="margin-top: 10px; background: rgba(50,50,50,0.8);">进入靶场 (Shooting Range)</button>
+        </div>
+        
+        <div style="margin-top: 15px; text-align: center;">
+            <label style="color: #aaa; font-size: 14px; display: block; margin-bottom: 5px;">Bot 难度</label>
+            <div style="display: flex; gap: 8px; justify-content: center;">
+                <button onclick="setBotDifficulty('easy')" style="padding: 6px 16px; background: rgba(46,204,113,0.3); border: 1px solid #2ecc71; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">简单</button>
+                <button onclick="setBotDifficulty('medium')" style="padding: 6px 16px; background: rgba(241,196,15,0.3); border: 1px solid #f1c40f; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">中等</button>
+                <button onclick="setBotDifficulty('hard')" style="padding: 6px 16px; background: rgba(231,76,60,0.3); border: 1px solid #e74c3c; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">困难</button>
+                <button onclick="setBotDifficulty('pro')" style="padding: 6px 16px; background: rgba(155,89,182,0.3); border: 1px solid #9b59b6; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">专家</button>
+            </div>
+            <div style="margin-top: 5px; color: #888; font-size: 12px;">当前难度：<span id="difficulty-label" style="color: #f1c40f; font-weight: bold;">中等</span></div>
         </div>
     </div>
 
@@ -23,23 +35,27 @@
     <div id="buy-menu" class="screen hidden glass-panel">
         <div class="mod-header">
             <h2><span class="highlight">购买菜单</span> BUY MENU</h2>
-            <div class="currency">资金：<span id="buy-credits">800</span> $</div>
+            <div class="currency">资金：<span id="buy-credits">800</span> $ &nbsp;|&nbsp; 积分：<span id="buy-score">0</span></div>
         </div>
         
         <div class="mod-content">
             <div class="mod-options" style="flex: 1; align-items: center;">
                 <h3>主武器 (Primary)</h3>
                 <div class="mod-category">
-                    <button onclick="buyWeapon('rifle', 2700)"><img src="https://images.unsplash.com/photo-1595590424283-b8f1784cb2c6?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">突击步枪 (AK-47) <span class="price">2700$</span> <br><small>全自动，高伤害</small></button>
-                    <button onclick="buyWeapon('sniper', 4750)"><img src="https://images.unsplash.com/photo-1585523992015-626a575cbff7?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">狙击步枪 (AWP) <span class="price">4750$</span> <br><small>一击必杀，极慢射速</small></button>
-                    <button onclick="buyWeapon('smg', 2350)"><img src="https://images.unsplash.com/photo-1621345479624-9b578c7755e1?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">冲锋枪 (P90) <span class="price">2350$</span> <br><small>射速极快，高弹量</small></button>
-                    <button onclick="buyWeapon('shotgun', 1200)"><img src="https://images.unsplash.com/photo-1582236371192-f0b3558c7075?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">霰弹枪 (Nova) <span class="price">1200$</span> <br><small>近战爆发，射速慢</small></button>
-                    <button onclick="buyWeapon('m249', 5200)"><img src="https://images.unsplash.com/photo-1584282470557-07fb9671d2b7?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">重机枪 (M249) <span class="price">5200$</span> <br><small>超高弹量，火力压制</small></button>
+                    <button onclick="buyWeapon('rifle', 2700)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #8b4513, #5a2d0c); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">AK-47</div>突击步枪 (AK-47) <span class="price">2700$</span> <br><small>全自动，高伤害</small></button>
+                    <button onclick="buyWeapon('sniper', 4750)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #1a4314, #0d2208); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">AWP</div>狙击步枪 (AWP) <span class="price">4750$</span> <br><small>一击必杀，极慢射速</small></button>
+                    <button onclick="buyWeapon('marksman', 3300)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #2e4a23, #1a2d15); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">DMR</div>射手步枪 (DMR) <span class="price">3300$</span> <br><small>高伤害连发，射速中等</small></button>
+                    <button onclick="buyWeapon('smg', 2350)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #444444, #222222); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">P90</div>冲锋枪 (P90) <span class="price">2350$</span> <br><small>射速极快，高弹量</small></button>
+                    <button onclick="buyWeapon('shotgun', 1200)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #333333, #111111); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Nova</div>霰弹枪 (Nova) <span class="price">1200$</span> <br><small>近战爆发，射速慢</small></button>
+                    <button onclick="buyWeapon('m249', 5200)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #113311, #061806); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">M249</div>重机枪 (M249) <span class="price">5200$</span> <br><small>超高弹量，火力压制</small></button>
+                    <button onclick="buyWeapon('gatling', 7500)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #2a2a3a, #1a1a2a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Gatling</div>加特林 (Gatling) <span class="price">7500$</span> <br><small>200发弹匣，伤害12.5，初始射速-50%每秒+30%最高475%，手持移速-25%开火移速-75%</small></button>
+                    <button onclick="buyWeapon('ash12', 5000)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #1a1a2e, #0d0d1a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">ASH-12</div>ASH-12 (突击步枪) <span class="price">5000$</span> <br><small>超高伤害65，射速慢，后坐力大</small></button>
+                    <button onclick="buyWeapon('flamethrower', 4200)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #8B0000, #4a0000); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">FT</div>喷火器 (Flamethrower) <span class="price">4200$</span> <br><small>持续喷射火焰，每帧3点伤害，攻击间隔0秒，超远射程700，命中叠加灼烧(最多12层)，开火时减伤与尼泊尔刀相同</small></button>
                 </div>
                 <h3>副武器 (Secondary)</h3>
                 <div class="mod-category">
-                    <button onclick="buyWeapon('pistol', 200)"><img src="https://images.unsplash.com/photo-1592312040171-267aa90d4022?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">格洛克手枪 (Glock) <span class="price">200$</span> <br><small>射速快，伤害低</small></button>
-                    <button onclick="buyWeapon('deagle', 700)"><img src="https://images.unsplash.com/photo-1595590424283-b8f1784cb2c6?w=200&h=100&fit=crop" style="height:40px; float:right; border-radius: 4px;">沙漠之鹰 (Deagle) <span class="price">700$</span> <br><small>高伤害，后坐力大</small></button>
+                    <button onclick="buyWeapon('pistol', 200)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #333333, #1a1a1a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Glock</div>格洛克手枪 (Glock) <span class="price">200$</span> <br><small>射速快，伤害低</small></button>
+                    <button onclick="buyWeapon('deagle', 700)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #777777, #444444); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Deagle</div>沙漠之鹰 (Deagle) <span class="price">700$</span> <br><small>高伤害，后坐力大</small></button>
                     <!-- 投掷物 / 装备 -->
                     <button id="btn-throwable-hegrenade" onclick="buyWeapon('hegrenade', 300)" style="grid-column: span 2;">购买 手雷 (HE Grenade) - $300</button>
                     <button id="btn-throwable-flashbang" onclick="buyWeapon('flashbang', 200)" style="grid-column: span 2;">购买 闪光弹 (Flashbang) - $200</button>
@@ -47,9 +63,32 @@
                     <button id="btn-throwable-sandbag" onclick="buyWeapon('sandbag', 50)" style="grid-column: span 2;">购买 沙包 (Sandbag) - $50</button>
                     <button id="btn-drone" onclick="buyWeapon('drone', 800)" style="grid-column: span 2; background-color: #2c3e50;">购买 战术无人机 (Drone) - $800</button>
                 </div>
+                <h3>特殊子弹 (Ammo Type)</h3>
+                <div class="mod-category" id="bullet-type-category">
+                    <button id="btn-bullet-normal" onclick="buyBulletType('normal')" style="grid-column: span 2; background-color: #333;">普通子弹 <span class="price">免费</span> <br><small>无特殊效果</small></button>
+                    <button id="btn-bullet-incendiary" onclick="buyBulletType('incendiary')" style="grid-column: span 2; background-color: #4a1a00;">燃烧子弹 <span class="price">500$</span> <br><small>命中叠加灼烧，霰弹枪最多8层，每秒3伤害，持续5秒</small></button>
+                    <button id="btn-bullet-poison" onclick="buyBulletType('poison')" style="grid-column: span 2; background-color: #1a3a00;">剧毒子弹 <span class="price">500$</span> <br><small>每秒造成3点伤害，持续6秒，移速与精度减少75%</small></button>
+                    <button id="btn-bullet-proximity" onclick="buyBulletType('proximity')" style="grid-column: span 2; background-color: #3a2a00;">近炸引信子弹 <span class="price">1000$</span> <br><small>命中敌人或墙壁均会爆炸，爆炸伤害为子弹的75%</small></button>
+                    <button id="btn-bullet-tracking" onclick="buyBulletType('tracking')" style="grid-column: span 2; background-color: #003a3a;">追踪子弹 <span class="price">700$</span> <br><small>追踪60范围内敌人，伤害降至50%</small></button>
+                    <button id="btn-bullet-light" onclick="buyBulletType('light')" style="grid-column: span 2; background-color: #002233;">轻型子弹 <span class="price">1200$</span> <br><small>伤害降低30%，飞行速度+20%，射速+35%，后坐力减少60%，弹匣容量+50%</small></button>
+                    <button id="btn-bullet-dual" onclick="buyBulletType('dual')" style="grid-column: span 2; background-color: #2a002a;">双头弹 <span class="price">600$</span> <br><small>一次发射两颗子弹，伤害降低35%，子弹飞出后上下逐渐分离，射速降低45%，飞行速度降低65%</small></button>
+                    <button id="btn-bullet-stacking" onclick="buyBulletStacking()" style="grid-column: span 4; background-color: #2a003a;">子弹叠加功能 <span class="price">500$</span> <br><small>激活后本回合可同时选择多种子弹效果（点击子弹类型切换开关）</small></button>
+                </div>
+                <h3>辅助功能 (Utility)</h3>
+                <div class="mod-category">
+                    <button id="btn-drop-comp" onclick="buyDropCompensation()" style="grid-column: span 4; background-color: #002244;">弹道下坠补偿 <span class="price">300$</span> <br><small>购买后开镜瞄准敌人按 V 键：准心一次性下移补偿弹道下坠，往上抬准心对准头部即可命中</small></button>
+                </div>
+                <h3>护甲 (Armor)</h3>
+                <div class="mod-category">
+                    <button onclick="buyArmorPlate()" style="grid-column: span 2; background-color: #1a2a3a;">护甲板 <span class="price">400$</span> <br><small>每块减伤15%，最多6块（减伤85%）</small></button>
+                </div>
+                <h3>弹药 (Ammo)</h3>
+                <div class="mod-category">
+                    <button onclick="buyAmmo()" style="grid-column: span 2; background-color: #2a2a00;">购买子弹 <span class="price">按弹匣计价</span> <br><small>获得2倍弹匣容量的 reserve 弹药，价格=弹匣×5</small></button>
+                </div>
             </div>
         </div>
-        
+
         <button class="deploy-btn glass-btn" onclick="closeBuyMenu()">关闭菜单 (按 B)</button>
     </div>
 
@@ -63,6 +102,8 @@
             <div id="ch-right" class="ch-line"></div>
             <div id="ch-dot"></div>
         </div>
+        
+        <div id="damage-numbers"></div>
         
         <div id="hud">
             <!-- Minimap -->
@@ -100,12 +141,18 @@
                 <div class="hud-right glass-panel-small">
                     <div class="ammo-text"><span id="ammo-clip">20</span><span class="ammo-sep">/</span><span id="ammo-reserve">120</span></div>
                     <div class="weapon-name" id="weapon-name">格洛克手枪</div>
+                    <div id="bullet-type-display" style="font-size: 11px; color: #aaa; margin-top: 2px;">普通子弹</div>
                 </div>
 
-                <div class="currency-hud glass-panel-small" style="bottom: 120px; right: 30px; position: absolute;">
+                <div class="currency-hud glass-panel-small" style="bottom: 200px; right: 30px; position: absolute;">
                     积分: <span id="hud-score">0</span> &nbsp;|&nbsp; $ <span id="hud-credits">800</span>
                 </div>
+
+                <div id="hud-armor" class="glass-panel-small" style="bottom: 240px; right: 30px; position: absolute; padding: 6px 12px; font-size: 14px; color: #8af; border-radius: 6px;">
+                    护甲 0/6 (0%)
+                </div>
                 
+                <button id="exit-range-btn" class="hidden" onclick="exitShootingRange()" style="position: absolute; top: 60px; right: 20px; padding: 10px 20px; font-size: 1.2rem; cursor: pointer; background: rgba(255, 50, 50, 0.8); color: white; border: 1px solid red; border-radius: 5px; z-index: 100;">退出靶场</button>
                 <div id="kill-feed" class="kill-feed"></div>
             </div>
             
@@ -126,6 +173,49 @@
                 <button id="touch-interact" class="touch-btn hidden">互动</button>
             </div>
             
+            <!-- Scope Overlay -->
+            <div id="scope-overlay" class="hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle at center, transparent 35%, black 60%);">
+                <div style="position: relative; width: 100%; height: 100%;">
+                    <!-- Horizontal Line -->
+                    <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(0,0,0,0.8);"></div>
+                    <!-- Vertical Line -->
+                    <div style="position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background: rgba(0,0,0,0.8);"></div>
+                    
+                    <!-- Mil dots -->
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, 40px); width: 6px; height: 1px; background: rgba(0,0,0,0.8);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, 80px); width: 6px; height: 1px; background: rgba(0,0,0,0.8);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, 120px); width: 6px; height: 1px; background: rgba(0,0,0,0.8);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(40px, -50%); width: 1px; height: 6px; background: rgba(0,0,0,0.8);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(80px, -50%); width: 1px; height: 6px; background: rgba(0,0,0,0.8);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-40px, -50%); width: 1px; height: 6px; background: rgba(0,0,0,0.8);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-80px, -50%); width: 1px; height: 6px; background: rgba(0,0,0,0.8);"></div>
+                </div>
+            </div>
+
+            <!-- Red Dot Sight Overlay -->
+            <div id="red-dot-sight" class="hidden" style="position: absolute; top: 50%; left: 50%; width: 2.25px; height: 2.25px; background-color: #ff0000; border-radius: 50%; transform: translate(-50%, -50%); z-index: 40; pointer-events: none; box-shadow: 0 0 5px #ff0000;"></div>
+
+            <!-- Holographic Sight Overlay -->
+            <div id="holo-sight" class="hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 40; pointer-events: none;">
+                <div style="position: relative; width: 40px; height: 40px;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 36px; height: 36px; border: 1.5px solid #00ff66; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 4px #00ff66;"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 2px; background: #00ff66; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 3px #00ff66;"></div>
+                </div>
+            </div>
+
+            <!-- Magnified Scope Overlay (dynamic radius via --scope-r) -->
+            <div id="mag-scope-overlay" class="hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 41; --scope-r: 400px; background: radial-gradient(circle at center, transparent var(--scope-r), rgba(0,0,0,0.45) calc(var(--scope-r) + 50px));">
+                <div style="position: relative; width: 100%; height: 100%;">
+                    <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(0,0,0,0.5);"></div>
+                    <div style="position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background: rgba(0,0,0,0.5);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 3px; height: 3px; background: #cc0000; border-radius: 50%;"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, 30px); width: 5px; height: 1px; background: rgba(0,0,0,0.6);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, 60px); width: 5px; height: 1px; background: rgba(0,0,0,0.6);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(30px, -50%); width: 1px; height: 5px; background: rgba(0,0,0,0.6);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-30px, -50%); width: 1px; height: 5px; background: rgba(0,0,0,0.6);"></div>
+                </div>
+            </div>
+
             <!-- Bomb Status Overlay -->
             <div id="bomb-status" class="hidden">
                 <h2 id="bomb-text">正在安装 C4...</h2>
@@ -158,10 +248,38 @@
         <button onclick="nextRound()" style="margin-top: 20px;">强制下一回合</button>
     </div>
 
+    <!-- Scope Selection Panel (press U to toggle) -->
+    <div id="scope-panel" class="screen hidden glass-panel" style="max-width: 520px; padding: 20px;">
+        <div class="mod-header">
+            <h2><span class="highlight">瞄准镜选择</span> SCOPE SELECT</h2>
+            <div style="color:#aaa; font-size:13px;">按 [T] 关闭 · 免费</div>
+        </div>
+        <div id="scope-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px;">
+        </div>
+        <div style="margin-top: 12px; text-align: center; color: #888; font-size: 12px;">当前：<span id="current-scope-label" style="color: #f1c40f; font-weight: bold;">红点瞄准镜</span></div>
+    </div>
+
     <!-- Three.js and Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
-    <script src="game.js"></script>
+    <!-- Game Modules (load order = dependency order) -->
+    <script src="modules/config.js"></script>
+    <script src="modules/game-modes.js"></script>
+    <script src="modules/scene.js"></script>
+    <script src="modules/navmesh.js"></script>
+    <script src="modules/map.js"></script>
+    <script src="modules/viewmodels.js"></script>
+    <script src="modules/bullets.js"></script>
+    <script src="modules/drones.js"></script>
+    <script src="modules/combat.js"></script>
+    <script src="modules/hud.js"></script>
+    <script src="modules/bot-ai.js"></script>
+    <script src="modules/bomb.js"></script>
+    <script src="modules/physics.js"></script>
+    <script src="modules/grenades.js"></script>
+    <script src="modules/minimap.js"></script>
+    <script src="modules/touch.js"></script>
 </body>
 </html>
