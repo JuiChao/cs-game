@@ -1113,27 +1113,44 @@ function animate() {
     // Atmospheric Dust Motes Simulation (F17)
     if (dustMotePoints && typeof getPlayerPosition === 'function') {
         const pPos = getPlayerPosition();
-        const posAttr = dustMotePoints.geometry.attributes.position;
-        const pos = posAttr.array;
-        const px = pPos.x, pz = pPos.z;
-        const r = 45, diam = 90;
-        const elTime = clock ? clock.getElapsedTime() : 0;
-        
-        for (let i = 0; i < DUST_MOTE_COUNT; i++) {
-            const i3 = i * 3;
-            const phase = motePhases[i];
-            pos[i3] += (Math.sin(elTime * 0.6 + phase) * 0.4 + moteVelocities[i3]) * delta;
-            pos[i3 + 1] += (Math.cos(elTime * 0.4 + phase) * 0.2 + moteVelocities[i3 + 1]) * delta;
-            pos[i3 + 2] += (Math.sin(elTime * 0.5 + phase * 1.3) * 0.4 + moteVelocities[i3 + 2]) * delta;
+        if (pPos) {
+            const posAttr = dustMotePoints.geometry.attributes.position;
+            const pos = posAttr.array;
+            const px = pPos.x, pz = pPos.z;
+            const r = 45, diam = 90;
+            const elTime = clock ? clock.getElapsedTime() : 0;
             
-            if (pos[i3] - px > r) pos[i3] -= diam;
-            else if (pos[i3] - px < -r) pos[i3] += diam;
-            if (pos[i3 + 1] > 22) pos[i3 + 1] = 0.5;
-            else if (pos[i3 + 1] < 0.5) pos[i3 + 1] = 22;
-            if (pos[i3 + 2] - pz > r) pos[i3 + 2] -= diam;
-            else if (pos[i3 + 2] - pz < -r) pos[i3 + 2] += diam;
+            for (let i = 0; i < DUST_MOTE_COUNT; i++) {
+                const i3 = i * 3;
+                const phase = motePhases[i];
+                pos[i3] += (Math.sin(elTime * 0.6 + phase) * 0.4 + moteVelocities[i3]) * delta;
+                pos[i3 + 1] += (Math.cos(elTime * 0.4 + phase) * 0.2 + moteVelocities[i3 + 1]) * delta;
+                pos[i3 + 2] += (Math.sin(elTime * 0.5 + phase * 1.3) * 0.4 + moteVelocities[i3 + 2]) * delta;
+                
+                if (pos[i3] - px > r) pos[i3] -= diam;
+                else if (pos[i3] - px < -r) pos[i3] += diam;
+                if (pos[i3 + 1] > 22) pos[i3 + 1] = 0.5;
+                else if (pos[i3 + 1] < 0.5) pos[i3 + 1] = 22;
+                if (pos[i3 + 2] - pz > r) pos[i3 + 2] -= diam;
+                else if (pos[i3 + 2] - pz < -r) pos[i3 + 2] += diam;
+
+                // Proximity clearance: push motes outward if within 4.5 units so they never obstruct crosshair/camera
+                const dx = pos[i3] - px;
+                const dz = pos[i3 + 2] - pz;
+                const dist = Math.hypot(dx, dz);
+                const minClearance = 4.5;
+                if (dist < minClearance) {
+                    if (dist < 0.0001) {
+                        pos[i3] = px + minClearance;
+                    } else {
+                        const factor = minClearance / dist;
+                        pos[i3] = px + dx * factor;
+                        pos[i3 + 2] = pz + dz * factor;
+                    }
+                }
+            }
+            posAttr.needsUpdate = true;
         }
-        posAttr.needsUpdate = true;
     }
 
     // Render loop integration with postprocessing pipeline and graceful fallback (F13, F14, F15, F18)

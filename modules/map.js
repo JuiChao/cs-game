@@ -10,28 +10,28 @@ const MAP_LIGHTING_CONFIGS = {
         fogNear: 30, fogFar: 340,
         hemiSky: 0x90caf9, hemiGround: 0xd7b48c, hemiIntensity: 0.65,
         dirColor: 0xfffaed, dirIntensity: 0.85, dirPos: [120, 220, 80],
-        dustColor: 0xf5d996, dustOpacity: 0.45
+        dustColor: 0xf5d996, dustOpacity: 0.10
     },
     inferno: {
         sky: 0xd4a76a,
         fogNear: 30, fogFar: 380,
         hemiSky: 0xf39c12, hemiGround: 0x6e4720, hemiIntensity: 0.70,
         dirColor: 0xffaa66, dirIntensity: 0.90, dirPos: [160, 180, 110],
-        dustColor: 0xffb366, dustOpacity: 0.40
+        dustColor: 0xffb366, dustOpacity: 0.09
     },
     biolab: {
         sky: 0x1a2621,
         fogNear: 20, fogFar: 300,
         hemiSky: 0x4ef0af, hemiGround: 0x0f1a14, hemiIntensity: 0.55,
         dirColor: 0x80ffcc, dirIntensity: 0.70, dirPos: [40, 160, 40],
-        dustColor: 0x00ff88, dustOpacity: 0.55
+        dustColor: 0x00ff88, dustOpacity: 0.11
     },
     shootingRange: {
         sky: 0x4a5b6d,
         fogNear: 20, fogFar: 320,
         hemiSky: 0xd0e8ff, hemiGround: 0x333a40, hemiIntensity: 0.65,
         dirColor: 0xffffff, dirIntensity: 0.80, dirPos: [0, 140, -50],
-        dustColor: 0x88ccff, dustOpacity: 0.35
+        dustColor: 0x88ccff, dustOpacity: 0.08
     }
 };
 
@@ -85,18 +85,18 @@ function initAtmosphericDustMotes() {
     c.width = 32; c.height = 32;
     const ctx = c.getContext('2d');
     const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    g.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    g.addColorStop(0.35, 'rgba(255, 255, 255, 0.6)');
+    g.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+    g.addColorStop(0.35, 'rgba(255, 255, 255, 0.3)');
     g.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 32, 32);
     const moteTex = new THREE.CanvasTexture(c);
     
     const moteMat = new THREE.PointsMaterial({
-        size: 0.9,
+        size: 0.07,
         map: moteTex,
         transparent: true,
-        opacity: 0.45,
+        opacity: 0.10,
         blending: THREE.AdditiveBlending,
         depthWrite: false
     });
