@@ -7,28 +7,28 @@ let platformSpots = [];
 const MAP_LIGHTING_CONFIGS = {
     dust2: {
         sky: 0x87CEEB,
-        fogNear: 30, fogFar: 340,
+        fogNear: 120, fogFar: 500,
         hemiSky: 0x90caf9, hemiGround: 0xd7b48c, hemiIntensity: 0.65,
         dirColor: 0xfffaed, dirIntensity: 0.85, dirPos: [120, 220, 80],
         dustColor: 0xf5d996, dustOpacity: 0.10
     },
     inferno: {
         sky: 0xd4a76a,
-        fogNear: 30, fogFar: 380,
+        fogNear: 120, fogFar: 520,
         hemiSky: 0xf39c12, hemiGround: 0x6e4720, hemiIntensity: 0.70,
         dirColor: 0xffaa66, dirIntensity: 0.90, dirPos: [160, 180, 110],
         dustColor: 0xffb366, dustOpacity: 0.09
     },
     biolab: {
         sky: 0x1a2621,
-        fogNear: 20, fogFar: 300,
+        fogNear: 90, fogFar: 450,
         hemiSky: 0x4ef0af, hemiGround: 0x0f1a14, hemiIntensity: 0.55,
         dirColor: 0x80ffcc, dirIntensity: 0.70, dirPos: [40, 160, 40],
         dustColor: 0x00ff88, dustOpacity: 0.11
     },
     shootingRange: {
         sky: 0x4a5b6d,
-        fogNear: 20, fogFar: 320,
+        fogNear: 100, fogFar: 480,
         hemiSky: 0xd0e8ff, hemiGround: 0x333a40, hemiIntensity: 0.65,
         dirColor: 0xffffff, dirIntensity: 0.80, dirPos: [0, 140, -50],
         dustColor: 0x88ccff, dustOpacity: 0.08
@@ -121,7 +121,7 @@ function init3DGame() {
 
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB); // Sky blue
-        scene.fog = new THREE.Fog(0x87CEEB, 20, 300);
+        scene.fog = new THREE.Fog(0x87CEEB, 120, 500);
 
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
         scene.add(camera);

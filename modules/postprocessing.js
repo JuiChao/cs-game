@@ -138,12 +138,12 @@ function initPostprocessing(rendererInstance, sceneInstance, cameraInstance, wid
         composer.addPass(renderPass);
 
         // 2. Incandescent UnrealBloomPass (F14)
-        // High threshold (0.82) ensures selective glow on muzzle fire, lasers, and C4 LEDs
+        // High threshold (1.15) ensures selective glow on muzzle fire, lasers, and C4 LEDs
         bloomPass = new THREE.UnrealBloomPass(
             new THREE.Vector2(w, h),
-            0.75, // strength
-            0.45, // radius
-            0.82  // threshold
+            0.45, // strength
+            0.35, // radius
+            1.15  // threshold
         );
         composer.addPass(bloomPass);
 
