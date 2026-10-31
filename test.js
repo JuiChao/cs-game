@@ -13,7 +13,7 @@ const path = require('path');
     page.on('pageerror', error => console.error('PAGE ERROR:', error.message));
     
     const uri = 'file:///' + path.join(__dirname, 'index.html').replace(/\\/g, '/');
-    await page.goto(uri, { waitUntil: 'networkidle0' });
+    await page.goto(uri, { waitUntil: 'load' });
     
     console.log("Clicking start button...");
     await page.click('#start-btn');

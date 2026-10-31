@@ -39,17 +39,42 @@ function updateMinimap() {
     });
     
     bots.forEach(b => {
-        if (b.team !== playerState.team) return; // Only show teammates
-        
+        if (b.team !== playerState.team || b.isDead) return; // Only show teammates
+
         const x = cx + b.mesh.position.x * scale;
         const z = cy + b.mesh.position.z * scale;
-        
+
         ctx.beginPath();
         ctx.arc(x, z, 3, 0, Math.PI * 2);
         ctx.fillStyle = '#3498db';
         ctx.fill();
     });
-    
+
+    // 敌人暴露: 透视模式全显 / 最近1.5秒内开过枪或攻击过的敌人
+    bots.forEach(b => {
+        if (b.team === playerState.team || b.isDead) return;
+        const firedRecently = (b.lastShot && frameCount - b.lastShot < 90) || (b.lastZombieAttack && frameCount - b.lastZombieAttack < 90);
+        if (!wallhackActive && !firedRecently) return;
+
+        const x = cx + b.mesh.position.x * scale;
+        const z = cy + b.mesh.position.z * scale;
+
+        ctx.beginPath();
+        ctx.arc(x, z, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff4444';
+        ctx.fill();
+    });
+
+    // 已安放的C4: 红点闪烁
+    if (bombState.planted && bombState.mesh && Math.floor(frameCount / 30) % 2 === 0) {
+        const x = cx + bombState.mesh.position.x * scale;
+        const z = cy + bombState.mesh.position.z * scale;
+        ctx.beginPath();
+        ctx.arc(x, z, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff0000';
+        ctx.fill();
+    }
+
     if (playerState.hp > 0 && !playerState.isSpectating) {
         const x = cx + camera.position.x * scale;
         const z = cy + camera.position.z * scale;
@@ -70,48 +95,103 @@ function updateMinimap() {
     }
 }
 
+const MAX_TRAJECTORY_POINTS = 128;
+const trajectoryPositions = new Float32Array(MAX_TRAJECTORY_POINTS * 3);
+let trajectoryGeo = null;
 let trajectoryLine = null;
+let trajectoryAreaPlane = null;
+let trajectoryAreaCircle = null;
 let trajectoryArea = null;
+
+const _trajCamDir = new THREE.Vector3();
+const _trajBox = new THREE.Box3();
+const _trajBoxMin = new THREE.Vector3();
+const _trajBoxMax = new THREE.Vector3();
+
+function initTrajectoryObjects() {
+    if (!trajectoryLine) {
+        trajectoryGeo = new THREE.BufferGeometry();
+        trajectoryGeo.setAttribute('position', new THREE.BufferAttribute(trajectoryPositions, 3));
+        const mat = new THREE.LineBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8, linewidth: 2 });
+        trajectoryLine = new THREE.Line(trajectoryGeo, mat);
+        trajectoryLine.frustumCulled = false;
+        trajectoryLine.visible = false;
+        scene.add(trajectoryLine);
+    }
+    if (!trajectoryAreaPlane) {
+        const planeGeo = new THREE.PlaneGeometry(45, 45);
+        const planeMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+        trajectoryAreaPlane = new THREE.Mesh(planeGeo, planeMat);
+        trajectoryAreaPlane.rotation.x = -Math.PI / 2;
+        trajectoryAreaPlane.visible = false;
+        scene.add(trajectoryAreaPlane);
+    }
+    if (!trajectoryAreaCircle) {
+        // Base radius 40 circle; can scale uniformly for other radii
+        const circleGeo = new THREE.CircleGeometry(40, 32);
+        const circleMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+        trajectoryAreaCircle = new THREE.Mesh(circleGeo, circleMat);
+        trajectoryAreaCircle.rotation.x = -Math.PI / 2;
+        trajectoryAreaCircle.visible = false;
+        scene.add(trajectoryAreaCircle);
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.getTrajectoryLine = () => trajectoryLine;
+    window.getTrajectoryGeo = () => trajectoryGeo;
+    window.getTrajectoryPositions = () => trajectoryPositions;
+}
 
 function updateTrajectory() {
     const weapon = getCurrentWeapon();
-    if (!weapon || !['hegrenade', 'flashbang', 'molotov', 'sandbag'].includes(weapon.id) || !controls || !controls.isLocked || playerState.hp <= 0 || playerState.isSpectating) {
-        if (trajectoryLine) {
-            scene.remove(trajectoryLine);
-            trajectoryLine.geometry.dispose();
-            trajectoryLine.material.dispose();
-            trajectoryLine = null;
-        }
-        if (trajectoryArea) {
-            scene.remove(trajectoryArea);
-            trajectoryArea.geometry.dispose();
-            trajectoryArea.material.dispose();
-            trajectoryArea = null;
-        }
+    if (!weapon || !['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine'].includes(weapon.id) || !controls || (!controls.isLocked && !isPlayerControlActive()) || playerState.hp <= 0 || playerState.isSpectating) {
+        if (trajectoryLine) trajectoryLine.visible = false;
+        if (trajectoryAreaPlane) trajectoryAreaPlane.visible = false;
+        if (trajectoryAreaCircle) trajectoryAreaCircle.visible = false;
+        trajectoryArea = null;
         return;
     }
     
-    const points = [];
-    let pos = camera.position.clone();
-    let dir = new THREE.Vector3();
-    camera.getWorldDirection(dir);
-    dir.y += 0.3;
-    dir.normalize();
+    initTrajectoryObjects();
     
-    let vel = dir.multiplyScalar(65);
-    const dt = 0.05; 
+    let posX = camera.position.x;
+    let posY = camera.position.y;
+    let posZ = camera.position.z;
+    
+    camera.getWorldDirection(_trajCamDir);
+    let dirX = _trajCamDir.x;
+    let dirY = _trajCamDir.y + 0.3;
+    let dirZ = _trajCamDir.z;
+    let dirLen = Math.hypot(dirX, dirY, dirZ);
+    if (dirLen > 0.00001) {
+        dirX /= dirLen;
+        dirY /= dirLen;
+        dirZ /= dirLen;
+    }
+    
+    let velX = dirX * 65;
+    let velY = dirY * 65;
+    let velZ = dirZ * 65;
+    const dt = 0.05;
     
     const isFromDrone = playerState.isControllingDrone;
     const lifeTime = weapon.id === 'molotov' ? Infinity : (weapon.id === 'hegrenade' && isFromDrone ? 1.5 : 2.0);
-    const maxIters = lifeTime === Infinity ? 40 : Math.floor(lifeTime / dt);
+    const maxIters = lifeTime === Infinity ? 40 : Math.min(MAX_TRAJECTORY_POINTS - 2, Math.floor(lifeTime / dt));
     
-    for (let i = 0; i < maxIters; i++) { 
-        points.push(pos.clone());
-        vel.y -= 40 * dt; 
+    let count = 0;
+    
+    for (let i = 0; i < maxIters; i++) {
+        trajectoryPositions[count * 3 + 0] = posX;
+        trajectoryPositions[count * 3 + 1] = posY;
+        trajectoryPositions[count * 3 + 2] = posZ;
+        count++;
         
-        let nextX = pos.x + vel.x * dt;
-        let nextY = pos.y + vel.y * dt;
-        let nextZ = pos.z + vel.z * dt;
+        velY -= 40 * dt;
+        
+        let nextX = posX + velX * dt;
+        let nextY = posY + velY * dt;
+        let nextZ = posZ + velZ * dt;
         
         let hitFloor = false;
         if (nextY <= 0.25) {
@@ -119,125 +199,71 @@ function updateTrajectory() {
             hitFloor = true;
         }
         
-        const box = new THREE.Box3(
-            new THREE.Vector3(nextX - 0.25, nextY - 0.25, nextZ - 0.25),
-            new THREE.Vector3(nextX + 0.25, nextY + 0.25, nextZ + 0.25)
-        );
-        let col = collidableMeshList.some(wall => wall.worldBox.intersectsBox(box));
+        _trajBoxMin.set(nextX - 0.25, nextY - 0.25, nextZ - 0.25);
+        _trajBoxMax.set(nextX + 0.25, nextY + 0.25, nextZ + 0.25);
+        _trajBox.min = _trajBoxMin;
+        _trajBox.max = _trajBoxMax;
         
-        if (col) {
-            vel.x *= -0.5;
-            vel.z *= -0.5;
-        } else {
-            pos.x = nextX;
-            pos.z = nextZ;
+        let col = false;
+        for (let j = 0; j < collidableMeshList.length; j++) {
+            const wall = collidableMeshList[j];
+            if (wall.worldBox && wall.worldBox.intersectsBox(_trajBox)) {
+                col = true;
+                break;
+            }
         }
         
-        pos.y = nextY;
+        if (col) {
+            velX *= -0.5;
+            velZ *= -0.5;
+        } else {
+            posX = nextX;
+            posZ = nextZ;
+        }
+        
+        posY = nextY;
         
         if (hitFloor) {
             if (weapon.id === 'molotov') {
-                points.push(pos.clone());
+                trajectoryPositions[count * 3 + 0] = posX;
+                trajectoryPositions[count * 3 + 1] = posY;
+                trajectoryPositions[count * 3 + 2] = posZ;
+                count++;
                 break;
             }
-            vel.y *= -0.5;
-            vel.x *= 0.8;
-            vel.z *= 0.8;
+            velY *= -0.5;
+            velX *= 0.8;
+            velZ *= 0.8;
         }
     }
     
-    const geo = new THREE.BufferGeometry().setFromPoints(points);
-    if (!trajectoryLine) {
-        const color = weapon.id === 'hegrenade' ? 0x00ff00 : (weapon.id === 'flashbang' ? 0xffffff : (weapon.id === 'molotov' ? 0xff4400 : 0xaa8844));
-        const mat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.8, linewidth: 2 });
-        trajectoryLine = new THREE.Line(geo, mat);
-        scene.add(trajectoryLine);
-    } else {
-        trajectoryLine.geometry.dispose();
-        trajectoryLine.geometry = geo;
-        trajectoryLine.material.color.setHex(weapon.id === 'hegrenade' ? 0x00ff00 : (weapon.id === 'flashbang' ? 0xffffff : (weapon.id === 'molotov' ? 0xff4400 : 0xaa8844)));
-    }
+    trajectoryGeo.attributes.position.needsUpdate = true;
+    trajectoryGeo.setDrawRange(0, count);
     
-    const finalPos = points[points.length - 1];
+    const lineColor = weapon.id === 'hegrenade' ? 0x00ff00 : (weapon.id === 'flashbang' ? 0xffffff : (weapon.id === 'molotov' ? 0xff4400 : 0xaa8844));
+    trajectoryLine.material.color.setHex(lineColor);
+    trajectoryLine.visible = true;
+    
+    const finalX = count > 0 ? trajectoryPositions[(count - 1) * 3 + 0] : posX;
+    const finalZ = count > 0 ? trajectoryPositions[(count - 1) * 3 + 2] : posZ;
     
     if (weapon.id === 'molotov') {
-        const size = 45;
-        if (!trajectoryArea || trajectoryArea.geometry.type !== 'PlaneGeometry') {
-            if (trajectoryArea) {
-                scene.remove(trajectoryArea);
-                trajectoryArea.geometry.dispose();
-                trajectoryArea.material.dispose();
-            }
-            const planeGeo = new THREE.PlaneGeometry(size, size);
-            const planeMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-            trajectoryArea = new THREE.Mesh(planeGeo, planeMat);
-            trajectoryArea.rotation.x = -Math.PI / 2;
-            scene.add(trajectoryArea);
-        }
+        if (trajectoryAreaCircle) trajectoryAreaCircle.visible = false;
+        trajectoryArea = trajectoryAreaPlane;
+        trajectoryArea.visible = true;
     } else {
+        if (trajectoryAreaPlane) trajectoryAreaPlane.visible = false;
         const radius = (weapon.id === 'hegrenade' && isFromDrone) ? 50 : 40;
-        if (!trajectoryArea || trajectoryArea.geometry.type !== 'CircleGeometry' || trajectoryArea.geometry.parameters.radius !== radius) {
-            if (trajectoryArea) {
-                scene.remove(trajectoryArea);
-                trajectoryArea.geometry.dispose();
-                trajectoryArea.material.dispose();
-            }
-            const circleGeo = new THREE.CircleGeometry(radius, 32);
-            const circleMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-            trajectoryArea = new THREE.Mesh(circleGeo, circleMat);
-            trajectoryArea.rotation.x = -Math.PI / 2;
-            scene.add(trajectoryArea);
-        }
+        const scaleFactor = radius / 40;
+        trajectoryAreaCircle.scale.set(scaleFactor, scaleFactor, 1);
+        trajectoryArea = trajectoryAreaCircle;
+        trajectoryArea.visible = true;
     }
     
     // Always render the area circle on the ground for accurate aiming, even if it explodes mid-air
-    trajectoryArea.position.set(finalPos.x, 0.05, finalPos.z);
+    trajectoryArea.position.set(finalX, 0.05, finalZ);
 }
 
-function destroyDrone(drone, exploded = false) {
-    if (exploded) {
-        triggerDroneExplosion(drone);
-    } else {
-        createHitEffect(drone.mesh.position, true); // Debris effect
-    }
-    
-    // Remove from scene
-    scene.remove(drone.mesh);
-    if (drone.targetIndicator) scene.remove(drone.targetIndicator);
-    
-    // Dispose GPU resources
-    drone.mesh.traverse(child => {
-        if (child.isMesh) {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-                if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-                else child.material.dispose();
-            }
-        }
-    });
-    if (drone.targetIndicator) {
-        if (drone.targetIndicator.geometry) drone.targetIndicator.geometry.dispose();
-        if (drone.targetIndicator.material) drone.targetIndicator.material.dispose();
-    }
-    
-    // Remove from array
-    const idx = activeDrones.indexOf(drone);
-    if (idx > -1) activeDrones.splice(idx, 1);
-    
-    // Reset player or bot state
-    if (drone.isPlayer) {
-        playerState.isControllingDrone = false;
-        removePlayerDummy();
-        camera.position.copy(drone.playerPos);
-        updateHUD();
-    } else {
-        const bot = bots.find(b => b.id === drone.ownerId);
-        if (bot) {
-            bot.isControllingDrone = false;
-            bot.lastShot = frameCount;
-        }
-    }
-}
 
 // --- MOBILE TOUCH CONTROLS ---
 // #endregion

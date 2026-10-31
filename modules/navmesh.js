@@ -1,26 +1,44 @@
 // #region 导航网格与寻路
 const NAV_GRID_SIZE = 10;
-const NAV_MAP_EXTENT = 400; 
-const NAV_CELL_COUNT = (NAV_MAP_EXTENT * 2) / NAV_GRID_SIZE; 
-let navGrid = []; // [x][z]
+const NAV_MAP_EXTENT = 400;
+const NAV_CELL_COUNT = (NAV_MAP_EXTENT * 2) / NAV_GRID_SIZE;
+const NAV_CLIMB_HEIGHT = 5;      // 生化模式: 相邻格允许的爬升高度差（台阶每级2, 采样最大跳4）
+const NAV_MAX_STANDABLE = 24;    // 生化模式: 可站立的最高地形（高台14, 30高墙排除）
+let navGrid = []; // [x][z] 无障碍可走（爆破模式寻路用）
+let navHeight = []; // [x][z] 格内最高可攀地形顶面高度（0=地面, 忽略noClimb护栏）
+let navZombieBlocked = []; // [x][z] 生化模式寻路阻挡（护栏/过高墙体）
 
 function buildNavGrid() {
     navGrid = [];
+    navHeight = [];
+    navZombieBlocked = [];
+    const expandedBoxes = collidableMeshList.map(m => m.worldBox ? m.worldBox.clone().expandByScalar(5.0) : null);
     for (let x = 0; x < NAV_CELL_COUNT; x++) {
         navGrid[x] = [];
+        navHeight[x] = [];
+        navZombieBlocked[x] = [];
         for (let z = 0; z < NAV_CELL_COUNT; z++) {
             const cellMin = new THREE.Vector3(-NAV_MAP_EXTENT + x * NAV_GRID_SIZE, 0, -NAV_MAP_EXTENT + z * NAV_GRID_SIZE);
             const cellMax = new THREE.Vector3(-NAV_MAP_EXTENT + (x + 1) * NAV_GRID_SIZE, 10, -NAV_MAP_EXTENT + (z + 1) * NAV_GRID_SIZE);
             const cellBox = new THREE.Box3(cellMin, cellMax);
-            
+
             let walkable = true;
-            for (let mesh of collidableMeshList) {
-                if (mesh.worldBox && cellBox.intersectsBox(mesh.worldBox.clone().expandByScalar(5.0))) {
-                    walkable = false;
-                    break;
+            let topHeight = 0;
+            let zombieBlocked = false;
+            for (let i = 0; i < collidableMeshList.length; i++) {
+                const mesh = collidableMeshList[i];
+                if (!expandedBoxes[i] || !expandedBoxes[i].intersectsBox(cellBox)) continue;
+                walkable = false;
+                if (mesh.userData && mesh.userData.noClimb) {
+                    zombieBlocked = true; // 护栏对寻路也是墙
+                } else if (mesh.worldBox.max.y > topHeight) {
+                    topHeight = mesh.worldBox.max.y;
                 }
             }
+            if (topHeight > NAV_MAX_STANDABLE) zombieBlocked = true; // 高墙顶不可站立
             navGrid[x][z] = walkable;
+            navHeight[x][z] = Math.min(topHeight, NAV_MAX_STANDABLE);
+            navZombieBlocked[x][z] = zombieBlocked;
         }
     }
 }
@@ -34,80 +52,211 @@ function getGridPos(worldVec) {
 }
 
 function getWorldPos(gx, gz) {
+    let y = 0;
+    // 生化模式: 路点带地形高度, Bot在高台上移动时方向向量不向下倾斜
+    if (gameMode === 'zombie' && navHeight[gx] && navHeight[gx][gz] !== undefined) {
+        y = navHeight[gx][gz];
+    }
     return new THREE.Vector3(
         -NAV_MAP_EXTENT + gx * NAV_GRID_SIZE + NAV_GRID_SIZE/2,
-        0,
+        y,
         -NAV_MAP_EXTENT + gz * NAV_GRID_SIZE + NAV_GRID_SIZE/2
     );
 }
 
+// 生化模式: 相邻格之间的攀爬过渡是否可行
+function navClimbOK(ax, az, bx, bz) {
+    if (navZombieBlocked[ax][az] || navZombieBlocked[bx][bz]) return false;
+    return Math.abs(navHeight[ax][az] - navHeight[bx][bz]) <= NAV_CLIMB_HEIGHT;
+}
+
+const TOTAL_NAV_CELLS = NAV_CELL_COUNT * NAV_CELL_COUNT;
+const SQRT2 = 1.4142135623730951;
+const SQRT2_MINUS_1 = SQRT2 - 1.0;
+
+function octileDistance(dx, dz) {
+    return (dx > dz) ? (dx + SQRT2_MINUS_1 * dz) : (dz + SQRT2_MINUS_1 * dx);
+}
+
+// 1D TypedArray pools for Zero-GC A* pathfinding
+const navGScore = new Float32Array(TOTAL_NAV_CELLS);
+const navFScore = new Float32Array(TOTAL_NAV_CELLS);
+const navCameFrom = new Int32Array(TOTAL_NAV_CELLS);
+const navSearchStamp = new Uint32Array(TOTAL_NAV_CELLS);
+const navClosedStamp = new Uint32Array(TOTAL_NAV_CELLS);
+const navHeap = new Int32Array(TOTAL_NAV_CELLS);
+const navHeapPos = new Int32Array(TOTAL_NAV_CELLS).fill(-1);
+let navHeapSize = 0;
+let navSearchId = 0;
+
+function navHeapPush(idx) {
+    let i = navHeapSize++;
+    while (i > 0) {
+        let p = (i - 1) >> 1;
+        let pNode = navHeap[p];
+        if (navFScore[idx] < navFScore[pNode]) {
+            navHeap[i] = pNode;
+            navHeapPos[pNode] = i;
+            i = p;
+        } else {
+            break;
+        }
+    }
+    navHeap[i] = idx;
+    navHeapPos[idx] = i;
+}
+
+function navHeapUpdate(idx) {
+    let i = navHeapPos[idx];
+    if (i < 0) return;
+    while (i > 0) {
+        let p = (i - 1) >> 1;
+        let pNode = navHeap[p];
+        if (navFScore[idx] < navFScore[pNode]) {
+            navHeap[i] = pNode;
+            navHeapPos[pNode] = i;
+            i = p;
+        } else {
+            break;
+        }
+    }
+    navHeap[i] = idx;
+    navHeapPos[idx] = i;
+}
+
+function navHeapPop() {
+    if (navHeapSize === 0) return -1;
+    let minNode = navHeap[0];
+    navHeapPos[minNode] = -1;
+    navHeapSize--;
+    if (navHeapSize > 0) {
+        let lastNode = navHeap[navHeapSize];
+        let i = 0;
+        let half = navHeapSize >> 1;
+        while (i < half) {
+            let left = (i << 1) + 1;
+            let right = left + 1;
+            let bestChild = (right < navHeapSize && navFScore[navHeap[right]] < navFScore[navHeap[left]]) ? right : left;
+            if (navFScore[navHeap[bestChild]] < navFScore[lastNode]) {
+                let bestNode = navHeap[bestChild];
+                navHeap[i] = bestNode;
+                navHeapPos[bestNode] = i;
+                i = bestChild;
+            } else {
+                break;
+            }
+        }
+        navHeap[i] = lastNode;
+        navHeapPos[lastNode] = i;
+    }
+    return minNode;
+}
+
 function findPath(startVec, endVec) {
+    if (!startVec || !endVec) return [];
     const start = getGridPos(startVec);
     const end = getGridPos(endVec);
     
-    let openSet = [start];
-    let cameFrom = new Map();
-    let gScore = new Map();
-    let fScore = new Map();
+    const startIdx = start.x * NAV_CELL_COUNT + start.z;
+    const endIdx = end.x * NAV_CELL_COUNT + end.z;
     
-    const hash = (node) => `${node.x},${node.z}`;
+    if (startIdx === endIdx) {
+        return [endVec.clone()];
+    }
     
-    gScore.set(hash(start), 0);
-    fScore.set(hash(start), Math.abs(start.x - end.x) + Math.abs(start.z - end.z));
+    // 生化模式启用爬梯寻路（射击场不建网格, 回退旧逻辑）
+    const climbNav = (gameMode === 'zombie' && navZombieBlocked.length > 0);
+    
+    navSearchId++;
+    if (navSearchId >= 0xFFFFFFFE) {
+        navSearchStamp.fill(0);
+        navClosedStamp.fill(0);
+        navHeapPos.fill(-1);
+        navSearchId = 1;
+    }
+    
+    navHeapSize = 0;
+    
+    navGScore[startIdx] = 0;
+    const hStart = octileDistance(Math.abs(start.x - end.x), Math.abs(start.z - end.z));
+    navFScore[startIdx] = hStart;
+    navSearchStamp[startIdx] = navSearchId;
+    navCameFrom[startIdx] = -1;
+    
+    navHeapPush(startIdx);
     
     let iters = 0;
-    while (openSet.length > 0 && iters < 3000) {
+    while (navHeapSize > 0 && iters < 3000) {
         iters++;
-        let currentIdx = 0;
-        let minF = Infinity;
-        for (let i = 0; i < openSet.length; i++) {
-            let f = fScore.get(hash(openSet[i])) || Infinity;
-            if (f < minF) {
-                minF = f;
-                currentIdx = i;
-            }
-        }
+        const currentIdx = navHeapPop();
+        if (currentIdx === -1) break;
         
-        let current = openSet[currentIdx];
-        
-        if (current.x === end.x && current.z === end.z) {
+        if (currentIdx === endIdx) {
             let path = [];
-            let currHash = hash(current);
-            while (cameFrom.has(currHash)) {
-                path.unshift(getWorldPos(current.x, current.z));
-                current = cameFrom.get(currHash);
-                currHash = hash(current);
+            let curr = currentIdx;
+            while (curr !== -1 && curr !== startIdx) {
+                let cx = (curr / NAV_CELL_COUNT) | 0;
+                let cz = curr % NAV_CELL_COUNT;
+                path.push(getWorldPos(cx, cz));
+                curr = navCameFrom[curr];
             }
-            if (path.length === 0) path.push(endVec.clone()); 
-            path.push(endVec.clone()); 
+            path.reverse();
+            path.push(endVec.clone());
             return path;
         }
         
-        openSet.splice(currentIdx, 1);
+        navClosedStamp[currentIdx] = navSearchId;
         
-        const neighbors = [
-            {x: current.x+1, z: current.z}, {x: current.x-1, z: current.z},
-            {x: current.x, z: current.z+1}, {x: current.x, z: current.z-1},
-            {x: current.x+1, z: current.z+1}, {x: current.x-1, z: current.z-1},
-            {x: current.x+1, z: current.z-1}, {x: current.x-1, z: current.z+1}
-        ];
+        const curX = (currentIdx / NAV_CELL_COUNT) | 0;
+        const curZ = currentIdx % NAV_CELL_COUNT;
+        const currentG = navGScore[currentIdx];
         
-        for (let neighbor of neighbors) {
-            if (neighbor.x < 0 || neighbor.x >= NAV_CELL_COUNT || neighbor.z < 0 || neighbor.z >= NAV_CELL_COUNT) continue;
-            if (!navGrid[neighbor.x][neighbor.z]) continue;
-            
-            if (neighbor.x !== current.x && neighbor.z !== current.z) {
-                if (!navGrid[current.x][neighbor.z] || !navGrid[neighbor.x][current.z]) continue;
+        // 8 directions: 4 orthogonal, 4 diagonal
+        for (let d = 0; d < 8; d++) {
+            let nx, nz, stepCost;
+            switch (d) {
+                case 0: nx = curX + 1; nz = curZ; stepCost = 1.0; break;
+                case 1: nx = curX - 1; nz = curZ; stepCost = 1.0; break;
+                case 2: nx = curX; nz = curZ + 1; stepCost = 1.0; break;
+                case 3: nx = curX; nz = curZ - 1; stepCost = 1.0; break;
+                case 4: nx = curX + 1; nz = curZ + 1; stepCost = SQRT2; break;
+                case 5: nx = curX - 1; nz = curZ - 1; stepCost = SQRT2; break;
+                case 6: nx = curX + 1; nz = curZ - 1; stepCost = SQRT2; break;
+                case 7: nx = curX - 1; nz = curZ + 1; stepCost = SQRT2; break;
             }
             
-            let tentativeGScore = (gScore.get(hash(current)) || Infinity) + ((neighbor.x !== current.x && neighbor.z !== current.z) ? 1.414 : 1);
+            if (nx < 0 || nx >= NAV_CELL_COUNT || nz < 0 || nz >= NAV_CELL_COUNT) continue;
             
-            if (tentativeGScore < (gScore.get(hash(neighbor)) || Infinity)) {
-                cameFrom.set(hash(neighbor), current);
-                gScore.set(hash(neighbor), tentativeGScore);
-                fScore.set(hash(neighbor), tentativeGScore + Math.abs(neighbor.x - end.x) + Math.abs(neighbor.z - end.z));
-                if (!openSet.some(n => n.x === neighbor.x && n.z === neighbor.z)) {
-                    openSet.push(neighbor);
+            const neighborIdx = nx * NAV_CELL_COUNT + nz;
+            if (navClosedStamp[neighborIdx] === navSearchId) continue;
+            
+            if (climbNav) {
+                if (!navClimbOK(curX, curZ, nx, nz)) continue;
+                if (nx !== curX && nz !== curZ) {
+                    // 禁止穿角: 两个正交邻格也要能爬过去
+                    if (!navClimbOK(curX, curZ, curX, nz) || !navClimbOK(curX, curZ, nx, curZ)) continue;
+                }
+            } else {
+                if (!navGrid[nx] || !navGrid[nx][nz]) continue;
+                if (nx !== curX && nz !== curZ) {
+                    if (!navGrid[curX] || !navGrid[curX][nz] || !navGrid[nx] || !navGrid[nx][curZ]) continue;
+                }
+            }
+            
+            const tentativeG = currentG + stepCost;
+            const isDiscovered = (navSearchStamp[neighborIdx] === navSearchId);
+            
+            if (!isDiscovered || tentativeG < navGScore[neighborIdx]) {
+                navCameFrom[neighborIdx] = currentIdx;
+                navGScore[neighborIdx] = tentativeG;
+                const h = octileDistance(Math.abs(nx - end.x), Math.abs(nz - end.z));
+                navFScore[neighborIdx] = tentativeG + h;
+                navSearchStamp[neighborIdx] = navSearchId;
+                
+                if (!isDiscovered) {
+                    navHeapPush(neighborIdx);
+                } else {
+                    navHeapUpdate(neighborIdx);
                 }
             }
         }
@@ -117,6 +266,7 @@ function findPath(startVec, endVec) {
 }
 
 function findFlankPath(startVec, endVec) {
+    if (!startVec || !endVec) return [];
     const directDist = startVec.distanceTo(endVec);
     if (directDist < 60) return findPath(startVec, endVec);
     
@@ -152,6 +302,16 @@ function findFlankPath(startVec, endVec) {
         return path1.concat(path2);
     }
     return findPath(startVec, endVec);
+}
+
+if (typeof window !== 'undefined') {
+    window.octileDistance = octileDistance;
+    window.findPath = findPath;
+    window.findFlankPath = findFlankPath;
+    window.getNavMeshStats = () => ({
+        heapCapacity: TOTAL_NAV_CELLS,
+        lastSearchId: navSearchId
+    });
 }
 
 // #endregion

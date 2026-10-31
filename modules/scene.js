@@ -4,106 +4,6 @@ let clock, raycaster;
 let roundActive = false;
 let frameCount = 0;
 
-let audioCtx;
-function playKnifeSwingSound(stage) {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    const now = audioCtx.currentTime;
-    
-    if (stage === 0) {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
-        gain.gain.setValueAtTime(0.5, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
-    } else if (stage === 1) {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(500, now);
-        osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
-        gain.gain.setValueAtTime(0.6, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
-    } else if (stage === 2) {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
-        gain.gain.setValueAtTime(0.8, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-        
-        const bufferSize = audioCtx.sampleRate * 0.2;
-        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        const noise = audioCtx.createBufferSource();
-        noise.buffer = buffer;
-        const noiseGain = audioCtx.createGain();
-        noiseGain.gain.setValueAtTime(0.3, now);
-        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-        
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.value = 800;
-        
-        noise.connect(filter);
-        filter.connect(noiseGain);
-        noiseGain.connect(audioCtx.destination);
-        
-        noise.start(now);
-        
-        osc.start(now);
-        osc.stop(now + 0.2);
-    }
-}
-
-function playKukriSwingSound(stage) {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    const now = audioCtx.currentTime;
-    
-    if (stage === 0 || stage === 1) {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.exponentialRampToValueAtTime(80, now + 0.25);
-        gain.gain.setValueAtTime(0.7, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-        osc.start(now);
-        osc.stop(now + 0.25);
-    } else if (stage === 2) {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(200, now);
-        osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
-        gain.gain.setValueAtTime(1.0, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-        osc.start(now);
-        osc.stop(now + 0.3);
-    }
-}
-
 let roundCountdownInterval = null;
 
 // Entities
@@ -148,7 +48,15 @@ let playerState = {
     armorPlates: 0,
     inspectStartTime: 0,
     gatlingFireStartFrame: 0,
-    gatlingBarrelSpin: 0
+    gatlingBarrelSpin: 0,
+    maxHp: 100,
+    isZombie: false,
+    isSource: false,
+    zombieRespawnTimer: 0,
+    zombieSlowTimer: 0,
+    killStreak: 0,
+    lastFlameDamageTick: 0,
+    cameraShake: 0
 };
 
 function getPlayerPosition() {
@@ -165,6 +73,7 @@ function createPlayerDummy() {
     if (playerDummyMesh) return;
     
     playerDummyMesh = new THREE.Group();
+    playerDummyMesh.name = 'playerDummy';
     const pd = activeDrones.find(d => d.isPlayer);
     if (!pd) return;
     playerDummyMesh.position.copy(pd.playerPos);
@@ -195,8 +104,12 @@ function removePlayerDummy() {
         playerDummyMesh = null;
     }
 }
+if (typeof window !== 'undefined') {
+    window.getPlayerDummyMesh = () => playerDummyMesh;
+}
 
 let isReloading = false;
+let reloadTimer = null;
 let currentSpread = 10;
 
 let bombState = {
@@ -217,28 +130,63 @@ const sharedBulletMatCyan = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 const sharedBulletMatWhite = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const sharedBulletMatLightBlue = new THREE.MeshBasicMaterial({ color: 0x88ccff });
 const sharedBulletMatMagenta = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+const sharedBulletMatShock = new THREE.MeshBasicMaterial({ color: 0xcc66ff });
+const sharedBulletMatFreeze = new THREE.MeshBasicMaterial({ color: 0x99e6ff });
+const sharedBulletMatRicochet = new THREE.MeshBasicMaterial({ color: 0xb0b0b0 });
+const sharedBulletMatFragment = new THREE.MeshBasicMaterial({ color: 0xff5533 });
 const sharedFlameGeo = new THREE.BoxGeometry(0.15, 0.15, 0.3);
 const sharedFlameMat = new THREE.MeshBasicMaterial({ color: 0xff5500, transparent: true, opacity: 0.8 });
 const sharedParticleGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
 const sharedMuzzleGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
 
 // Input
-let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-let moveUp = false, moveDown = false;
-let isShooting = false;
-let isInteracting = false;
+var moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+var moveUp = false, moveDown = false;
+var isShooting = false;
+var isInteracting = false;
+
+function unstuckPlayer() {
+    if (!roundActive || playerState.isSpectating || playerState.hp <= 0) return;
+    if (playerState.isControllingDrone) return;
+    if (typeof mortarCameraActive !== 'undefined' && mortarCameraActive) return;
+    if (typeof mortarMapOpen !== 'undefined' && mortarMapOpen) return;
+    if (playerState.spawnPos) {
+        camera.position.x = playerState.spawnPos.x;
+        camera.position.y = playerState.spawnPos.y || 2;
+        camera.position.z = playerState.spawnPos.z;
+        if (playerState.velocity) playerState.velocity.set(0, 0, 0);
+        playerState.isOnGround = true;
+        if (typeof showKillFeed === 'function') showKillFeed('已脱离卡死回到出生点');
+    }
+}
 
 document.addEventListener('keydown', (e) => {
-    if (!controls || !controls.isLocked) {
+    if (!controls || (!controls.isLocked && !isPlayerControlActive())) {
+        if (e.code === 'Escape') {
+            const _buyMenuEl = document.getElementById('buy-menu');
+            if (_buyMenuEl && !_buyMenuEl.classList.contains('hidden')) closeBuyMenu();
+            const _scopeEl = document.getElementById('scope-panel');
+            if (_scopeEl && !_scopeEl.classList.contains('hidden')) toggleScopePanel();
+            if (typeof mortarMapOpen !== 'undefined' && mortarMapOpen && typeof closeMortarMap === 'function') closeMortarMap();
+            return;
+        }
+        if (mortarMapOpen) return;
         if (e.key.toLowerCase() === 'b' && roundActive && !playerState.isSpectating) {
-            if (document.getElementById('buy-menu').classList.contains('hidden')) {
-                openBuyMenu();
-            } else {
+            const _buyMenuEl = document.getElementById('buy-menu');
+            const _buyOpen = _buyMenuEl && !_buyMenuEl.classList.contains('hidden');
+            // 生化模式: 爆发后/已感染不能打开购买菜单（但允许关闭）
+            if (!_buyOpen && gameMode === 'zombie' && (!zombieState.pending || playerState.isZombie)) return;
+            if (_buyOpen) {
                 closeBuyMenu();
+            } else {
+                openBuyMenu();
             }
         }
         if (e.code === 'KeyT' && roundActive && !playerState.isSpectating && !playerState.isControllingDrone) {
             toggleScopePanel();
+        }
+        if (e.code === 'KeyU' && roundActive && !playerState.isSpectating) {
+            unstuckPlayer();
         }
         return;
     }
@@ -268,20 +216,25 @@ document.addEventListener('keydown', (e) => {
                 }
                 break;
             case 'KeyL':
-                playerState.isInvincible = !playerState.isInvincible;
-                showKillFeed(playerState.isInvincible ? '你已开启无敌模式' : '你已关闭无敌模式');
+                if (typeof isDevMode === 'function' && isDevMode()) {
+                    playerState.isInvincible = !playerState.isInvincible;
+                    showKillFeed(playerState.isInvincible ? '【调试】你已开启无敌模式' : '【调试】你已关闭无敌模式');
+                }
                 break;
             case 'KeyK':
-                playerCurrency += 1000;
-                playerScore += 1000;
-                showKillFeed('已增加 1000 金钱与积分');
-                document.getElementById('hud-credits').innerText = playerCurrency;
-                const _hudScore2 = document.getElementById('hud-score');
-                if (_hudScore2) _hudScore2.innerText = playerScore;
-                updateHUD();
+                if (typeof isDevMode === 'function' && isDevMode()) {
+                    playerCurrency += 1000;
+                    playerScore += 1000;
+                    showKillFeed('【调试】已增加 1000 金钱与积分');
+                    document.getElementById('hud-credits').innerText = playerCurrency;
+                    const _hudScore2 = document.getElementById('hud-score');
+                    if (_hudScore2) _hudScore2.innerText = playerScore;
+                    updateHUD();
+                }
                 break;
             case 'KeyR': handleReload(); break;
             case 'KeyF':
+                if (mortarMapOpen) { fireMortar(); break; }
                 if (roundActive && !playerState.isSpectating && !playerState.isControllingDrone && playerState.viewModel) {
                     if (!playerState.isInspecting) {
                         playerState.isInspecting = true;
@@ -293,6 +246,9 @@ document.addEventListener('keydown', (e) => {
             case 'Digit2': switchWeapon(2); break;
             case 'Digit3': switchWeapon(3); break;
             case 'Digit4': switchWeapon(4); break;
+            case 'KeyQ':
+                if (typeof useAdrenaline === 'function') useAdrenaline();
+                break;
             case 'KeyB': 
                 if (document.getElementById('buy-menu').classList.contains('hidden')) {
                     openBuyMenu();
@@ -305,9 +261,23 @@ document.addEventListener('keydown', (e) => {
                     toggleScopePanel();
                 }
                 break;
+            case 'KeyU':
+                unstuckPlayer();
+                break;
             case 'KeyV':
                 toggleDropCompensation();
                 break;
+            case 'KeyG':
+                quickThrowGrenade();
+                break;
+            case 'Escape': {
+                const _buyMenuEl = document.getElementById('buy-menu');
+                if (_buyMenuEl && !_buyMenuEl.classList.contains('hidden')) closeBuyMenu();
+                const _scopeEl = document.getElementById('scope-panel');
+                if (_scopeEl && !_scopeEl.classList.contains('hidden')) toggleScopePanel();
+                if (typeof mortarMapOpen !== 'undefined' && mortarMapOpen && typeof closeMortarMap === 'function') closeMortarMap();
+                break;
+            }
         }
 });
 document.addEventListener('keyup', (e) => {
@@ -334,7 +304,10 @@ document.addEventListener('mousedown', (e) => {
     }
     if (e.button === 2 && controls && controls.isLocked) {
         const w = getCurrentWeapon();
-        if (w.id !== 'gatling') playerState.isAds = true;
+        if (w.id !== 'gatling' && w.id !== 'mortar' && w.id !== 'zombieClaw' && w.id !== 'flamethrower' && !playerState.isAds) {
+            playerState.isAds = true;
+            if (w.id === 'sniper' || w.id === 'marksman') playScopeZoom();
+        }
     }
 });
 document.addEventListener('mouseup', (e) => { 
@@ -345,8 +318,26 @@ document.addEventListener('mouseup', (e) => {
 });
 document.addEventListener('contextmenu', e => e.preventDefault());
 
+function resetInputState() {
+    moveForward = false;
+    moveBackward = false;
+    moveLeft = false;
+    moveRight = false;
+    moveUp = false;
+    moveDown = false;
+    isShooting = false;
+    isInteracting = false;
+    if (typeof playerState !== 'undefined' && playerState) {
+        playerState.isAds = false;
+    }
+}
+window.addEventListener('blur', resetInputState);
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) resetInputState();
+});
+
 function cycleSpectator() {
-    const friendlyBots = bots.filter(b => b.team === playerState.team);
+    const friendlyBots = bots.filter(b => b.team === playerState.team && !b.isDead);
     if (friendlyBots.length > 0) {
         playerState.spectateIndex = (playerState.spectateIndex + 1) % friendlyBots.length;
         document.getElementById('spectator-target').innerText = "BOT " + friendlyBots[playerState.spectateIndex].id;
@@ -368,7 +359,7 @@ function toggleScopePanel() {
     } else {
         panel.classList.add('hidden');
         panel.classList.remove('active');
-        if (controls && !controls.isLocked && !playerState.isSpectating) controls.lock();
+        if (roundActive && controls && !controls.isLocked && !isTouchDevice && !playerState.isSpectating) controls.lock();
     }
 }
 

@@ -1,0 +1,6 @@
+node_modules/
+.trae-html-share-packages/
+*.log
+.DS_Store
+Thumbs.db
+.agents/

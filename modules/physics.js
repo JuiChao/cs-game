@@ -1,12 +1,48 @@
 // #region 物理与动画循环
+// 台阶攀爬高度（每级台阶高2，护栏等矮障碍标记 noClimb 不可攀爬）
+const PLAYER_STEP_HEIGHT = 2.6;
+
+// 计算(x,z)处玩家可站立的支撑面高度（脚下水平范围内、顶面不高于maxTop的最高障碍顶）
+function getSupportHeight(x, z, maxTop) {
+    let support = 0;
+    for (const wall of collidableMeshList) {
+        if (wall.userData && wall.userData.noClimb) continue;
+        const wb = wall.worldBox;
+        if (!wb) continue;
+        if (x + 0.4 < wb.min.x || x - 0.4 > wb.max.x) continue;
+        if (z + 0.4 < wb.min.z || z - 0.4 > wb.max.z) continue;
+        if (wb.max.y <= maxTop && wb.max.y > support) support = wb.max.y;
+    }
+    return support;
+}
+
+// 尝试攀爬阻挡物: 全部阻挡物顶面比脚高不超过台阶高度且无 noClimb 标记时踏上
+function tryStepUp(blockers, curFeet) {
+    if (blockers.length === 0) return -1;
+    let maxTop = 0;
+    for (const w of blockers) {
+        if (w.userData && w.userData.noClimb) return -1;
+        const diff = w.worldBox.max.y - curFeet;
+        if (diff > PLAYER_STEP_HEIGHT || diff <= -0.1) return -1;
+        if (w.worldBox.max.y > maxTop) maxTop = w.worldBox.max.y;
+    }
+    return maxTop > curFeet + 0.05 ? maxTop : -1;
+}
+
 function updatePhysics(delta) {
     if (playerState.isSpectating) return;
 
-    playerState.velocity.y -= 40.0 * delta; // Gravity
+    // 生化模式: 新变僵尸适应期倒计时
+    if (playerState.zombieSlowTimer > 0) playerState.zombieSlowTimer--;
+
+    // 重力 + 支撑面落地（高台/台阶顶或地面）
+    playerState.velocity.y -= 40.0 * delta;
     let nextY = camera.position.y + playerState.velocity.y * delta;
-    
-    if (nextY <= 2) { 
-        nextY = 2;
+    const feetNow = camera.position.y - 2;
+    const support = getSupportHeight(camera.position.x, camera.position.z, feetNow + 0.3);
+    const groundY = support + 2;
+    if (nextY <= groundY) {
+        nextY = groundY;
         playerState.velocity.y = 0;
         playerState.isOnGround = true;
     } else {
@@ -20,12 +56,16 @@ function updatePhysics(delta) {
     playerState.direction.z = Number(moveForward) - Number(moveBackward);
     playerState.direction.x = Number(moveRight) - Number(moveLeft);
     playerState.direction.normalize();
-    
+
     // Melee gives speed boost
     const w = getCurrentWeapon();
     let speedMult = 1.0;
     if (w.id === 'knife') speedMult = 1.5;
     else if (w.id === 'kukri') speedMult = 1.35;
+    else if (w.id === 'zombieClaw') {
+        speedMult = ZOMBIE.playerSpeedMult;
+        if (playerState.zombieSlowTimer > 0) speedMult *= ZOMBIE.newSlowMult;
+    }
     else if (w.id === 'gatling') {
         speedMult = 0.75;
         if (isShooting) speedMult = 0.25;
@@ -34,6 +74,12 @@ function updatePhysics(delta) {
         speedMult = 0.8;
         if (isShooting) speedMult = 0.5;
     }
+    else if (w.id === 'mortar') {
+        speedMult = 0.7;
+    }
+
+    // 生化模式: 肾上腺素期间移速提升
+    if (gameMode === 'zombie' && adrenalineFrames > 0) speedMult *= ZOMBIE.adrenalineMult;
 
     if (moveForward || moveBackward) playerState.velocity.z -= playerState.direction.z * 400.0 * speedMult * delta;
     if (moveLeft || moveRight) playerState.velocity.x -= playerState.direction.x * 400.0 * speedMult * delta;
@@ -42,40 +88,53 @@ function updatePhysics(delta) {
     const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
     const forward = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
     forward.crossVectors(camera.up, right).normalize();
-    
+
     const moveX = right.clone().multiplyScalar(-playerState.velocity.x * delta);
     const moveZ = forward.clone().multiplyScalar(-playerState.velocity.z * delta);
     const moveDir = new THREE.Vector3().addVectors(moveX, moveZ);
-    
-    // Independent Axis Collision
+
+    // Independent Axis Collision (碰撞盒跟随眼高, 支持高台行走)
     const nextX = camera.position.x + moveDir.x;
     const nextZ = camera.position.z + moveDir.z;
-    
+
     const playerRadius = 0.4;
     const margin = 0.05;
-    
+    const curFeet = camera.position.y - 2;
+
     const playerBoxX = new THREE.Box3(
-        new THREE.Vector3(nextX - playerRadius, 0.5, camera.position.z - playerRadius + margin),
-        new THREE.Vector3(nextX + playerRadius, 3.5, camera.position.z + playerRadius - margin)
+        new THREE.Vector3(nextX - playerRadius, camera.position.y - 1.5, camera.position.z - playerRadius + margin),
+        new THREE.Vector3(nextX + playerRadius, camera.position.y + 1.5, camera.position.z + playerRadius - margin)
     );
-    let colX = collidableMeshList.some(wall => wall.worldBox.intersectsBox(playerBoxX));
-    
-    if (!colX) {
+    const blockersX = collidableMeshList.filter(wall => wall.worldBox && wall.worldBox.intersectsBox(playerBoxX));
+
+    if (blockersX.length === 0) {
         camera.position.x = nextX;
     } else {
-        playerState.velocity.x = 0;
+        const stepTop = tryStepUp(blockersX, curFeet);
+        if (stepTop >= 0 && playerState.isOnGround) {
+            camera.position.x = nextX;
+            camera.position.y = stepTop + 2;
+        } else {
+            playerState.velocity.x = 0;
+        }
     }
 
     const playerBoxZ = new THREE.Box3(
-        new THREE.Vector3(camera.position.x - playerRadius + margin, 0.5, nextZ - playerRadius),
-        new THREE.Vector3(camera.position.x + playerRadius - margin, 3.5, nextZ + playerRadius)
+        new THREE.Vector3(camera.position.x - playerRadius + margin, camera.position.y - 1.5, nextZ - playerRadius),
+        new THREE.Vector3(camera.position.x + playerRadius - margin, camera.position.y + 1.5, nextZ + playerRadius)
     );
-    let colZ = collidableMeshList.some(wall => wall.worldBox.intersectsBox(playerBoxZ));
+    const blockersZ = collidableMeshList.filter(wall => wall.worldBox && wall.worldBox.intersectsBox(playerBoxZ));
 
-    if (!colZ) {
+    if (blockersZ.length === 0) {
         camera.position.z = nextZ;
     } else {
-        playerState.velocity.z = 0;
+        const stepTop = tryStepUp(blockersZ, curFeet);
+        if (stepTop >= 0 && playerState.isOnGround) {
+            camera.position.z = nextZ;
+            camera.position.y = stepTop + 2;
+        } else {
+            playerState.velocity.z = 0;
+        }
     }
 
     // Bounding box map limits
@@ -83,11 +142,43 @@ function updatePhysics(delta) {
     if (camera.position.x > 399) camera.position.x = 399;
     if (camera.position.z < -399) camera.position.z = -399;
     if (camera.position.z > 399) camera.position.z = 399;
+
+    // 动态移动脚步声与落地检测
+    const horizSpeed = Math.hypot(playerState.velocity.x, playerState.velocity.z);
+    const surfaceType = (support > 0 && typeof currentMap !== 'undefined' && currentMap === 'biolab') ? 'metal' : 'sand';
+
+    if (playerState.isOnGround && horizSpeed > 2.0 && !playerState.isControllingDrone) {
+        playerState.footstepDistance = (playerState.footstepDistance || 0) + horizSpeed * delta;
+        const isMeleeRun = w && (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade' || w.id === 'zombieClaw');
+        const stepInterval = (horizSpeed > 16 || isMeleeRun) ? 2.8 : 3.8;
+        if (playerState.footstepDistance >= stepInterval) {
+            playerState.footstepDistance = 0;
+            if (typeof playFootstepSound === 'function') {
+                playFootstepSound(surfaceType, horizSpeed > 16 ? 0.35 : 0.22);
+            }
+        }
+    } else {
+        playerState.footstepDistance = 0;
+    }
+
+    // 落地瞬间音效
+    if (!playerState.wasOnGround && playerState.isOnGround) {
+        if ((playerState.lastAirVy || 0) < -10) {
+            if (typeof playLandSound === 'function') {
+                playLandSound(surfaceType, 0.45);
+            }
+        }
+    }
+    playerState.wasOnGround = playerState.isOnGround;
+    if (!playerState.isOnGround) {
+        playerState.lastAirVy = playerState.velocity.y;
+    }
 }
 
 function animate() {
     requestAnimationFrame(animate);
     frameCount++;
+    window.frameCount = frameCount;
 
     let delta = clock.getDelta();
     if (delta > 0.1) delta = 0.1; // Prevent physics explosion on lag/tab switch
@@ -118,12 +209,25 @@ function animate() {
 
         camera.quaternion.setFromEuler(euler);
     }
+
+    // 开火与受击镜头抖动 (Camera Shake)
+    if (playerState.cameraShake && playerState.cameraShake > 0.0001) {
+        const shakeYaw = (Math.random() - 0.5) * playerState.cameraShake;
+        const shakePitch = (Math.random() - 0.5) * playerState.cameraShake;
+        const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+        euler.setFromQuaternion(camera.quaternion);
+        euler.y += shakeYaw;
+        euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x + shakePitch));
+        camera.quaternion.setFromEuler(euler);
+        playerState.cameraShake *= 0.82;
+    }
     
     // Update zone labels
     const isT = playerState.team === 'T';
     bombZones.forEach((zone) => {
         const labelEl = document.getElementById(zone.labelId || 'zoneA-label');
         if (labelEl) {
+            if (gameMode === 'zombie') { labelEl.style.display = 'none'; return; }
             const pos = zone.mesh.position.clone();
             pos.y += 3; 
             pos.project(camera);
@@ -141,7 +245,18 @@ function animate() {
     });
 
     if (playerState.isSpectating) {
-        const friendlyBots = bots.filter(b => b.team === playerState.team);
+        // 生化模式: 僵尸玩家重生倒计时
+        if (gameMode === 'zombie' && playerState.isZombie && roundActive && playerState.zombieRespawnTimer > 0) {
+            playerState.zombieRespawnTimer--;
+            if (playerState.zombieRespawnTimer <= 0) {
+                respawnPlayerZombie();
+            } else if (playerState.zombieRespawnTimer % 60 === 0) {
+                const spEl = document.getElementById('spectator-prompt');
+                const h2 = spEl ? spEl.querySelector('h2') : null;
+                if (h2) h2.innerText = `僵尸重生倒计时: ${Math.ceil(playerState.zombieRespawnTimer / 60)} 秒`;
+            }
+        }
+        const friendlyBots = bots.filter(b => b.team === playerState.team && !b.isDead);
         if (friendlyBots.length > 0) {
             let specBot = friendlyBots[playerState.spectateIndex];
             if (!specBot) {
@@ -154,9 +269,12 @@ function animate() {
                 camera.rotation.copy(specBot.mesh.rotation);
             }
         }
+    } else if (mortarCameraActive) {
+        updateMortarCamera(delta);
+    } else if (mortarMapOpen) {
+        drawMortarMap();
     } else {
-        if (controls && controls.isLocked) {
-            updateDronePhysics(delta);
+        if ((controls && controls.isLocked) || isPlayerControlActive()) {
             if (!playerState.isControllingDrone) {
                 updatePhysics(delta);
                 handleShooting();
@@ -164,28 +282,57 @@ function animate() {
             }
         }
     }
-    
-    
+
+    handleWeaponPickup();
+
+    if (typeof updateDronePhysics === 'function') updateDronePhysics(delta);
+    updateMortarShells(delta);
+
+
     updateBullets(delta);
     updateGrenades(delta);
+    updateMines();
     updateParticles(delta);
     updateFloatingDamages(delta);
     updateMagazines(delta);
+    if (typeof updateZombieGear === 'function') updateZombieGear(delta);
     updateFires(delta);
+    updateSmokes(delta);
+    updateWeaponDrops(delta);
     
-    // Global Bomb Timer Tick
+    // Global Bomb Timer Tick & Progressive Beep
     if (bombState.planted && roundActive) {
         if (frameCount % 60 === 0) {
             bombState.timer--;
             updateHUD();
             
+            if (bombState.timer <= 0) {
+                if (typeof detonateC4 === 'function') {
+                    detonateC4();
+                }
+            }
+        }
+
+        // C4 动态渐进逼近蜂鸣（随剩余时间由慢变急促：40~60s 每秒1响，20~40s 每秒2响，10s内急促连续蜂鸣，与 C4 倒计时严格同步）
+        let beepInterval = 60;
+        if (bombState.timer <= 10) beepInterval = 8;
+        else if (bombState.timer <= 20) beepInterval = 15;
+        else if (bombState.timer <= 40) beepInterval = 30;
+        else beepInterval = 60;
+
+        if (frameCount % beepInterval === 0 && bombState.timer > 0) {
+            const bombPos = bombState.mesh ? bombState.mesh.position : null;
+            if (typeof playC4Beep === 'function') {
+                playC4Beep(bombPos, bombState.timer <= 10 ? 1250 : 1046.5);
+            }
             if (bombState.mesh) {
                 let light = bombState.mesh.getObjectByName('c4light');
-                if (light && light.material) light.material.color.setHex(bombState.timer % 2 === 0 ? 0xff0000 : 0x330000);
-            }
-            
-            if (bombState.timer <= 0) {
-                endRound("C4 炸弹已引爆！恐怖分子获胜", true, 'bomb_explode');
+                if (light && light.material) {
+                    light.material.color.setHex(0xff0000);
+                    setTimeout(() => {
+                        if (light && light.material) light.material.color.setHex(0x330000);
+                    }, Math.min(100, (beepInterval / 60) * 500));
+                }
             }
         }
     }
@@ -195,6 +342,7 @@ function animate() {
         if (playerState.burnTimer > 0) {
             if (frameCount % 40 === 0 && playerState.hp > 0 && !playerState.isSpectating) {
                 if (!playerState.isInvincible) playerState.hp -= applyArmorReduction(3 * playerState.burnStacks);
+                if (typeof triggerDamageVignette === 'function') triggerDamageVignette(0.4);
                 updateHUD();
                 if (playerState.hp <= 0) playerDie(playerState.burnSourceTeam || 'T', 'molotov');
             }
@@ -203,6 +351,12 @@ function animate() {
             }
             playerState.burnTimer--;
             if (playerState.burnTimer <= 0) playerState.burnStacks = 0;
+        }
+
+        // 生化模式: 僵尸玩家每秒回血
+        if (gameMode === 'zombie' && playerState.isZombie && !playerState.isSpectating && frameCount % 60 === 0 && playerState.hp < playerState.maxHp) {
+            playerState.hp = Math.min(playerState.maxHp, playerState.hp + ZOMBIE.regenPerSec);
+            updateHUD();
         }
 
         for (let i = bots.length - 1; i >= 0; i--) {
@@ -218,8 +372,8 @@ function animate() {
                     });
                 }
                 if (frameCount % 40 === 0 && bot.hp > 0) {
-                    bot.hp -= 3 * bot.burnStacks * (bot.burnDamageMult || 1);
-                    if (bot.hp <= 0) killBot(i, playerState.team, 'molotov');
+                    bot.hp -= 3 * bot.burnStacks * (bot.burnDamageMult || 1) * zombieDmgTakenMult(bot);
+                    if (bot.hp <= 0) killBot(i, playerState.team, 'molotov', true);
                 }
                 if (frameCount % 3 === 0 && bot.hp > 0) {
                     createBurnParticle(bot.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)));
@@ -232,7 +386,8 @@ function animate() {
                         bot.mesh.traverse(child => {
                             if (child.isMesh) {
                                 const mats = Array.isArray(child.material) ? child.material : [child.material];
-                                mats.forEach(m => { if (m.emissive) m.emissive.setHex(0x000000); });
+                                const defaultEmissive = bot.isZombie ? (bot.isSource ? 0x005500 : 0x003300) : 0x000000;
+                                mats.forEach(m => { if (m.emissive) m.emissive.setHex(defaultEmissive); });
                             }
                         });
                     }
@@ -257,9 +412,9 @@ function animate() {
                     bot.poisonTickTimer--;
                 }
                 if (bot.poisonTickTimer <= 0) {
-                    bot.hp -= 3;
+                    bot.hp -= 3 * zombieDmgTakenMult(bot);
                     bot.poisonTickTimer = 34;
-                    if (bot.hp <= 0) killBot(i, playerState.team, 'molotov');
+                    if (bot.hp <= 0) killBot(i, playerState.team, 'poison', true);
                 }
                 if (frameCount % 5 === 0 && bot.hp > 0) {
                     createPoisonParticle(bot.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)));
@@ -271,7 +426,8 @@ function animate() {
                         bot.mesh.traverse(child => {
                             if (child.isMesh) {
                                 const mats = Array.isArray(child.material) ? child.material : [child.material];
-                                mats.forEach(m => { if (m.emissive) m.emissive.setHex(0x000000); });
+                                const defaultEmissive = bot.isZombie ? (bot.isSource ? 0x005500 : 0x003300) : 0x000000;
+                                mats.forEach(m => { if (m.emissive) m.emissive.setHex(defaultEmissive); });
                             }
                         });
                     }
@@ -408,7 +564,7 @@ function animate() {
     
     if (knifeRangeIndicator) {
         const w = getCurrentWeapon();
-        if (!playerState.isControllingDrone && (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade' || w.id === 'flamethrower') && roundActive) {
+        if (!playerState.isControllingDrone && (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade' || w.id === 'flamethrower' || w.id === 'zombieClaw') && roundActive) {
             knifeRangeIndicator.visible = true;
             knifeRangeIndicator.position.copy(camera.position);
             knifeRangeIndicator.position.y = 0.05;
@@ -473,7 +629,7 @@ function animate() {
                         if (playerState.bulletStacking && playerState.bulletTypes) return playerState.bulletTypes.includes(type);
                         return playerState.bulletType === type;
                     };
-                    if (_predHasBulletType('tracking')) bulletSpeed *= 0.1;
+                    if (_predHasBulletType('tracking')) bulletSpeed *= 0.135;
                     if (_predHasBulletType('light')) bulletSpeed *= 1.2;
                     if (_predHasBulletType('dual')) bulletSpeed *= 0.35;
 
@@ -500,7 +656,7 @@ function animate() {
     }
     
     // Procedural Knife Swing Animation
-    if (playerState.viewModel && (getCurrentWeapon().id === 'knife' || getCurrentWeapon().id === 'kukri' || getCurrentWeapon().id === 'switchblade')) {
+    if (playerState.viewModel && (getCurrentWeapon().id === 'knife' || getCurrentWeapon().id === 'kukri' || getCurrentWeapon().id === 'switchblade' || getCurrentWeapon().id === 'zombieClaw')) {
         const now = performance.now();
         let animDuration = (getCurrentWeapon().fireRate / 60) * 1000; // ms
         if (getCurrentWeapon().id === 'switchblade' && playerState.knifeAnimStage === 2) animDuration = 800;
@@ -663,7 +819,7 @@ function animate() {
                 baseSpread *= 0.6;
             }
         }
-        if (isShooting && !isReloading && controls && controls.isLocked) {
+        if (isShooting && !isReloading && controls && (controls.isLocked || isPlayerControlActive())) {
             if (weapon.id === 'gatling') {
                 baseSpread += 8 * 0.25;
             } else {
@@ -688,7 +844,7 @@ function animate() {
     }
     
     // View model bobbing & ADS animation
-    if (!playerState.isSpectating && playerState.viewModel && controls && controls.isLocked) {
+    if (!playerState.isSpectating && !mortarCameraActive && !mortarMapOpen && playerState.viewModel && controls && (controls.isLocked || isPlayerControlActive())) {
         if (playerState.isAds) {
             playerState.adsProgress += delta * 8;
             if (playerState.adsProgress > 1) playerState.adsProgress = 1;
@@ -710,7 +866,7 @@ function animate() {
                 overlayType = 'sniper';
             }
         }
-        else if (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade' || w.id === 'flamethrower') { finalFov = 75; overlayType = 'none'; }
+        else if (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade' || w.id === 'flamethrower' || w.id === 'mortar' || w.id === 'zombieClaw') { finalFov = 75; overlayType = 'none'; }
         else {
             const scopeDef = SCOPE_TYPES[playerState.currentScope] || SCOPE_TYPES.redDot;
             finalFov = scopeDef.fov;
@@ -775,7 +931,8 @@ function animate() {
             if (weaponInv) weaponInv.style.display = '';
         }
 
-        if (!playerState.isInspecting && w.id !== 'knife' && w.id !== 'kukri' && w.id !== 'switchblade') {
+        const isMeleeW = w && (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade' || w.id === 'zombieClaw');
+        if (!playerState.isInspecting && !isMeleeW) {
             const hipX = 0.3, hipY = -0.3, hipZ = -0.5;
             const adsX = 0, adsY = -0.156, adsZ = -0.1125;
             
@@ -783,13 +940,21 @@ function animate() {
             let currentBaseY = hipY + (adsY - hipY) * ease;
             const currentBaseZ = hipZ + (adsZ - hipZ) * ease;
 
-            playerState.viewModel.position.x = currentBaseX;
             playerState.viewModel.position.z = currentBaseZ;
 
-            if (playerState.velocity.length() > 2 && !playerState.isAds) {
-                currentBaseY += Math.sin(frameCount * 0.2) * 0.02;
+            // 自然武器摆动 (Weapon Sway) 与移动晃动 (采用相位累加，杜绝大帧数抖动)
+            const horizSpeed = Math.hypot(playerState.velocity.x, playerState.velocity.z);
+            if (horizSpeed > 1.5 && !playerState.isAds) {
+                const swaySpeed = Math.min(0.35, 0.14 + horizSpeed * 0.005);
+                const swayAmpX = Math.min(0.025, 0.008 + horizSpeed * 0.0006);
+                const swayAmpY = Math.min(0.02, 0.006 + horizSpeed * 0.0005);
+                playerState.swayPhase = (playerState.swayPhase || 0) + swaySpeed;
+                playerState.viewModel.position.x = currentBaseX + Math.sin(playerState.swayPhase * 0.5) * swayAmpX;
+                playerState.viewModel.position.y = currentBaseY + Math.abs(Math.sin(playerState.swayPhase)) * swayAmpY;
+            } else {
+                playerState.viewModel.position.x = currentBaseX;
+                playerState.viewModel.position.y = currentBaseY;
             }
-            playerState.viewModel.position.y = currentBaseY;
         }
 
         if (w.id === 'gatling' && playerState.viewModel) {
@@ -814,7 +979,9 @@ function animate() {
 
         if (elapsed > inspectDuration) {
             playerState.isInspecting = false;
-            if (getCurrentWeapon().id !== 'knife' && getCurrentWeapon().id !== 'kukri' && getCurrentWeapon().id !== 'switchblade') {
+            const curW = getCurrentWeapon();
+            const curIsMelee = curW && (curW.id === 'knife' || curW.id === 'kukri' || curW.id === 'switchblade' || curW.id === 'zombieClaw');
+            if (!curIsMelee) {
                 playerState.viewModel.rotation.set(0, 0, 0);
                 playerState.viewModel.position.set(0.3, -0.3, -0.5);
             }

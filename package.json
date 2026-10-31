@@ -6,9 +6,9 @@
   "name": "game-02",
   "version": "1.0.0",
   "description": "",
-  "main": "game.js",
+  "main": "index.html",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test.js && node test_phase1.js && node test_phase2.js && node test_phase3.js && node test_phase4.js"
   },
   "keywords": [],
   "author": "",

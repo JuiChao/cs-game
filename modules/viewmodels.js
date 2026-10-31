@@ -242,9 +242,98 @@ function createSwitchblade() {
     return group;
 }
 
+function createZombieClaw() {
+    const group = new THREE.Group();
+
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0x3a7a3a, roughness: 0.95 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x1d4a1d, roughness: 0.85 });
+    const nailMat = new THREE.MeshStandardMaterial({ color: 0xd8e8c0, roughness: 0.35, metalness: 0.1 });
+
+    // 手掌
+    const palmGeo = new THREE.BoxGeometry(0.09, 0.035, 0.11);
+    const palm = new THREE.Mesh(palmGeo, skinMat);
+    group.add(palm);
+
+    // 三根利爪（中指最长），尖端朝 -Z
+    const clawLengths = [0.15, 0.22, 0.15];
+    const clawX = [-0.03, 0, 0.03];
+    for (let i = 0; i < 3; i++) {
+        const clawGeo = new THREE.ConeGeometry(0.008, clawLengths[i], 6);
+        clawGeo.rotateX(-Math.PI / 2);
+        clawGeo.translate(0, 0, -clawLengths[i] / 2);
+        const claw = new THREE.Mesh(clawGeo, nailMat);
+        claw.position.set(clawX[i], 0.006, -0.055);
+        claw.rotation.x = -0.1;
+        group.add(claw);
+    }
+
+    // 腐烂前臂
+    const armGeo = new THREE.CylinderGeometry(0.028, 0.036, 0.16, 10);
+    armGeo.rotateX(Math.PI / 2);
+    const arm = new THREE.Mesh(armGeo, darkMat);
+    arm.position.set(0, -0.006, 0.11);
+    group.add(arm);
+
+    // 前臂腐斑
+    for (let i = 0; i < 4; i++) {
+        const spotGeo = new THREE.SphereGeometry(0.012, 6, 6);
+        const spot = new THREE.Mesh(spotGeo, nailMat);
+        const a = Math.random() * Math.PI * 2;
+        spot.position.set(Math.cos(a) * 0.03, Math.sin(a) * 0.03, 0.05 + Math.random() * 0.1);
+        group.add(spot);
+    }
+
+    return group;
+}
+
+const TEXTURE_PROPERTIES_TO_DISPOSE = [
+    'map', 'alphaMap', 'aoMap', 'bumpMap', 'displacementMap',
+    'emissiveMap', 'envMap', 'lightMap', 'metalnessMap',
+    'normalMap', 'roughnessMap', 'specularMap'
+];
+
+function disposeMaterialInstance(m) {
+    if (!m) return;
+    for (let i = 0; i < TEXTURE_PROPERTIES_TO_DISPOSE.length; i++) {
+        const prop = TEXTURE_PROPERTIES_TO_DISPOSE[i];
+        if (m[prop] && typeof m[prop].dispose === 'function') {
+            m[prop].dispose();
+        }
+    }
+    if (typeof m.dispose === 'function') {
+        m.dispose();
+    }
+}
+
+function disposeHierarchy(obj) {
+    if (!obj) return;
+    obj.traverse(child => {
+        if (child.isMesh || child.isPoints || child.isLine || child.isSprite) {
+            if (child.geometry && typeof child.geometry.dispose === 'function') {
+                child.geometry.dispose();
+            }
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(disposeMaterialInstance);
+                } else {
+                    disposeMaterialInstance(child.material);
+                }
+            }
+        }
+    });
+    while (obj.children && obj.children.length > 0) {
+        obj.remove(obj.children[0]);
+    }
+}
+if (typeof window !== 'undefined') {
+    window.disposeHierarchy = disposeHierarchy;
+}
+
 function buildViewModel() {
     if (playerState.viewModel) {
         camera.remove(playerState.viewModel);
+        disposeHierarchy(playerState.viewModel);
+        playerState.viewModel = null;
         const oldHitBox = camera.getObjectByName('knifeHitBox');
         if (oldHitBox) {
             oldHitBox.geometry.dispose();
@@ -261,6 +350,8 @@ function buildViewModel() {
         playerState.viewModel = createKukri();
     } else if (w.id === 'switchblade') {
         playerState.viewModel = createSwitchblade();
+    } else if (w.id === 'zombieClaw') {
+        playerState.viewModel = createZombieClaw();
     } else {
         const geo = new THREE.BoxGeometry(0.1, 0.1, w.length);
         const mat = new THREE.MeshStandardMaterial({ color: w.color });
@@ -359,7 +450,49 @@ function buildViewModel() {
 
             playerState.viewModel.add(ftGroup);
         }
-        if (w.id === 'sniper' || w.id === 'marksman' || w.id === 'rifle' || w.id === 'smg' || w.id === 'shotgun' || w.id === 'm249' || w.id === 'deagle' || w.id === 'pistol' || w.id === 'ash12') {
+
+        if (w.id === 'mortar') {
+            const mortarGroup = new THREE.Group();
+            mortarGroup.name = 'mortarBody';
+
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a5a2a, metalness: 0.5, roughness: 0.5 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.6, roughness: 0.4 });
+
+            const tubeGeo = new THREE.CylinderGeometry(0.08, 0.09, 0.5, 16);
+            tubeGeo.rotateX(Math.PI / 2);
+            const tube = new THREE.Mesh(tubeGeo, bodyMat);
+            tube.position.set(0, 0, -0.1);
+            mortarGroup.add(tube);
+
+            const muzzleGeo = new THREE.TorusGeometry(0.08, 0.015, 8, 16);
+            const muzzle = new THREE.Mesh(muzzleGeo, darkMat);
+            muzzle.position.set(0, 0, -0.35);
+            mortarGroup.add(muzzle);
+
+            const baseGeo = new THREE.BoxGeometry(0.25, 0.05, 0.15);
+            const base = new THREE.Mesh(baseGeo, darkMat);
+            base.position.set(0, -0.12, 0.05);
+            mortarGroup.add(base);
+
+            const bipodGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.15, 6);
+            const bipodMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.7, roughness: 0.3 });
+            const bipodL = new THREE.Mesh(bipodGeo, bipodMat);
+            bipodL.position.set(-0.08, -0.08, -0.15);
+            bipodL.rotation.z = 0.3;
+            mortarGroup.add(bipodL);
+            const bipodR = new THREE.Mesh(bipodGeo, bipodMat);
+            bipodR.position.set(0.08, -0.08, -0.15);
+            bipodR.rotation.z = -0.3;
+            mortarGroup.add(bipodR);
+
+            const sightGeo = new THREE.BoxGeometry(0.04, 0.05, 0.02);
+            const sight = new THREE.Mesh(sightGeo, darkMat);
+            sight.position.set(0, 0.08, 0);
+            mortarGroup.add(sight);
+
+            playerState.viewModel.add(mortarGroup);
+        }
+        if (w.id === 'sniper' || w.id === 'marksman' || w.id === 'rifle' || w.id === 'smg' || w.id === 'mk4' || w.id === 'shotgun' || w.id === 'm249' || w.id === 'deagle' || w.id === 'pistol' || w.id === 'ash12') {
             const scopeId = playerState.currentScope || 'redDot';
 
             if (scopeId === 'none') {
@@ -483,7 +616,7 @@ function buildViewModel() {
         }
     }
     
-    if (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade') {
+    if (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade' || w.id === 'zombieClaw') {
         playerState.viewModel.position.set(0.35, -0.25, -0.5); 
         playerState.viewModel.scale.set(1.69, 1.69, 1.69);
         playerState.viewModel.rotateY(-Math.PI / 8);
@@ -493,7 +626,11 @@ function buildViewModel() {
     }
     playerState.viewModel.traverse((child) => {
         if (child.isMesh) {
-            child.material.depthTest = false;
+            if (Array.isArray(child.material)) {
+                child.material.forEach(m => { if (m) m.depthTest = false; });
+            } else if (child.material) {
+                child.material.depthTest = false;
+            }
             child.renderOrder = 999;
         }
     });

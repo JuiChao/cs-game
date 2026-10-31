@@ -18,7 +18,26 @@
             <button id="start-btn" onclick="startGame()">开始匹配 (加入 T 阵营)</button>
             <button id="range-btn" onclick="startShootingRange()" style="margin-top: 10px; background: rgba(50,50,50,0.8);">进入靶场 (Shooting Range)</button>
         </div>
-        
+
+        <div style="margin-top: 15px; text-align: center;">
+            <label style="color: #aaa; font-size: 14px; display: block; margin-bottom: 5px;">游戏模式</label>
+            <div style="display: flex; gap: 8px; justify-content: center;">
+                <button onclick="selectGameMode('bomb')" style="padding: 8px 18px; background: rgba(52,152,219,0.3); border: 1px solid #3498db; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">爆破模式</button>
+                <button onclick="selectGameMode('zombie')" style="padding: 8px 18px; background: rgba(46,204,113,0.3); border: 1px solid #2ecc71; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">生化模式</button>
+            </div>
+            <div style="margin-top: 5px; color: #888; font-size: 12px;">当前模式：<span id="mode-label" style="color: #2ecc71; font-weight: bold;">爆破</span></div>
+        </div>
+
+        <div style="margin-top: 15px; text-align: center;">
+            <label style="color: #aaa; font-size: 14px; display: block; margin-bottom: 5px;">地图选择</label>
+            <div style="display: flex; gap: 8px; justify-content: center;">
+                <button onclick="selectMap('dust2')" style="padding: 8px 18px; background: rgba(210,180,120,0.3); border: 1px solid #d2a878; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">Dust II</button>
+                <button onclick="selectMap('inferno')" style="padding: 8px 18px; background: rgba(90,130,70,0.3); border: 1px solid #5a7042; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">Inferno</button>
+                <button onclick="selectMap('biolab')" style="padding: 8px 18px; background: rgba(46,204,113,0.3); border: 1px solid #2ecc71; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">生化实验室</button>
+            </div>
+            <div style="margin-top: 5px; color: #888; font-size: 12px;">当前地图：<span id="map-label" style="color: #d2a878; font-weight: bold;">Dust II</span><br>生化模式自动选用专属地图「生化实验室」（三大高台守点）</div>
+        </div>
+
         <div style="margin-top: 15px; text-align: center;">
             <label style="color: #aaa; font-size: 14px; display: block; margin-bottom: 5px;">Bot 难度</label>
             <div style="display: flex; gap: 8px; justify-content: center;">
@@ -46,11 +65,13 @@
                     <button onclick="buyWeapon('sniper', 4750)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #1a4314, #0d2208); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">AWP</div>狙击步枪 (AWP) <span class="price">4750$</span> <br><small>一击必杀，极慢射速</small></button>
                     <button onclick="buyWeapon('marksman', 3300)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #2e4a23, #1a2d15); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">DMR</div>射手步枪 (DMR) <span class="price">3300$</span> <br><small>高伤害连发，射速中等</small></button>
                     <button onclick="buyWeapon('smg', 2350)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #444444, #222222); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">P90</div>冲锋枪 (P90) <span class="price">2350$</span> <br><small>射速极快，高弹量</small></button>
+                    <button onclick="buyWeapon('mk4', 1950)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #3a4a5a, #1a2530); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">MK4</div>MK4 (三连发冲锋枪) <span class="price">1950$</span> <br><small>三连发点射，精度极高，单发32伤害，弹匣30发</small></button>
                     <button onclick="buyWeapon('shotgun', 1200)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #333333, #111111); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Nova</div>霰弹枪 (Nova) <span class="price">1200$</span> <br><small>近战爆发，射速慢</small></button>
                     <button onclick="buyWeapon('m249', 5200)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #113311, #061806); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">M249</div>重机枪 (M249) <span class="price">5200$</span> <br><small>超高弹量，火力压制</small></button>
                     <button onclick="buyWeapon('gatling', 7500)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #2a2a3a, #1a1a2a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Gatling</div>加特林 (Gatling) <span class="price">7500$</span> <br><small>200发弹匣，伤害12.5，初始射速-50%每秒+30%最高475%，手持移速-25%开火移速-75%</small></button>
                     <button onclick="buyWeapon('ash12', 5000)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #1a1a2e, #0d0d1a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">ASH-12</div>ASH-12 (突击步枪) <span class="price">5000$</span> <br><small>超高伤害65，射速慢，后坐力大</small></button>
                     <button onclick="buyWeapon('flamethrower', 4200)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #8B0000, #4a0000); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">FT</div>喷火器 (Flamethrower) <span class="price">4200$</span> <br><small>持续喷射火焰，每帧3点伤害，攻击间隔0秒，超远射程700，命中叠加灼烧(最多12层)，开火时减伤与尼泊尔刀相同</small></button>
+                    <button onclick="buyWeapon('mortar', 6000)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #4a5a2a, #2a3a1a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Mortar</div>迫击炮 (Mortar) <span class="price">6000$</span> <br><small>左键打开战术地图选择目标，按F键发射，炮弹从天而降造成大范围爆炸伤害</small></button>
                 </div>
                 <h3>副武器 (Secondary)</h3>
                 <div class="mod-category">
@@ -60,7 +81,9 @@
                     <button id="btn-throwable-hegrenade" onclick="buyWeapon('hegrenade', 300)" style="grid-column: span 2;">购买 手雷 (HE Grenade) - $300</button>
                     <button id="btn-throwable-flashbang" onclick="buyWeapon('flashbang', 200)" style="grid-column: span 2;">购买 闪光弹 (Flashbang) - $200</button>
                     <button id="btn-throwable-molotov" onclick="buyWeapon('molotov', 400)" style="grid-column: span 2;">购买 燃烧瓶 (Molotov) - $400</button>
+                    <button id="btn-throwable-smoke" onclick="buyWeapon('smoke', 300)" style="grid-column: span 2;">购买 烟雾弹 (Smoke) - $300</button>
                     <button id="btn-throwable-sandbag" onclick="buyWeapon('sandbag', 50)" style="grid-column: span 2;">购买 沙包 (Sandbag) - $50</button>
+                    <button id="btn-throwable-mine" onclick="buyWeapon('mine', 300)" style="grid-column: span 2;">购买 地雷 (Mine) - $300</button>
                     <button id="btn-drone" onclick="buyWeapon('drone', 800)" style="grid-column: span 2; background-color: #2c3e50;">购买 战术无人机 (Drone) - $800</button>
                 </div>
                 <h3>特殊子弹 (Ammo Type)</h3>
@@ -69,14 +92,25 @@
                     <button id="btn-bullet-incendiary" onclick="buyBulletType('incendiary')" style="grid-column: span 2; background-color: #4a1a00;">燃烧子弹 <span class="price">500$</span> <br><small>命中叠加灼烧，霰弹枪最多8层，每秒3伤害，持续5秒</small></button>
                     <button id="btn-bullet-poison" onclick="buyBulletType('poison')" style="grid-column: span 2; background-color: #1a3a00;">剧毒子弹 <span class="price">500$</span> <br><small>每秒造成3点伤害，持续6秒，移速与精度减少75%</small></button>
                     <button id="btn-bullet-proximity" onclick="buyBulletType('proximity')" style="grid-column: span 2; background-color: #3a2a00;">近炸引信子弹 <span class="price">1000$</span> <br><small>命中敌人或墙壁均会爆炸，爆炸伤害为子弹的75%</small></button>
-                    <button id="btn-bullet-tracking" onclick="buyBulletType('tracking')" style="grid-column: span 2; background-color: #003a3a;">追踪子弹 <span class="price">700$</span> <br><small>追踪60范围内敌人，伤害降至50%</small></button>
-                    <button id="btn-bullet-light" onclick="buyBulletType('light')" style="grid-column: span 2; background-color: #002233;">轻型子弹 <span class="price">1200$</span> <br><small>伤害降低30%，飞行速度+20%，射速+35%，后坐力减少60%，弹匣容量+50%</small></button>
+                    <button id="btn-bullet-tracking" onclick="buyBulletType('tracking')" style="grid-column: span 2; background-color: #003a3a;">追踪子弹 <span class="price">700$</span> <br><small>追踪30范围内敌人，每0.1秒3%概率脱靶偏转飞离，伤害降至50%</small></button>
+                    <button id="btn-bullet-light" onclick="buyBulletType('light')" style="grid-column: span 2; background-color: #002233;">轻型子弹 <span class="price">1200$</span> <br><small>伤害降低30%，飞行速度+20%，射速+70%，后坐力减少60%，弹匣容量+50%；AWP：全自动+420发/分+25发弹匣，身体伤害-40%</small></button>
                     <button id="btn-bullet-dual" onclick="buyBulletType('dual')" style="grid-column: span 2; background-color: #2a002a;">双头弹 <span class="price">600$</span> <br><small>一次发射两颗子弹，伤害降低35%，子弹飞出后上下逐渐分离，射速降低45%，飞行速度降低65%</small></button>
+                <button id="btn-bullet-shock" onclick="buyBulletType('shock')" style="grid-column: span 2; background-color: #3a1a4a;">电击子弹 <span class="price">800$</span> <br><small>命中麻痹敌人0.8秒，完全停止移动与开火</small></button>
+                <button id="btn-bullet-freeze" onclick="buyBulletType('freeze')" style="grid-column: span 2; background-color: #1a3a4a;">冰冻子弹 <span class="price">700$</span> <br><small>命中减速50%持续3秒，最多叠3层（2层65%、3层80%减速）</small></button>
+                <button id="btn-bullet-ricochet" onclick="buyBulletType('ricochet')" style="grid-column: span 2; background-color: #3a3a3a;">跳弹 <span class="price">600$</span> <br><small>命中墙壁或地面最多反弹5次，每弹一次伤害与弹速各-20%，反弹后轻微追踪附近敌人（无目标则直线飞离）</small></button>
+                <button id="btn-bullet-fragment" onclick="buyBulletType('fragment')" style="grid-column: span 2; background-color: #4a2a1a;">破片子弹 <span class="price">900$</span> <br><small>命中敌人分裂3发弹丸向四周飞散，每发35%伤害（霰弹枪不可用）</small></button>
                     <button id="btn-bullet-stacking" onclick="buyBulletStacking()" style="grid-column: span 4; background-color: #2a003a;">子弹叠加功能 <span class="price">500$</span> <br><small>激活后本回合可同时选择多种子弹效果（点击子弹类型切换开关）</small></button>
                 </div>
                 <h3>辅助功能 (Utility)</h3>
                 <div class="mod-category">
                     <button id="btn-drop-comp" onclick="buyDropCompensation()" style="grid-column: span 4; background-color: #002244;">弹道下坠补偿 <span class="price">300$</span> <br><small>购买后开镜瞄准敌人按 V 键：准心一次性下移补偿弹道下坠，往上抬准心对准头部即可命中</small></button>
+                    <button id="btn-medkit" onclick="buyMedkit()" style="grid-column: span 2; background-color: #3a1a1a;">医疗包 <span class="price">500$</span> <br><small>立即恢复生命值至100（满血时无法购买）</small></button>
+                    <button id="btn-quick-grenade-hint" disabled style="grid-column: span 4; background-color: #333; opacity: 0.7; cursor: default;">快捷键提示 <br><small>G 键：快速投掷高爆手雷（无需切换武器，需先购买手雷）<br>地雷：切4号槽抛出，落地或撞墙即贴附，范围圈始终平铺地面显示，1.5秒后武装——队友踩上不触发不受伤，只炸敌人；携带上限5枚，场上上限10枚</small></button>
+                </div>
+                <h3 id="biohazard-title" style="display: none; color: #2ecc71;">生化模式 (Biohazard)</h3>
+                <div class="mod-category" id="biohazard-category" style="display: none;">
+                    <button id="btn-zombie-serum" onclick="buyZombieSerum()" style="grid-column: span 4; background-color: #1a3a1a;">变异血清 <span class="price">8000$</span> <br><small>感染爆发后可购买：立即变异为母体僵尸（3000血量），变异初期30秒移速减半。背叛人类，加入尸潮！</small></button>
+                    <button id="btn-adrenaline" onclick="buyAdrenaline()" style="grid-column: span 4; background-color: #3a2a1a;">肾上腺素 <span class="price">300$</span> <br><small>购买后按 Q 注射：8秒移速+50%，最多携带3支。感染爆发后随时可用，逃命/抢空投神器</small></button>
                 </div>
                 <h3>护甲 (Armor)</h3>
                 <div class="mod-category">
@@ -104,8 +138,25 @@
         </div>
         
         <div id="damage-numbers"></div>
+
+        <!-- Mortar Targeting Map -->
+        <div id="mortar-map-overlay" class="hidden" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div style="margin-bottom: 10px; color: #f39c12; font-family: 'Orbitron', sans-serif; font-size: 18px; text-transform: uppercase; letter-spacing: 2px;">迫击炮战术地图</div>
+            <div style="margin-bottom: 8px; color: #aaa; font-size: 13px;">滚轮缩放 · 点击选择目标 · 按 F 发射 · 按 Esc 取消</div>
+            <canvas id="mortar-map-canvas" width="700" height="700" style="border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; cursor: crosshair; background: #0a0a0c;"></canvas>
+            <div id="mortar-map-info" style="margin-top: 8px; color: #2ecc71; font-size: 14px; font-family: monospace;"></div>
+        </div>
         
+        <!-- Mortar Camera Interrupt Button -->
+        <button id="mortar-cancel-btn" class="hidden" onclick="cancelMortarCamera()" style="position: absolute; top: 70px; left: 50%; transform: translateX(-50%); padding: 10px 24px; font-size: 15px; font-weight: bold; font-family: 'Inter', sans-serif; background: rgba(231, 76, 60, 0.9); color: #fff; border: 2px solid #e74c3c; border-radius: 8px; cursor: pointer; z-index: 100; box-shadow: 0 0 12px rgba(231,76,60,0.6); pointer-events: auto;">返回角色本体视角 (Esc / F)</button>
+
         <div id="hud">
+            <!-- 生化模式: 僵尸视觉滤镜 -->
+            <div id="zombie-filter" class="hidden" style="position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,90,0,0.12) 0%, rgba(0,60,0,0.45) 100%); pointer-events: none; z-index: 40;"></div>
+            <!-- 玩家受击屏幕边缘红色晕影 -->
+            <div id="damage-vignette" style="position: absolute; inset: 0; pointer-events: none; z-index: 45; opacity: 0; transition: opacity 0.2s ease-out; background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0) 50%, rgba(220, 20, 20, 0.65) 100%);"></div>
+            <!-- 生化模式: 感染爆发倒计时 -->
+            <div id="zombie-countdown" class="hidden" style="position: absolute; top: 12%; left: 50%; transform: translateX(-50%); color: #00ff88; font-size: 1.4rem; font-weight: bold; font-family: 'Orbitron', 'Inter', 'Microsoft YaHei', sans-serif; text-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; z-index: 60;">感染爆发倒计时: 15 秒</div>
             <!-- Minimap -->
             <div id="minimap-container" style="position: absolute; top: 20px; left: 20px; width: 240px; height: 240px; background: rgba(20, 25, 30, 0.6); border: 2px solid rgba(255,255,255,0.2); border-radius: 10px; overflow: hidden; z-index: 10; backdrop-filter: blur(5px);">
                 <canvas id="minimap-canvas" width="240" height="240"></canvas>
@@ -118,8 +169,9 @@
                 <div class="team-score ct-score"><span id="label-ct">CT</span> 存活：<span id="score-ct">0</span> <br><small style="font-size:0.9rem; color:#aaa;">胜利回合：<span id="wins-ct">0</span></small></div>
             </div>
             
-            <div id="controls-hint" style="position: absolute; top: 190px; left: 20px; color: rgba(255,255,255,0.7); font-size: 12px; font-family: monospace; pointer-events: none;">
+            <div id="controls-hint" style="position: absolute; top: 270px; left: 20px; z-index: 20; color: rgba(255,255,255,0.7); font-size: 12px; font-family: monospace; pointer-events: none;">
                 [B] 购买菜单<br>
+                [T] 瞄准镜选择<br>
                 [U] 脱离卡死 (Unstuck)<br>
                 [E] 安装/拆除C4<br>
                 [R] 装弹
@@ -151,6 +203,8 @@
                 <div id="hud-armor" class="glass-panel-small" style="bottom: 240px; right: 30px; position: absolute; padding: 6px 12px; font-size: 14px; color: #8af; border-radius: 6px;">
                     护甲 0/6 (0%)
                 </div>
+
+                <div id="adrenaline-hud" style="display: none; bottom: 160px; right: 30px; position: absolute; padding: 6px 12px; font-size: 14px; color: #ffd700; text-shadow: 0 0 6px rgba(0,0,0,0.8); background: rgba(30,20,0,0.5); border-radius: 6px;"></div>
                 
                 <button id="exit-range-btn" class="hidden" onclick="exitShootingRange()" style="position: absolute; top: 60px; right: 20px; padding: 10px 20px; font-size: 1.2rem; cursor: pointer; background: rgba(255, 50, 50, 0.8); color: white; border: 1px solid red; border-radius: 5px; z-index: 100;">退出靶场</button>
                 <div id="kill-feed" class="kill-feed"></div>
@@ -226,6 +280,11 @@
             <div id="interact-prompt" class="hidden">
                 长按 [E] 互动
             </div>
+
+            <!-- Weapon Pickup Prompt -->
+            <div id="pickup-prompt" class="hidden">
+                按 [E] 拾取武器
+            </div>
             
             <!-- Buy Prompt -->
             <div id="buy-prompt" class="hidden">
@@ -244,11 +303,12 @@
     <div id="result-screen" class="screen hidden">
         <h1 id="result-title">回合结束</h1>
         <p id="result-desc">恐怖分子获胜</p>
+        <p id="result-mvp" style="color:#f1c40f; font-weight:600; margin:8px 0 0 0;"></p>
         <div id="result-countdown" style="font-size: 1.5rem; color: #fff; margin-top: 15px; font-weight: bold;"></div>
         <button onclick="nextRound()" style="margin-top: 20px;">强制下一回合</button>
     </div>
 
-    <!-- Scope Selection Panel (press U to toggle) -->
+    <!-- Scope Selection Panel (press T to toggle) -->
     <div id="scope-panel" class="screen hidden glass-panel" style="max-width: 520px; padding: 20px;">
         <div class="mod-header">
             <h2><span class="highlight">瞄准镜选择</span> SCOPE SELECT</h2>
@@ -257,6 +317,7 @@
         <div id="scope-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px;">
         </div>
         <div style="margin-top: 12px; text-align: center; color: #888; font-size: 12px;">当前：<span id="current-scope-label" style="color: #f1c40f; font-weight: bold;">红点瞄准镜</span></div>
+        <button class="deploy-btn glass-btn" onclick="toggleScopePanel()" style="margin-top: 15px; width: 100%;">关闭 (按 T)</button>
     </div>
 
     <!-- Three.js and Libraries -->
@@ -266,7 +327,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
     <!-- Game Modules (load order = dependency order) -->
     <script src="modules/config.js"></script>
+    <script src="modules/sounds-data.js"></script>
+    <script src="modules/sound.js"></script>
+    <script src="modules/zombie-gear.js"></script>
     <script src="modules/game-modes.js"></script>
+    <script src="modules/shop.js"></script>
     <script src="modules/scene.js"></script>
     <script src="modules/navmesh.js"></script>
     <script src="modules/map.js"></script>
@@ -280,6 +345,7 @@
     <script src="modules/physics.js"></script>
     <script src="modules/grenades.js"></script>
     <script src="modules/minimap.js"></script>
+    <script src="modules/mortar.js"></script>
     <script src="modules/touch.js"></script>
 </body>
 </html>

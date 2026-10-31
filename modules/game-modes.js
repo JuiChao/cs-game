@@ -6,6 +6,271 @@ function getCurrentWeapon() {
     return WEAPONS[inventory.melee || 'knife'];
 }
 
+// ── 生化模式运行时状态 ──
+let zombieState = {
+    pending: false,       // 感染是否尚未爆发（爆发前为购买窗口）
+    countdown: 0          // 爆发倒计时（秒）
+};
+
+function selectGameMode(mode) {
+    if (mode !== 'bomb' && mode !== 'zombie') return;
+    gameMode = mode;
+    const labelEl = document.getElementById('mode-label');
+    if (labelEl) labelEl.textContent = mode === 'zombie' ? '生化' : '爆破';
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) startBtn.innerText = mode === 'zombie' ? '开始匹配 (加入人类阵营)' : '开始匹配 (加入 T 阵营)';
+    // 模式联动专属地图: 生化用生化实验室, 爆破用 Dust II（仍可手动改选）
+    selectMap(mode === 'zombie' ? 'biolab' : 'dust2');
+}
+
+// ── 生化模式: 僵尸化视觉 ──
+function showZombieFilter(on) {
+    const el = document.getElementById('zombie-filter');
+    if (el) el.classList.toggle('hidden', !on);
+}
+
+function createInfectionEffect(pos) {
+    for (let i = 0; i < 12; i++) {
+        const px = pos.x + (Math.random() - 0.5) * 1.2;
+        const py = pos.y + (Math.random() - 0.5) * 2.0;
+        const pz = pos.z + (Math.random() - 0.5) * 1.2;
+        const vx = (Math.random() - 0.5) * 8;
+        const vy = Math.random() * 10;
+        const vz = (Math.random() - 0.5) * 8;
+        if (typeof obtainParticle === 'function') {
+            obtainParticle(sharedParticleGeo, 0x22cc44, px, py, pz, vx, vy, vz, 1.0 + Math.random() * 0.5, 1.0, 1.0);
+        } else {
+            const mat = new THREE.MeshBasicMaterial({ color: 0x22cc44 });
+            const mesh = new THREE.Mesh(sharedParticleGeo, mat);
+            mesh.position.set(px, py, pz);
+            scene.add(mesh);
+            particles.push({
+                mesh: mesh,
+                velocity: new THREE.Vector3(vx, vy, vz),
+                life: 1.0 + Math.random() * 0.5
+            });
+        }
+    }
+}
+
+// ── 生化模式: Bot 僵尸化 ──
+function makeZombieBot(bot, isSource) {
+    // 若正在操控无人机，强制回收
+    if (bot.isControllingDrone) {
+        const d = activeDrones.find(dd => dd.ownerId === bot.id);
+        if (d) destroyDrone(d, false);
+        bot.isControllingDrone = false;
+    }
+
+    bot.team = 'ZOMBIE';
+    bot.isZombie = true;
+    bot.isSource = !!isSource;
+    bot.maxHp = isSource ? ZOMBIE.sourceHp : ZOMBIE.hp;
+    bot.hp = bot.maxHp;
+    bot.weapon = 'zombieClaw';
+    bot.burnStacks = 0;
+    bot.burnTimer = 0;
+    bot.poisonTimer = 0;
+    bot.stunTimer = 0;
+    bot.freezeTimer = 0;
+    bot.freezeStacks = 0;
+    bot.isRed = false;
+    bot.isGreen = false;
+    bot.path = null;
+    bot.lastZombieAttack = 0;
+    bot.actionProgress = 0;
+    bot.enemySpotFrame = null;
+    bot.zombieSlowTimer = ZOMBIE.newSlowFrames; // 新变僵尸适应期30秒减速
+
+    // 移除枪械模型并释放资源
+    const gun = bot.mesh.getObjectByName('gun');
+    if (gun) {
+        bot.mesh.remove(gun);
+        gun.traverse(child => {
+            if (child.isMesh) {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                    else child.material.dispose();
+                }
+            }
+        });
+    }
+
+    // 僵尸绿化视觉（母体更深更大）
+    const bodyColor = isSource ? 0x1d4a1d : 0x2d6a2d;
+    const emissive = isSource ? 0x005500 : 0x003300;
+    bot.mesh.traverse(child => {
+        if (child.isMesh) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(m => {
+                if (m.color) m.color.setHex(bodyColor);
+                if (m.emissive) m.emissive.setHex(emissive);
+            });
+        }
+    });
+    bot.mesh.scale.setScalar(isSource ? 1.18 : 1.0);
+}
+
+// ── 生化模式: 感染爆发 ──
+function outbreakInfection() {
+    zombieState.pending = false;
+    const cdEl = document.getElementById('zombie-countdown');
+    if (cdEl) cdEl.classList.add('hidden');
+
+    const candidates = bots.filter(b => !b.isDead && b.hp > 0);
+    for (let i = candidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    const count = Math.min(ZOMBIE.sourceCount, candidates.length);
+    for (let i = 0; i < count; i++) {
+        makeZombieBot(candidates[i], true);
+        createInfectionEffect(candidates[i].mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)));
+    }
+
+    if (typeof playExplosionSound === 'function') playExplosionSound(camera.position);
+    showAnnouncement('感染爆发！' + count + ' 只母体僵尸出现了！', '#00ff88');
+    showKillFeed('病毒爆发！躲开僵尸的利爪，存活到最后！');
+    showKillFeed('新变僵尸有30秒适应期移速减半，抓紧时间抢占高台！');
+    updateHUD();
+}
+
+// ── 生化模式: 感染人类 Bot ──
+function infectBot(bot, source) {
+    if (gameMode !== 'zombie' || !bot || bot.team === 'ZOMBIE' || bot.isDead) return;
+    makeZombieBot(bot, false);
+    if (typeof playKnifeSound === 'function') playKnifeSound('stab');
+    createInfectionEffect(bot.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)));
+    showKillFeed('一名人类被感染，加入了僵尸行列！');
+    updateHUD();
+}
+
+// ── 生化模式: 感染玩家 ──
+// isSource: 变异为母体僵尸（变异血清触发）
+function infectPlayer(source, isSource) {
+    if (gameMode !== 'zombie' || playerState.team === 'ZOMBIE' || playerState.isZombie) return;
+
+    playerState.team = 'ZOMBIE';
+    playerState.isZombie = true;
+    playerState.isSource = !!isSource;
+    playerState.maxHp = isSource ? ZOMBIE.sourceHp : ZOMBIE.hp;
+    playerState.hp = playerState.maxHp;
+    playerState.burnStacks = 0;
+    playerState.burnTimer = 0;
+    playerState.armorPlates = 0;
+    playerState.zombieSlowTimer = ZOMBIE.newSlowFrames; // 适应期30秒移速减半
+
+    // 没收枪械投掷物，只留僵尸利爪（保存原配置供下回合恢复）
+    playerState.prevPrimary = inventory.primary;
+    playerState.prevSecondary = inventory.secondary;
+    playerState.prevMelee = inventory.melee;
+    playerState.prevMelees = [...inventory.melees];
+    inventory.primary = null;
+    inventory.secondary = null;
+    inventory.currentGrenade = null;
+    Object.keys(inventory.grenades).forEach(k => { inventory.grenades[k] = 0; });
+    inventory.melee = 'zombieClaw';
+    inventory.melees = ['zombieClaw'];
+
+    isReloading = false;
+    // 关闭可能开着的购买菜单与迫击炮地图
+    const _buyMenu = document.getElementById('buy-menu');
+    if (_buyMenu && !_buyMenu.classList.contains('hidden')) {
+        _buyMenu.classList.add('hidden');
+        _buyMenu.classList.remove('active');
+    }
+    mortarMapOpen = false;
+    mortarCameraActive = false;
+    const _mortarOverlay = document.getElementById('mortar-map-overlay');
+    if (_mortarOverlay) _mortarOverlay.classList.add('hidden');
+    if (playerState.isAds) {
+        playerState.isAds = false;
+        camera.fov = 75;
+        camera.updateProjectionMatrix();
+        const scopeOverlay = document.getElementById('scope-overlay');
+        const magOverlay = document.getElementById('mag-scope-overlay');
+        const redDot = document.getElementById('red-dot-sight');
+        const holoSight = document.getElementById('holo-sight');
+        if (scopeOverlay) scopeOverlay.classList.add('hidden');
+        if (magOverlay) magOverlay.classList.add('hidden');
+        if (redDot) redDot.classList.add('hidden');
+        if (holoSight) holoSight.classList.add('hidden');
+        document.getElementById('crosshair').classList.remove('hidden');
+    }
+
+    document.getElementById('slot-1').classList.add('hidden');
+    document.getElementById('slot-2').classList.add('hidden');
+    document.getElementById('slot-4').classList.add('hidden');
+    switchWeapon(3);
+
+    showZombieFilter(true);
+    if (typeof playKnifeSound === 'function') playKnifeSound('stab');
+    createInfectionEffect(getPlayerPosition().clone());
+    if (isSource) {
+        showAnnouncement('你变异为母体僵尸！(血量' + ZOMBIE.sourceHp + ') 前30秒移速减半', '#00ff88');
+    } else {
+        showAnnouncement('你被感染了！前30秒移速减半，用利爪 [左键] 感染人类！', '#00ff88');
+    }
+    updateHUD();
+}
+
+// ── 生化模式: 僵尸 Bot 重生 ──
+function respawnZombieBot(bot) {
+    bot.isDead = false;
+    bot.hp = bot.maxHp || ZOMBIE.hp;
+    bot.burnStacks = 0;
+    bot.burnTimer = 0;
+    bot.poisonTimer = 0;
+    bot.stunTimer = 0;
+    bot.freezeTimer = 0;
+    bot.freezeStacks = 0;
+    bot.isRed = false;
+    bot.isGreen = false;
+    bot.path = null;
+    bot.lastZombieAttack = 0;
+    bot.zombieSlowTimer = 0; // 重生为满状态, 不再适应期减速
+    // 重生时恢复僵尸绿色发光（燃烧/中毒会覆盖 emissive）
+    bot.mesh.traverse(child => {
+        if (child.isMesh) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(m => {
+                if (m.emissive) m.emissive.setHex(bot.isSource ? 0x005500 : 0x003300);
+            });
+        }
+    });
+    const pos = getValidSpawnPoint([], 0);
+    bot.mesh.position.set(pos.x, 0, pos.z);
+    bot.mesh.visible = true;
+    scene.add(bot.mesh);
+    showKillFeed('一只僵尸重新站了起来...');
+}
+
+// ── 生化模式: 僵尸玩家重生 ──
+function respawnPlayerZombie() {
+    playerState.isSpectating = false;
+    playerState.hp = playerState.maxHp || ZOMBIE.hp;
+    playerState.zombieRespawnTimer = 0;
+    playerState.zombieSlowTimer = 0; // 重生为满状态
+    playerState.burnStacks = 0;
+    playerState.burnTimer = 0;
+
+    const sp = document.getElementById('spectator-prompt');
+    if (sp) {
+        sp.classList.add('hidden');
+        const h2 = sp.querySelector('h2');
+        if (h2) h2.innerText = '你已阵亡 (Spectating)';
+        const p = sp.querySelector('p');
+        if (p) p.innerHTML = '点击鼠标左键切换观战视角<br>(当前观战: <span id="spectator-target" style="color:#e67e22;">无</span>)';
+    }
+
+    const pos = getValidSpawnPoint([], 0);
+    camera.position.set(pos.x, 2, pos.z);
+    camera.rotation.set(0, Math.random() * Math.PI * 2, 0);
+    showAnnouncement('僵尸重生！', '#00ff88');
+    updateHUD();
+}
+
 function isPlayerInSpawn() {
     if (!playerState.spawnPos) return false;
     return camera.position.distanceTo(playerState.spawnPos) < 150;
@@ -17,7 +282,15 @@ function startGame() {
     document.getElementById('game-screen').classList.add('active');
     document.getElementById('hud-credits').innerText = playerCurrency;
     document.getElementById('exit-range-btn').classList.add('hidden');
+    initSoundSystem();
     init3DGame();
+}
+
+function selectMap(mapId) {
+    if (!MAP_LIST[mapId]) return;
+    currentMap = mapId;
+    const labelEl = document.getElementById('map-label');
+    if (labelEl) labelEl.textContent = MAP_LIST[mapId].name;
 }
 
 let isShootingRange = false;
@@ -32,6 +305,7 @@ function startShootingRange() {
     
     playerCurrency = 99999;
     playerScore = 99999;
+    initSoundSystem();
     document.getElementById('hud-credits').innerText = playerCurrency;
     if (document.getElementById('hud-score'))
         document.getElementById('hud-score').innerText = playerScore;
@@ -144,169 +418,7 @@ function setupShootingRangeTargets() {
 }
 
 
-function openBuyMenu() {
-    if (!roundActive) return;
-    if (!playerState.isControllingDrone && (roundTime <= 225 || !isPlayerInSpawn())) return; // Only buy in first 15s in spawn
-    
-    const menu = document.getElementById('buy-menu');
-    menu.classList.remove('hidden');
-    menu.classList.add('active');
-    
-    if (playerState.isControllingDrone) {
-        menu.querySelectorAll('h3').forEach(h => h.style.display = 'none');
-        menu.querySelectorAll('.mod-category button').forEach(b => {
-            if (!b.id || !b.id.startsWith('btn-throwable-')) {
-                b.style.display = 'none';
-            }
-        });
-        document.getElementById('btn-throwable-hegrenade').innerHTML = "购买 手雷 (HE Grenade) - $150 (半价)";
-        document.getElementById('btn-throwable-flashbang').innerHTML = "购买 闪光弹 (Flashbang) - $100 (半价)";
-        document.getElementById('btn-throwable-molotov').innerHTML = "购买 燃烧瓶 (Molotov) - $200 (半价)";
-        document.getElementById('btn-throwable-sandbag').innerHTML = "购买 沙包 (Sandbag) - $25 (半价)";
-    } else {
-        menu.querySelectorAll('h3').forEach(h => h.style.display = 'block');
-        menu.querySelectorAll('.mod-category button').forEach(b => b.style.display = '');
-        document.getElementById('btn-throwable-hegrenade').innerHTML = "购买 手雷 (HE Grenade) - $300";
-        document.getElementById('btn-throwable-flashbang').innerHTML = "购买 闪光弹 (Flashbang) - $200";
-        document.getElementById('btn-throwable-molotov').innerHTML = "购买 燃烧瓶 (Molotov) - $400";
-        document.getElementById('btn-throwable-sandbag').innerHTML = "购买 沙包 (Sandbag) - $50";
-    }
-    
-    document.getElementById('buy-credits').innerText = playerCurrency;
-    const _buyScore = document.getElementById('buy-score');
-    if (_buyScore) _buyScore.innerText = playerScore;
-    if (typeof updateBulletTypeUI === 'function') updateBulletTypeUI();
-    document.exitPointerLock();
-}
 
-function closeBuyMenu() {
-    document.getElementById('buy-menu').classList.add('hidden');
-    document.getElementById('buy-menu').classList.remove('active');
-    if (roundActive && controls) controls.lock();
-}
-
-function buyWeapon(type, cost) {
-    if (playerState.isControllingDrone) {
-        if (!['hegrenade', 'flashbang', 'molotov', 'sandbag'].includes(type)) return;
-        cost = Math.floor(cost / 2);
-    }
-    if (playerCurrency >= cost) {
-        if (type === 'rifle' || type === 'sniper' || type === 'marksman' || type === 'smg' || type === 'shotgun' || type === 'm249' || type === 'gatling' || type === 'flamethrower' || type === 'ash12') {
-            playerCurrency -= cost;
-            inventory.primary = type;
-            ammoState.primary.clip = getEffectiveMag(WEAPONS[type]);
-            ammoState.primary.reserve = WEAPONS[type].reserve;
-            switchWeapon(1);
-        } else if (type === 'pistol' || type === 'deagle') {
-            playerCurrency -= cost;
-            inventory.secondary = type;
-            ammoState.secondary.clip = getEffectiveMag(WEAPONS[type]);
-            ammoState.secondary.reserve = WEAPONS[type].reserve;
-            switchWeapon(2);
-        } else if (type === 'hegrenade' || type === 'flashbang' || type === 'molotov' || type === 'sandbag' || type === 'drone') {
-            playerCurrency -= cost;
-            inventory.grenades[type] = (inventory.grenades[type] || 0) + 1;
-            if (!inventory.currentGrenade) inventory.currentGrenade = type;
-            document.getElementById('slot-4').classList.remove('hidden');
-            switchWeapon(4);
-        }
-        document.getElementById('buy-credits').innerText = playerCurrency;
-    document.getElementById('hud-credits').innerText = playerCurrency;
-    }
-}
-
-function buyBulletStacking() {
-    if (playerState.isControllingDrone) return;
-    if (playerState.bulletStacking) {
-        showKillFeed('子弹叠加已激活');
-        return;
-    }
-    if (playerCurrency < 500) {
-        showKillFeed('金币不足，无法购买子弹叠加功能');
-        return;
-    }
-    playerCurrency -= 500;
-    document.getElementById('buy-credits').innerText = playerCurrency;
-    document.getElementById('hud-credits').innerText = playerCurrency;
-    playerState.bulletStacking = true;
-    playerState.bulletTypes = [playerState.bulletType || 'normal'];
-    showKillFeed('子弹叠加已激活！可同时选择多种子弹类型');
-    updateBulletTypeUI();
-}
-
-function buyDropCompensation() {
-    if (dropCompensationPurchased) {
-        showKillFeed('弹道下坠补偿已购买');
-        return;
-    }
-    if (playerCurrency < 300) {
-        showKillFeed('金币不足，无法购买弹道下坠补偿');
-        return;
-    }
-    playerCurrency -= 300;
-    document.getElementById('buy-credits').innerText = playerCurrency;
-    document.getElementById('hud-credits').innerText = playerCurrency;
-    dropCompensationPurchased = true;
-    showKillFeed('弹道下坠补偿已购买！按 V 键开关');
-    const btn = document.getElementById('btn-drop-comp');
-    if (btn) {
-        btn.innerHTML = '弹道下坠补偿 <span class="price">已购买</span> <br><small>按 V 键开关：准星自动下移补偿子弹下坠</small>';
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-    }
-}
-
-function toggleDropCompensation() {
-    if (!dropCompensationPurchased) return;
-    // Every press recalculates: always re-measure distance and re-apply offset
-    const w = getCurrentWeapon();
-    if (!w || !w.dropRate) {
-        showKillFeed('当前武器不支持弹道下坠补偿');
-        return;
-    }
-    const camDir = new THREE.Vector3();
-    camera.getWorldDirection(camDir);
-    raycaster.set(camera.position, camDir);
-    raycaster.far = 2000;
-    const _targets = bots.map(bot => bot.mesh).concat(collidableMeshList);
-    const _floorMesh = scene.getObjectByName('floor');
-    if (_floorMesh) _targets.push(_floorMesh);
-    const _hits = raycaster.intersectObjects(_targets, true);
-    let targetDist = 500;
-    if (_hits.length > 0) targetDist = _hits[0].distance;
-    if (targetDist < 5) targetDist = 5;
-
-    // Simulate bullet trajectory to find total vertical drop
-    let dropAccum = 0;
-    let simDir = new THREE.Vector3(0, 0, 1);
-    let posY = 0;
-    let remaining = targetDist;
-    const step = 10;
-    while (remaining > 0) {
-        const moveDist = Math.min(step, remaining);
-        dropAccum += w.dropRate * moveDist;
-        simDir.y -= dropAccum;
-        simDir.normalize();
-        posY += simDir.y * moveDist;
-        remaining -= moveDist;
-    }
-
-    // Convert world drop to screen pixel offset
-    const dropAngle = Math.atan2(-posY, targetDist);
-    const vFovRad = camera.fov * Math.PI / 180;
-    const pixelOffset = (window.innerHeight / 2) * Math.tan(dropAngle) / Math.tan(vFovRad / 2);
-    if (pixelOffset > 0 && pixelOffset < 400) {
-        dropCompensationOffset = pixelOffset;
-        dropCompensationActive = true;
-        showKillFeed('弹道补偿已更新（距离' + Math.round(targetDist) + '，下移' + Math.round(pixelOffset) + 'px）');
-    } else {
-        dropCompensationOffset = 0;
-        dropCompensationActive = false;
-        const dot = document.getElementById('ch-dot');
-        if (dot) dot.style.transform = 'translate(-50%, -50%)';
-        showKillFeed('距离太近，无需补偿');
-    }
-}
 
 function applyArmorReduction(damage) {
     let reduction = Math.min(0.85, (playerState.armorPlates || 0) * 0.15);
@@ -319,14 +431,17 @@ function hasLightBullet() {
 
 function getEffectiveMag(weapon) {
     let mag = (weapon && typeof weapon.mag === 'number') ? weapon.mag : 30;
-    if (hasLightBullet()) mag = Math.round(mag * 1.5);
+    if (hasLightBullet()) {
+        if (weapon && weapon.id === 'sniper') return 25; // AWP+轻型子弹: 弹匣固定25发
+        mag = Math.round(mag * 1.5);
+    }
     return mag;
 }
 
 function adjustClipForLightBullet() {
     const w = getCurrentWeapon();
     if (!w || typeof w.mag !== 'number') return;
-    if (['hegrenade', 'flashbang', 'molotov', 'sandbag', 'drone'].includes(w.id)) return;
+    if (['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'].includes(w.id)) return;
     let currentAmmo = inventory.currentSlot === 1 ? ammoState.primary : ammoState.secondary;
     if (!currentAmmo) return;
     let baseMag = w.mag;
@@ -343,162 +458,12 @@ function adjustClipForLightBullet() {
     updateHUD();
 }
 
-function buyAmmo() {
-    if (playerState.isControllingDrone) return;
-    const w = getCurrentWeapon();
-    if (!w || w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade') {
-        showKillFeed('近战武器无需购买子弹');
-        return;
-    }
-    if (['hegrenade', 'flashbang', 'molotov', 'sandbag', 'drone'].includes(w.id)) {
-        showKillFeed('投掷物请在装备栏直接购买');
-        return;
-    }
-    let magSize = (typeof w.mag === 'number') ? w.mag : 30;
-    let buyAmount = magSize * 2;
-    let cost = Math.round(magSize * 5 / 10) * 10;
 
-    if (playerCurrency < cost) {
-        showKillFeed('金币不足，无法购买子弹 (需要' + cost + '$)');
-        return;
-    }
-    playerCurrency -= cost;
-    document.getElementById('buy-credits').innerText = playerCurrency;
-    document.getElementById('hud-credits').innerText = playerCurrency;
-
-    if (inventory.currentSlot === 1) {
-        ammoState.primary.reserve += buyAmount;
-    } else if (inventory.currentSlot === 2) {
-        ammoState.secondary.reserve += buyAmount;
-    }
-
-    showKillFeed('购买子弹: +' + buyAmount + '发 (花费' + cost + '$)');
-    updateHUD();
-}
-
-function buyArmorPlate() {
-    if (playerState.isControllingDrone) return;
-    if ((playerState.armorPlates || 0) >= 6) {
-        showKillFeed('护甲板已达上限（6块，减伤85%）');
-        return;
-    }
-    if (playerCurrency < 400) {
-        showKillFeed('金币不足，无法购买护甲板');
-        return;
-    }
-    playerCurrency -= 400;
-    document.getElementById('buy-credits').innerText = playerCurrency;
-    document.getElementById('hud-credits').innerText = playerCurrency;
-    playerState.armorPlates = (playerState.armorPlates || 0) + 1;
-    let reduction = Math.min(85, playerState.armorPlates * 15);
-    showKillFeed('护甲板已安装: ' + playerState.armorPlates + '块 (减伤' + reduction + '%)');
-    updateArmorHUD();
-}
-
-function updateArmorHUD() {
-    let el = document.getElementById('hud-armor');
-    if (!el) return;
-    let plates = playerState.armorPlates || 0;
-    let reduction = Math.min(85, plates * 15);
-    el.innerText = '护甲 ' + plates + '/6 (' + reduction + '%)';
-}
-
-function buyBulletType(typeId) {
-    if (playerState.isControllingDrone) return;
-    const bt = BULLET_TYPES[typeId];
-    if (!bt) return;
-
-    const w = getCurrentWeapon();
-    if (w.id === 'flamethrower' && (typeId === 'tracking' || typeId === 'proximity')) {
-        showKillFeed('喷火器无法使用追踪子弹或近炸引信子弹');
-        return;
-    }
-    if (w.id === 'shotgun' && typeId === 'dual') {
-        showKillFeed('霰弹枪无法使用双头弹');
-        return;
-    }
-    let scaledCost = bt.cost;
-
-    if (playerState.bulletStacking) {
-        let idx = playerState.bulletTypes.indexOf(typeId);
-        if (idx >= 0) {
-            if (playerState.bulletTypes.length <= 1) {
-                showKillFeed('至少需要保留一种子弹类型');
-                return;
-            }
-            playerState.bulletTypes.splice(idx, 1);
-            showKillFeed('已移除: ' + bt.name);
-        } else {
-            if (bt.costType === 'currency') {
-                if (playerCurrency < scaledCost) {
-                    showKillFeed('金币不足，无法购买 ' + bt.name + ' (需要' + scaledCost + ')');
-                    return;
-                }
-                playerCurrency -= scaledCost;
-                document.getElementById('buy-credits').innerText = playerCurrency;
-                document.getElementById('hud-credits').innerText = playerCurrency;
-            } else if (bt.costType === 'score') {
-                if (playerScore < scaledCost) {
-                    showKillFeed('积分不足，无法购买 ' + bt.name + ' (需要' + scaledCost + ')');
-                    return;
-                }
-                playerScore -= scaledCost;
-                if (document.getElementById('hud-score'))
-                    document.getElementById('hud-score').innerText = playerScore;
-                const _bs = document.getElementById('buy-score');
-                if (_bs) _bs.innerText = playerScore;
-            }
-            playerState.bulletTypes.push(typeId);
-            showKillFeed('已添加: ' + bt.name);
-        }
-        playerState.bulletType = playerState.bulletTypes[0];
-    } else {
-        if (bt.costType === 'currency') {
-            if (playerCurrency < scaledCost) {
-                showKillFeed('金币不足，无法购买 ' + bt.name + ' (需要' + scaledCost + ')');
-                return;
-            }
-            playerCurrency -= scaledCost;
-            document.getElementById('buy-credits').innerText = playerCurrency;
-            document.getElementById('hud-credits').innerText = playerCurrency;
-        } else if (bt.costType === 'score') {
-            if (playerScore < scaledCost) {
-                showKillFeed('积分不足，无法购买 ' + bt.name + ' (需要' + scaledCost + ')');
-                return;
-            }
-            playerScore -= scaledCost;
-            if (document.getElementById('hud-score'))
-                document.getElementById('hud-score').innerText = playerScore;
-            const _bs2 = document.getElementById('buy-score');
-            if (_bs2) _bs2.innerText = playerScore;
-        }
-        playerState.bulletType = typeId;
-        showKillFeed('子弹类型已切换: ' + bt.name);
-    }
-    adjustClipForLightBullet();
-    updateBulletTypeUI();
-}
-
-function updateBulletTypeUI() {
-    document.querySelectorAll('#bullet-type-category button').forEach(btn => {
-        btn.style.outline = '';
-    });
-    if (playerState.bulletStacking) {
-        playerState.bulletTypes.forEach(t => {
-            const btn = document.getElementById('btn-bullet-' + t);
-            if (btn) btn.style.outline = '2px solid #00ff00';
-        });
-        const stackBtn = document.getElementById('btn-bullet-stacking');
-        if (stackBtn) stackBtn.style.outline = '2px solid #ff00ff';
-    } else {
-        const activeBtn = document.getElementById('btn-bullet-' + playerState.bulletType);
-        if (activeBtn) activeBtn.style.outline = '2px solid #00ff00';
-    }
-}
 
 function switchWeapon(slot) {
     if (playerState.isControllingDrone && slot !== 4) return;
     if (slot === 1 && !inventory.primary) return;
+    if (slot === 2 && !inventory.secondary) return;
     
     if (slot === 3) {
         if (!inventory.melees) inventory.melees = ['knife', 'kukri', 'switchblade'];
@@ -509,7 +474,7 @@ function switchWeapon(slot) {
     }
     
     if (slot === 4) {
-        const types = ['hegrenade', 'flashbang', 'molotov', 'sandbag', 'drone'];
+        const types = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'];
         const available = types.filter(t => inventory.grenades[t] > 0);
         if (available.length === 0) return;
         
@@ -526,7 +491,12 @@ function switchWeapon(slot) {
     
     playerState.isInspecting = false;
     isReloading = false;
-    
+    if (typeof reloadTimer !== 'undefined' && reloadTimer) {
+        clearTimeout(reloadTimer);
+        reloadTimer = null;
+    }
+    playerState.burstQueue = 0; // 切枪中断三连发
+
     if (playerState.isAds && camera) {
         camera.fov = 75;
         camera.updateProjectionMatrix();
@@ -556,14 +526,18 @@ function switchWeapon(slot) {
 function handleReload() {
     if (isReloading || playerState.isSpectating) return;
     const weapon = getCurrentWeapon();
-    if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade' || weapon.type === 'grenade') return;
+    if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade' || weapon.id === 'zombieClaw' || weapon.type === 'grenade') return;
     
     let currentAmmo = inventory.currentSlot === 1 ? ammoState.primary : ammoState.secondary;
     if (currentAmmo.clip >= getEffectiveMag(weapon) || currentAmmo.reserve <= 0) return;
     
     playerState.isInspecting = false;
     isReloading = true;
+    playerState.burstQueue = 0; // 换弹中断三连发
     showKillFeed(`正在换弹...`); // Reusing kill feed for HUD message
+
+    // CS换弹音效序列: 退弹匣 -> 插弹匣 -> 拉栓
+    playReloadSequence(weapon.id, weapon.reloadTime);
     
     if (playerState.viewModel) {
         const mag = playerState.viewModel.getObjectByName('magazine');
@@ -593,7 +567,12 @@ function handleReload() {
         }
     }
     
-    setTimeout(() => {
+    if (typeof reloadTimer !== 'undefined' && reloadTimer) {
+        clearTimeout(reloadTimer);
+        reloadTimer = null;
+    }
+    reloadTimer = setTimeout(() => {
+        if (typeof reloadTimer !== 'undefined') reloadTimer = null;
         if (!isReloading) return; // Cancelled by weapon switch
         isReloading = false;
         if (playerState.hp <= 0) return;
@@ -614,6 +593,11 @@ function handleReload() {
 function endRound(msg, tWin, reason = 'elimination') {
     if (!roundActive) return; // Prevent multiple calls
     roundActive = false;
+    isReloading = false;
+    if (typeof reloadTimer !== 'undefined' && reloadTimer) {
+        clearTimeout(reloadTimer);
+        reloadTimer = null;
+    }
     document.exitPointerLock();
     
     if (tWin) {
@@ -633,16 +617,55 @@ function endRound(msg, tWin, reason = 'elimination') {
     document.getElementById('result-screen').classList.add('active');
     document.getElementById('bomb-status').classList.add('hidden');
     document.getElementById('interact-prompt').classList.add('hidden');
+    const _pickupPrompt = document.getElementById('pickup-prompt');
+    if (_pickupPrompt) _pickupPrompt.classList.add('hidden');
     
     let endMsg = msg;
-    if (matchState.tWins >= matchState.maxWins) endMsg = "比赛结束！恐怖分子获胜";
-    if (matchState.ctWins >= matchState.maxWins) endMsg = "比赛结束！反恐精英获胜";
+    if (gameMode === 'zombie') {
+        if (matchState.tWins >= matchState.maxWins) endMsg = "比赛结束！僵尸阵营获胜";
+        if (matchState.ctWins >= matchState.maxWins) endMsg = "比赛结束！人类阵营获胜";
+    } else {
+        if (matchState.tWins >= matchState.maxWins) endMsg = "比赛结束！恐怖分子获胜";
+        if (matchState.ctWins >= matchState.maxWins) endMsg = "比赛结束！反恐精英获胜";
+    }
     
-    const isPlayerWin = (tWin && playerState.team === 'T') || (!tWin && playerState.team === 'CT');
+    let isPlayerWin;
+    if (gameMode === 'zombie') {
+        isPlayerWin = tWin ? playerState.team === 'ZOMBIE' : playerState.team !== 'ZOMBIE';
+    } else {
+        isPlayerWin = (tWin && playerState.team === 'T') || (!tWin && playerState.team === 'CT');
+    }
     endMsg += isPlayerWin ? " (我方胜利)" : " (敌方胜利)";
     
     document.getElementById('result-desc').innerText = endMsg;
     document.getElementById('result-desc').style.color = tWin ? '#e67e22' : '#3498db';
+
+    // 回合 MVP + 当前比分 + 连败补偿 展示
+    const mvpEl = document.getElementById('result-mvp');
+    if (mvpEl) {
+        const playerKills = matchState.roundKills.player;
+        const bestKiller = matchState.roundBestKiller;
+        let mvpText;
+        if (playerKills > 0 && playerKills >= (bestKiller ? bestKiller.kills : 0)) {
+            mvpText = `本回合 MVP: 你 (${playerKills} 杀)`;
+        } else if (bestKiller && bestKiller.kills > 0) {
+            mvpText = `本回合 MVP: [${bestKiller.team}] BOT (${bestKiller.kills} 杀)`;
+        } else {
+            mvpText = '本回合无击杀';
+        }
+        const scoreText = gameMode === 'zombie'
+            ? `当前比分 — 僵尸 ${matchState.tWins} : ${matchState.ctWins} 人类`
+            : `当前比分 — T ${matchState.tWins} : ${matchState.ctWins} CT (先到 ${matchState.maxWins} 胜)`;
+        mvpEl.innerHTML = `${mvpText}<br><span style="color:#fff; font-weight:400; font-size:0.95rem;">${scoreText}</span>`;
+        if (!isPlayerWin) {
+            const playerOnTSide = (gameMode === 'zombie') ? playerState.team === 'ZOMBIE' : playerState.team === 'T';
+            const streak = playerOnTSide ? matchState.lossStreakT : matchState.lossStreakCT;
+            if (streak >= 2) {
+                const bonus = Math.min(3400, 1400 + (streak - 1) * 500);
+                mvpEl.innerHTML += `<br><span style="color:#aaa; font-weight:400; font-size:0.9rem;">连败补偿: $${bonus} (已连败 ${streak} 场)</span>`;
+            }
+        }
+    }
     
     // CS Economy
     let tMoney = 0;
@@ -658,7 +681,17 @@ function endRound(msg, tWin, reason = 'elimination') {
         if (bombState.planted) tMoney += 800; // T bonus for plant
     }
     
-    if (playerState.team === 'T') {
+    if (gameMode === 'zombie') {
+        // 生化模式: 僵尸方(tWin)与人类方经济
+        const playerOnZombieSide = playerState.team === 'ZOMBIE';
+        if (playerOnZombieSide === tWin) {
+            playerCurrency += tMoney;
+            if (tWin) playerScore += 50;
+        } else {
+            playerCurrency += ctMoney;
+            if (!tWin) playerScore += 50;
+        }
+    } else if (playerState.team === 'T') {
         playerCurrency += tMoney;
         if (tWin) playerScore += 50;
     } else {
@@ -694,7 +727,9 @@ function endRound(msg, tWin, reason = 'elimination') {
 
 function nextRound() {
     if (roundCountdownInterval) clearInterval(roundCountdownInterval);
-    playerState.team = playerState.team === 'T' ? 'CT' : 'T'; // Swap team and spawn location
+    if (gameMode !== 'zombie') {
+        playerState.team = playerState.team === 'T' ? 'CT' : 'T'; // Swap team and spawn location
+    }
     
     if (matchState.tWins >= matchState.maxWins || matchState.ctWins >= matchState.maxWins) {
         matchState.tWins = 0;
@@ -710,6 +745,7 @@ function nextRound() {
         const _resetScore = document.getElementById('hud-score');
         if (_resetScore) _resetScore.innerText = playerScore;
     }
+    document.getElementById('result-screen').classList.remove('active');
     document.getElementById('result-screen').classList.add('hidden');
     
     init3DGame();

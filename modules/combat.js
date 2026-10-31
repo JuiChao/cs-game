@@ -1,21 +1,21 @@
 // #region 射击与战斗
 function handleShooting(initialClick = false) {
     if (playerState.isSpectating) return;
-    if (!controls || !controls.isLocked) return;
+    if (!controls || (!controls.isLocked && !isPlayerControlActive())) return;
     
     if (playerState.isControllingDrone) {
         if (!initialClick) return;
         if (inventory.currentSlot !== 4) return;
         const weapon = getCurrentWeapon();
-        if (!weapon || !['hegrenade', 'flashbang', 'molotov', 'sandbag'].includes(weapon.id)) return;
-        
+        if (!weapon || !['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine'].includes(weapon.id)) return;
+
         const camDir = new THREE.Vector3();
         camera.getWorldDirection(camDir);
-        createGrenade(camera.position.clone(), camDir, weapon.id, playerState.team, true);
-        
+        createGrenade(camera.position.clone(), camDir, weapon.id, playerState.team, true, true);
+
         inventory.grenades[weapon.id]--;
-        
-        const types = ['hegrenade', 'flashbang', 'molotov', 'sandbag', 'drone'];
+
+        const types = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'];
         const available = types.filter(t => inventory.grenades[t] > 0);
         if (available.length > 0) {
             if (inventory.grenades[weapon.id] <= 0) {
@@ -25,7 +25,7 @@ function handleShooting(initialClick = false) {
             inventory.currentGrenade = null;
             document.getElementById('slot-4').classList.add('hidden');
         }
-        
+
         playerState.lastShot = frameCount;
         playerState.lastCombatTime = frameCount;
         updateHUD();
@@ -34,8 +34,29 @@ function handleShooting(initialClick = false) {
     
     if (isReloading) return;
     const weapon = getCurrentWeapon();
-    if (!weapon.auto && !initialClick) return;
-    if (!isShooting) {
+
+    if (weapon.id === 'mortar') {
+        if (initialClick) openMortarMap();
+        return;
+    }
+
+    const hasLightBullet = playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes.includes('light'));
+    const awpLightAuto = weapon.id === 'sniper' && hasLightBullet; // AWP+轻型子弹: 全自动速射形态
+
+    // MK4 三连发: 队列推进后续弹（松开扳机也会打完整组）
+    let burstShotDue = false;
+    if (weapon.burst && playerState.burstQueue > 0 && playerState.burstWeapon === weapon.id) {
+        if (frameCount > playerState.burstNextShot + 10) {
+            playerState.burstQueue = 0; // 队列超时(解锁/断帧)作废, 防止补射残留弹
+        } else if (frameCount >= playerState.burstNextShot) {
+            burstShotDue = true;
+        } else {
+            return;
+        }
+    }
+
+    if (!weapon.auto && !awpLightAuto && !initialClick && !burstShotDue) return;
+    if (!isShooting && !burstShotDue) {
         playerState.gatlingFireStartFrame = 0;
         return;
     }
@@ -51,8 +72,9 @@ function handleShooting(initialClick = false) {
         requiredCooldown /= rampMult;
     }
 
-    if (playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes.includes('light'))) {
-        requiredCooldown *= 0.65;
+    if (hasLightBullet) {
+        if (awpLightAuto) requiredCooldown = 60 / 7; // AWP+轻型: 420发/分（60帧÷7发/秒）
+        else requiredCooldown *= 0.30; // 射速+70%（冷却-70%）
     }
 
     let isDualBullet = playerState.bulletType === 'dual' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('dual'));
@@ -60,12 +82,14 @@ function handleShooting(initialClick = false) {
         requiredCooldown *= 1.45;
     }
     if (weapon.id === 'switchblade' && playerState.knifeComboStage === 2) requiredCooldown = 48;
-    if (frameCount - playerState.lastShot < requiredCooldown) return;
+    if (!burstShotDue && frameCount - playerState.lastShot < requiredCooldown) return;
 
     let currentAmmo = inventory.currentSlot === 1 ? ammoState.primary : (inventory.currentSlot === 2 ? ammoState.secondary : (inventory.currentSlot === 4 ? ammoState.grenade : null));
     
-    if (weapon.id !== 'knife' && weapon.id !== 'kukri' && weapon.id !== 'switchblade' && inventory.currentSlot !== 4) {
+    if (weapon.id !== 'knife' && weapon.id !== 'kukri' && weapon.id !== 'switchblade' && weapon.id !== 'zombieClaw' && inventory.currentSlot !== 4) {
         if (currentAmmo && currentAmmo.clip <= 0) {
+            if (playerState.burstQueue > 0) playerState.burstQueue = 0; // 弹尽中断三连发
+            if (initialClick) playEmptyClick();
             if (initialClick && currentAmmo.reserve > 0) handleReload();
             return;
         }
@@ -75,16 +99,21 @@ function handleShooting(initialClick = false) {
     if (inventory.currentSlot === 4) {
         const camDir = new THREE.Vector3();
         camera.getWorldDirection(camDir);
-        
+
         if (weapon.id === 'drone') {
-            createDrone(camera.position.clone(), camDir, playerState.team);
+            const spawned = createDrone(camera.position.clone(), camDir, playerState.team);
+            if (!spawned) {
+                if (typeof showKillFeed === 'function') showKillFeed('已有活跃无人机正在运行！');
+                return;
+            }
         } else {
-            createGrenade(camera.position.clone(), camDir, weapon.id, playerState.team);
+            playGrenadePin();
+            createGrenade(camera.position.clone(), camDir, weapon.id, playerState.team, false, true);
         }
         
         inventory.grenades[weapon.id]--;
         
-        const types = ['hegrenade', 'flashbang', 'molotov', 'sandbag', 'drone'];
+        const types = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'];
         const available = types.filter(t => inventory.grenades[t] > 0);
         if (available.length > 0) {
             if (inventory.grenades[weapon.id] <= 0) {
@@ -96,7 +125,7 @@ function handleShooting(initialClick = false) {
             if (inventory.primary) switchWeapon(1);
             else switchWeapon(2);
         }
-        
+
         playerState.lastShot = frameCount;
         playerState.lastCombatTime = frameCount;
         updateHUD();
@@ -104,14 +133,25 @@ function handleShooting(initialClick = false) {
     }
 
     playerState.lastShot = frameCount;
-    if (weapon.id !== 'knife' && weapon.id !== 'kukri' && weapon.id !== 'switchblade') {
+    // 三连发: 首发入队后续弹, 队列弹推进后重新排队
+    if (weapon.burst) {
+        if (burstShotDue) {
+            playerState.burstQueue--;
+            if (playerState.burstQueue > 0) playerState.burstNextShot = frameCount + weapon.burstDelay;
+        } else {
+            playerState.burstQueue = weapon.burst - 1;
+            playerState.burstNextShot = frameCount + weapon.burstDelay;
+            playerState.burstWeapon = weapon.id;
+        }
+    }
+    if (weapon.id !== 'knife' && weapon.id !== 'kukri' && weapon.id !== 'switchblade' && weapon.id !== 'zombieClaw') {
         playerState.lastCombatTime = frameCount;
     }
     updateHUD();
     
     // View model recoil animation
     if(playerState.viewModel) {
-        if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade') {
+        if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade' || weapon.id === 'zombieClaw') {
             playerState.knifeAnimStart = performance.now();
         } else if (weapon.id !== 'flamethrower') {
             const kickback = playerState.isAds ? 0.002 : 0.1;
@@ -124,7 +164,7 @@ function handleShooting(initialClick = false) {
         }
     }
 
-    if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade') {
+    if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade' || weapon.id === 'zombieClaw') {
         const now = performance.now();
         if (now - playerState.lastKnifeSwingTime > 1000) {
             playerState.knifeComboStage = 0;
@@ -139,8 +179,9 @@ function handleShooting(initialClick = false) {
             if (playerState.lastKnifeSwingTime !== currentSwingTime) return;
             if (getCurrentWeapon().id !== weapon.id) return;
             
-            if (weapon.id === 'kukri') playKukriSwingSound(playerState.knifeComboStage);
-            else playKnifeSwingSound(playerState.knifeComboStage);
+            // CS刀械音效: 重击(第三段)用刺刀声, 普通挥砍交替两种挥刀声
+            if (playerState.knifeComboStage === 2) playKnifeSound('stab');
+            else playKnifeSound(playerState.knifeComboStage === 0 ? 'swing1' : 'swing2');
 
             let bestTarget = null;
         let bestDist = Infinity;
@@ -214,16 +255,28 @@ function handleShooting(initialClick = false) {
             else dmg = (playerState.knifeComboStage === 2 ? 40 : 30);
             
             if (targetType === 'bot' && bestTarget.team !== playerState.team) {
-                bestTarget.hp -= dmg;
-                createHitEffect(hitPoint, false);
-                if (weapon.id === 'knife' || weapon.id === 'switchblade') {
-                    playerState.hp = Math.min(100, playerState.hp + 5);
-                    updateHUD();
+                if (weapon.id === 'zombieClaw') {
+                    // 僵尸利爪: 感染人类而非造成伤害
+                    playKnifeSound(Math.random() < 0.5 ? 'hit' : 'hit2');
+                    createHitEffect(hitPoint, false);
+                    if (typeof playHitMarkerSound === 'function') playHitMarkerSound(false);
+                    if (!bestTarget.isDead && bestTarget.team !== 'ZOMBIE') infectBot(bestTarget, null);
+                } else {
+                    dmg *= zombieDmgTakenMult(bestTarget);
+                    bestTarget.hp -= dmg;
+                    playKnifeSound(Math.random() < 0.5 ? 'hit' : 'hit2');
+                    createHitEffect(hitPoint, false);
+                    if (typeof playHitMarkerSound === 'function') playHitMarkerSound(hitIsHeadshot);
+                    if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade') {
+                        playerState.hp = Math.min(100, playerState.hp + 5);
+                        updateHUD();
+                    }
+                    if (bestTarget.hp <= 0) killBot(hitIndex, playerState.team, weapon.id, true);
                 }
-                if (bestTarget.hp <= 0) killBot(hitIndex, playerState.team, weapon.id);
             } else if (targetType === 'drone' && bestTarget.team !== playerState.team) {
                 bestTarget.hp -= dmg;
                 createHitEffect(hitPoint, false);
+                if (typeof playHitMarkerSound === 'function') playHitMarkerSound(false);
                 if (bestTarget.hp <= 0) {
                     destroyDrone(bestTarget, false);
                     if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade') {
@@ -235,6 +288,19 @@ function handleShooting(initialClick = false) {
                 if (hitIsHeadshot) dmg *= 3.0;
                 showFloatingDamage(dmg, hitPoint);
                 createHitEffect(hitPoint, false);
+                if (typeof playHitMarkerSound === 'function') playHitMarkerSound(hitIsHeadshot);
+            }
+        } else if (gameMode === 'zombie' && typeof barriers !== 'undefined' && barriers.length > 0) {
+            // 近战无目标时: 拆除近处沙袋路障（僵尸利爪快, 人类武器慢）
+            let barTarget = null;
+            let barDist = Infinity;
+            for (const bar of barriers) {
+                const d = camera.position.distanceTo(bar.mesh.position);
+                if (d < weapon.range && d < barDist) { barDist = d; barTarget = bar; }
+            }
+            if (barTarget) {
+                playKnifeSound('hit');
+                damageBarrier(barTarget, weapon.id === 'zombieClaw' ? 250 : 100);
             }
         }
         };
@@ -257,10 +323,17 @@ function handleShooting(initialClick = false) {
         const muzzlePos = camera.position.clone().add(camDir.clone().multiplyScalar(2));
         createFlameStream(muzzlePos, camDir, weapon.range);
 
+        // 喷火器伤害节流戳 (100ms Tick Interval)
+        const now = performance.now();
+        if (now - (playerState.lastFlameDamageTick || 0) < 100) {
+            return;
+        }
+        playerState.lastFlameDamageTick = now;
+
         raycaster.set(camera.position, camDir);
         raycaster.far = weapon.range;
         const _floorMesh = scene.getObjectByName('floor');
-        let targets = bots.map(bot => bot.mesh).concat(activeDrones.map(d => d.mesh)).concat(collidableMeshList);
+        let targets = bots.filter(bot => !bot.isDead).map(bot => bot.mesh).concat(activeDrones.map(d => d.mesh)).concat(collidableMeshList);
         if (_floorMesh) targets.push(_floorMesh);
         const intersects = raycaster.intersectObjects(targets, true);
 
@@ -294,15 +367,24 @@ function handleShooting(initialClick = false) {
             }
 
             if (hitBot && hitBot.team !== playerState.team) {
-                hitBot.hp -= weapon.damage;
+                // 生化模式: 喷火器(fireRate:0) 100ms 伤害节流，对僵尸造成 3点 + 当前血量2% 伤害（单次百分比上限20点）
+                let flameDmg = weapon.damage * zombieDmgTakenMult(hitBot);
+                if (gameMode === 'zombie' && hitBot.team === 'ZOMBIE') {
+                    const percentDmg = Math.min(20, hitBot.hp * 0.02);
+                    flameDmg = weapon.damage + percentDmg;
+                }
+                hitBot.hp -= flameDmg;
                 if ((hitBot.burnStacks || 0) < 20) hitBot.burnStacks = (hitBot.burnStacks || 0) + 1;
-                hitBot.burnTimer = 300;
+                hitBot.burnTimer = 420;
                 hitBot.burnDamageMult = 0.25;
                 createHitEffect(hit.point, false, 'shotgun');
-                if (hitBot.hp <= 0) killBot(hitIndex, playerState.team, weapon.id);
+                if (typeof playHitMarkerSound === 'function') playHitMarkerSound(false);
+                if (typeof showFloatingDamage === 'function') showFloatingDamage(Math.round(flameDmg), hit.point);
+                if (hitBot.hp <= 0) killBot(hitIndex, playerState.team, weapon.id, true);
             } else if (hitDrone && hitDrone.team !== playerState.team) {
                 hitDrone.hp -= weapon.damage;
                 createHitEffect(hit.point, false, 'shotgun');
+                if (typeof playHitMarkerSound === 'function') playHitMarkerSound(false);
                 if (hitDrone.hp <= 0) destroyDrone(hitDrone, false);
             } else if (hitRangeTarget) {
                 let dmg = weapon.damage;
@@ -310,9 +392,10 @@ function handleShooting(initialClick = false) {
                 showFloatingDamage(dmg, hit.point);
                 let targetObj = hit.object.parent;
                 if ((targetObj.burnStacks || 0) < 20) targetObj.burnStacks = (targetObj.burnStacks || 0) + 1;
-                targetObj.burnTimer = 300;
+                targetObj.burnTimer = 420;
                 targetObj.burnDamageMult = 0.25;
                 createHitEffect(hit.point, false, 'shotgun');
+                if (typeof playHitMarkerSound === 'function') playHitMarkerSound(hit.object.name === 'rangeTargetHead');
             } else if (!hitBot && !hitDrone) {
                 createHitEffect(hit.point, true, 'shotgun');
             }
@@ -366,17 +449,23 @@ function handleShooting(initialClick = false) {
         dir.add(up.clone().multiplyScalar(Math.sin(theta) * r));
         dir.normalize();
 
-        let shooterInfo = { team: playerState.team, bulletType: playerState.bulletType || 'normal', bulletTypes: playerState.bulletStacking ? playerState.bulletTypes : null };
+        let shooterInfo = { team: playerState.team, isPlayer: true, bulletType: playerState.bulletType || 'normal', bulletTypes: playerState.bulletStacking ? playerState.bulletTypes : null };
         if (isDualBullet && weapon.id !== 'shotgun') {
             shooterInfo.divergenceSide = (i === 0 ? 1 : -1);
         }
         createBullet(start, dir, weapon, shooterInfo);
     }
 
+    // 枪声: 每次扳机播放一次
+    playGunSound(weapon.id);
 
 
-    // Camera recoil (deterministic pattern-based, CS-style)
-    if (weapon.id !== 'knife' && weapon.id !== 'kukri' && weapon.id !== 'switchblade') {
+
+    // Camera recoil (deterministic pattern-based, CS-style) & Camera Shake
+    if (weapon.id !== 'knife' && weapon.id !== 'kukri' && weapon.id !== 'switchblade' && weapon.id !== 'zombieClaw') {
+        const shakeAmt = (weapon.id === 'shotgun' || weapon.id === 'ash12' || weapon.id === 'sniper') ? 0.010 : 0.004;
+        playerState.cameraShake = Math.min(0.025, (playerState.cameraShake || 0) + shakeAmt);
+
         // Reset pattern index if enough time has passed since last shot (0.4s)
         const framesSinceLastShot = frameCount - (playerState.lastRecoilShotFrame || 0);
         if (framesSinceLastShot > 24) {
@@ -448,9 +537,37 @@ function handleShooting(initialClick = false) {
 }
 
 function playerDie(killerTeam = null, weaponId = 'rifle') {
+    playerState.killStreak = 0; // 死亡清零连杀
+    // 生化模式: 人类死亡即被感染，僵尸死亡8秒后重生
+    if (gameMode === 'zombie' && roundActive) {
+        if (!playerState.isZombie) {
+            infectPlayer(null);
+        }
+        if (playerState.isZombie) {
+            if (killerTeam) {
+                showKillFeed(`[${killerTeam}] 击杀了 你，你已沦为僵尸...`);
+            }
+            playerState.isSpectating = true;
+            playerState.zombieRespawnTimer = ZOMBIE.respawnFrames;
+            document.exitPointerLock();
+            document.getElementById('spectator-prompt').classList.remove('hidden');
+            if (playerState.isControllingDrone) {
+                const pd = activeDrones.find(d => d.isPlayer);
+                if (pd) destroyDrone(pd, false);
+            }
+            cycleSpectator();
+            checkWinCondition();
+            return;
+        }
+    }
+
     if (killerTeam) {
         const wName = WEAPONS[weaponId] ? WEAPONS[weaponId].name : weaponId;
-        showKillFeed(`[${killerTeam}] BOT 使用 ${wName} 击杀了 你`);
+        if (weaponId === 'c4') {
+            showKillFeed(`你 被 C4 炸弹 爆炸冲击波击杀`);
+        } else {
+            showKillFeed(`[${killerTeam}] BOT 使用 ${wName} 击杀了 你`);
+        }
     }
 
     playerState.isSpectating = true;
@@ -464,11 +581,236 @@ function playerDie(killerTeam = null, weaponId = 'rifle') {
     checkWinCondition();
 }
 
-function killBot(index, killerTeam, weaponId = 'rifle') {
+// ── G键快速投掷高爆手雷（无需切换到4号槽位）──
+function quickThrowGrenade() {
+    if (!roundActive || playerState.isSpectating || playerState.isControllingDrone || playerState.hp <= 0) return;
+    if (gameMode === 'zombie' && (playerState.isZombie || playerState.team === 'ZOMBIE')) return;
+    if (!(inventory.grenades.hegrenade > 0)) {
+        showKillFeed('没有高爆手雷！可在商店购买');
+        return;
+    }
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    playGrenadePin();
+    createGrenade(camera.position.clone(), camDir, 'hegrenade', playerState.team, false, true);
+    inventory.grenades.hegrenade--;
+    playerState.lastShot = frameCount;
+    showKillFeed('快速投掷高爆手雷 (剩余 ' + inventory.grenades.hegrenade + ')');
+    updateHUD();
+}
+
+// ── 地雷部署: 投掷后首次碰撞（落地/撞墙）时贴附表面，生成范围圈 ──
+function deployMine(position, normal, team, isPlayer) {
+    // 场上上限10枚，超限移除最旧的
+    while (activeMines.length >= 10) {
+        removeMineMesh(activeMines[0]);
+        activeMines.splice(0, 1);
+    }
+    const group = new THREE.Group();
+    const geo = new THREE.CylinderGeometry(0.5, 0.6, 0.25, 12);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x2a3a2a });
+    const body = new THREE.Mesh(geo, mat);
+    group.add(body);
+    const lampGeo = new THREE.SphereGeometry(0.12, 8, 8);
+    const lampMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const lamp = new THREE.Mesh(lampGeo, lampMat);
+    lamp.position.y = 0.18;
+    group.add(lamp);
+    group.position.copy(position);
+    if (normal) {
+        // 贴附朝向: 圆柱顶面朝向碰撞面外法线（地面平放 / 墙面贴合 / 天花板倒挂）
+        const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal.clone().normalize());
+        group.quaternion.copy(quat);
+        group.position.add(normal.clone().normalize().multiplyScalar(0.15)); // 沿法线抬离表面防穿模
+    }
+    scene.add(group);
+
+    // 范围圈: 危险区红盘(爆炸半径18.75) + 边缘环 + 触发半径小环(9)，无论贴哪始终平铺于雷下方地面
+    const circle = new THREE.Group();
+    const dangerGeo = new THREE.CircleGeometry(18.75, 48);
+    const dangerMat = new THREE.MeshBasicMaterial({ color: 0xff2200, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false });
+    const danger = new THREE.Mesh(dangerGeo, dangerMat);
+    danger.rotation.x = -Math.PI / 2;
+    circle.add(danger);
+    const ringGeo = new THREE.RingGeometry(17.7, 18.75, 48);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    circle.add(ring);
+    const trigGeo = new THREE.RingGeometry(8, 9, 24);
+    const trigMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
+    const trig = new THREE.Mesh(trigGeo, trigMat);
+    trig.rotation.x = -Math.PI / 2;
+    circle.add(trig);
+    circle.position.set(position.x, 0.06, position.z); // 平铺于雷正下方地面（贴墙雷也投影到地面）
+    scene.add(circle);
+
+    activeMines.push({ group: group, lamp: lamp, circle: circle, x: position.x, z: position.z, team: team, armTimer: 90, isPlayer: !!isPlayer });
+}
+
+// 移除地雷网格并释放 GPU 资源
+function removeMineMesh(m) {
+    if (m.group) {
+        scene.remove(m.group);
+        m.group.traverse(child => {
+            if (child.isMesh) {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            }
+        });
+    }
+    if (m.circle) {
+        scene.remove(m.circle);
+        m.circle.traverse(child => {
+            if (child.isMesh) {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            }
+        });
+    }
+}
+
+// 地雷更新: 布防倒计时 + 仅敌方靠近触发（队友与玩家自己踩上安全），触发后 0.25 秒引信爆炸
+function updateMines() {
+    for (let i = activeMines.length - 1; i >= 0; i--) {
+        const m = activeMines[i];
+        if (m.armTimer > 0) {
+            m.armTimer--;
+            m.lamp.visible = (frameCount % 40 < 20); // 布防中慢闪
+            continue;
+        }
+        // 引信倒计时: 走近爆炸中心触发后 0.25 秒（15帧）起爆
+        if (m.fuseTimer > 0) {
+            m.fuseTimer--;
+            m.lamp.visible = (frameCount % 4 < 2); // 引信中极速闪烁预警
+            if (m.fuseTimer <= 0) explodeMine(m, i);
+            continue;
+        }
+        m.lamp.visible = (frameCount % 10 < 5); // 武装后快闪
+        let triggered = false;
+        for (let j = bots.length - 1; j >= 0; j--) {
+            const b = bots[j];
+            if (b.isDead || b.team === m.team) continue; // 队友踩上不触发
+            const dx = b.mesh.position.x - m.x;
+            const dz = b.mesh.position.z - m.z;
+            if (dx * dx + dz * dz < 81) { // 触发半径9（仅敌方）
+                triggered = true;
+                break;
+            }
+        }
+        // 敌对阵营的玩家才会触发（自己的雷踩上安全）
+        if (!triggered && playerState.team !== m.team && playerState.hp > 0 && !playerState.isSpectating && !playerState.isControllingDrone) {
+            const p = getPlayerPosition();
+            const dx = p.x - m.x;
+            const dz = p.z - m.z;
+            if (dx * dx + dz * dz < 81) triggered = true; // 触发半径9
+        }
+        if (triggered) m.fuseTimer = 15; // 启动0.25秒引信（60fps × 0.25 = 15帧）
+    }
+}
+
+function explodeMine(m, index) {
+    const pos = m.group ? m.group.position.clone() : new THREE.Vector3(m.x, 0.5, m.z);
+    createHitEffect(pos, false);
+    playExplosionSound(pos);
+    const range = 18.75; // 爆炸半径（12.5 增大50%）
+    // 爆炸只伤敌方（队友免疫，不伤自己人）
+    for (let j = bots.length - 1; j >= 0; j--) {
+        const b = bots[j];
+        if (b.isDead || b.team === m.team) continue;
+        const dist = b.mesh.position.distanceTo(pos);
+        if (dist < range) {
+            b.hp -= 120 * (1 - dist / range) * zombieExplosiveDmgMult(b);
+            if (b.hp <= 0) killBot(j, m.team, 'mine', m.isPlayer);
+        }
+    }
+    // 玩家与雷同阵营则免疫（自己的雷不伤自己）
+    if (playerState.team !== m.team && playerState.hp > 0 && !playerState.isSpectating) {
+        const playerPos = getPlayerPosition();
+        const dist = playerPos.distanceTo(pos);
+        if (dist < range) {
+            let dmg = Math.round(Math.max(0, 120 * (1 - dist / range)));
+            dmg = applyArmorReduction(dmg);
+            const wid = getCurrentWeapon().id;
+            if (wid === 'kukri' || (wid === 'flamethrower' && isShooting)) dmg *= 0.025;
+            else if (wid === 'knife' || wid === 'switchblade') dmg *= 0.05;
+            if (!playerState.isInvincible) playerState.hp -= Math.ceil(dmg);
+            if (typeof triggerDamageVignette === 'function') triggerDamageVignette(dmg / 35);
+            playerState.cameraShake = Math.min(0.03, (playerState.cameraShake || 0) + 0.015);
+            playerState.lastCombatTime = frameCount;
+            if (playerState.hp <= 0) playerDie(m.team, 'mine');
+        }
+    }
+    removeMineMesh(m);
+    activeMines.splice(index, 1);
+}
+
+// ── 连杀奖励: 3连杀起每级+100$，上限+500$（死亡或新回合清零）──
+function handleKillStreakReward() {
+    playerState.killStreak = (playerState.killStreak || 0) + 1;
+    if (playerState.killStreak < 3) return;
+    const bonus = Math.min(500, (playerState.killStreak - 2) * 100);
+    playerCurrency += bonus;
+    document.getElementById('hud-credits').innerText = playerCurrency;
+    showKillFeed(`${playerState.killStreak} 连杀！额外奖励 +$${bonus}`);
+    showAnnouncement(`${playerState.killStreak} 连杀！`, playerState.killStreak >= 5 ? '#ff4d4d' : '#ffd700');
+}
+
+function killBot(index, killerTeam, weaponId = 'rifle', killerIsPlayer = false, killerBot = null) {
     const bot = bots[index];
     const wName = WEAPONS[weaponId] ? WEAPONS[weaponId].name : weaponId;
-    
-    if (killerTeam === playerState.team) {
+
+    // MVP 统计: 击杀者 Bot 的回合击杀数
+    if (killerBot && !killerBot.isDead) {
+        killerBot.kills = (killerBot.kills || 0) + 1;
+        if (!matchState.roundBestKiller || killerBot.kills > matchState.roundBestKiller.kills) {
+            matchState.roundBestKiller = { kills: killerBot.kills, team: killerBot.team };
+        }
+    }
+
+    // 生化模式: 僵尸被击杀后不移除，8秒后原地系统重生
+    if (gameMode === 'zombie' && bot.team === 'ZOMBIE') {
+        if (bot.isDead) return; // 已在重生流程中，避免重置计时
+        if (killerIsPlayer) {
+        const reward = 500;
+        playerCurrency += reward;
+        playerScore += 10;
+        document.getElementById('hud-credits').innerText = playerCurrency;
+        const _hudScore = document.getElementById('hud-score');
+        if (_hudScore) _hudScore.innerText = playerScore;
+        matchState.roundKills.player++;
+        showKillFeed(`你 使用 ${wName} 击杀了僵尸 (+$${reward})`);
+        handleKillStreakReward();
+    } else {
+            if (killerTeam === playerState.team) matchState.roundKills.myBots++;
+            else matchState.roundKills.enemyBots++;
+            showKillFeed(`[${killerTeam}] BOT 使用 ${wName} 击杀了僵尸`);
+        }
+        bot.isDead = true;
+        bot.hp = 0;
+        bot.respawnTimer = ZOMBIE.respawnFrames;
+        bot.burnStacks = 0;
+        bot.burnTimer = 0;
+        bot.poisonTimer = 0;
+        bot.stunTimer = 0;
+        bot.freezeTimer = 0;
+        bot.freezeStacks = 0;
+        scene.remove(bot.mesh);
+        checkWinCondition();
+        return;
+    }
+
+    // 击杀统计（MVP 用）
+    if (killerIsPlayer) matchState.roundKills.player++;
+    else if (killerTeam === playerState.team) matchState.roundKills.myBots++;
+    else matchState.roundKills.enemyBots++;
+
+    // 爆破模式: Bot 阵亡掉落其武器（15秒内可按 E 拾取）
+    if (gameMode === 'bomb' && bot.weapon && WEAPONS[bot.weapon]) {
+        spawnWeaponDrop(bot.mesh.position.clone(), bot.weapon);
+    }
+
+    if (killerIsPlayer) {
         const reward = WEAPONS[weaponId] ? WEAPONS[weaponId].killReward : 300;
         playerCurrency += reward;
         playerScore += 10;
@@ -476,13 +818,18 @@ function killBot(index, killerTeam, weaponId = 'rifle') {
         const _hudScore = document.getElementById('hud-score');
         if (_hudScore) _hudScore.innerText = playerScore;
         showKillFeed(`你 使用 ${wName} 击杀了 [${bot.team}] BOT (+$${reward})`);
-        
+        handleKillStreakReward();
+
         if (weaponId === 'knife' || weaponId === 'kukri' || weaponId === 'switchblade') {
             playerState.hp = Math.min(100, playerState.hp + 10);
             updateHUD();
         }
     } else {
-        showKillFeed(`[${killerTeam}] BOT 使用 ${wName} 击杀了 [${bot.team}] BOT`);
+        if (weaponId === 'c4') {
+            showKillFeed(`[${bot.team}] BOT 被 C4 炸弹 爆炸冲击波击杀`);
+        } else {
+            showKillFeed(`[${killerTeam}] BOT 使用 ${wName} 击杀了 [${bot.team}] BOT`);
+        }
     }
 
     scene.remove(bot.mesh);
@@ -496,8 +843,101 @@ function killBot(index, killerTeam, weaponId = 'rifle') {
         }
     });
     bots.splice(index, 1);
-    
+
     checkWinCondition();
+}
+
+// ── 武器拾取系统: Bot 阵亡掉落武器, 15秒内可按 E 拾取 ──
+function spawnWeaponDrop(pos, weaponId) {
+    if (!WEAPONS[weaponId]) return;
+    const wInfo = WEAPONS[weaponId];
+    const geo = new THREE.BoxGeometry(0.15, 0.15, Math.max(0.4, wInfo.length));
+    const mat = new THREE.MeshStandardMaterial({ color: wInfo.color });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(pos.x, 0.3, pos.z);
+    mesh.rotation.z = Math.PI / 2;
+    mesh.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(mesh);
+    weaponDrops.push({ mesh: mesh, weaponId: weaponId, life: 15.0 });
+}
+
+function removeWeaponDrop(i) {
+    const d = weaponDrops[i];
+    scene.remove(d.mesh);
+    if (d.mesh.geometry) d.mesh.geometry.dispose();
+    if (d.mesh.material) d.mesh.material.dispose();
+    weaponDrops.splice(i, 1);
+}
+
+function updateWeaponDrops(delta) {
+    for (let i = weaponDrops.length - 1; i >= 0; i--) {
+        const d = weaponDrops[i];
+        d.life -= delta;
+        if (d.life <= 0) {
+            removeWeaponDrop(i);
+            continue;
+        }
+        d.mesh.rotation.y += delta * 1.2;
+        // 消失前 3 秒闪烁提示
+        if (d.life < 3) d.mesh.visible = Math.floor(d.life * 5) % 2 === 0;
+    }
+}
+
+function handleWeaponPickup() {
+    const promptEl = document.getElementById('pickup-prompt');
+    if (!promptEl) return;
+    if (gameMode !== 'bomb' || playerState.isSpectating || playerState.isControllingDrone || !roundActive || mortarMapOpen || mortarCameraActive) {
+        promptEl.classList.add('hidden');
+        return;
+    }
+    if (typeof bombState !== 'undefined' && bombState) {
+        const isInteractingWithBomb = bombState.plantProgress > 0 ||
+            (bombState.planted && playerState.team === 'CT' && bombState.mesh && camera && camera.position.distanceTo(bombState.mesh.position) < 15) ||
+            (!bombState.planted && playerState.team === 'T' && typeof bombZones !== 'undefined' && bombZones.some(zone => 
+                Math.abs(camera.position.x - zone.mesh.position.x) < 30 &&
+                Math.abs(camera.position.z - zone.mesh.position.z) < 30 &&
+                Math.abs(camera.position.y - zone.mesh.position.y) < 5
+            ));
+        if (isInteractingWithBomb) {
+            promptEl.classList.add('hidden');
+            return;
+        }
+    }
+    const playerPos = getPlayerPosition();
+    let nearest = -1;
+    let nearestDist = 5.0;
+    for (let i = 0; i < weaponDrops.length; i++) {
+        const d = weaponDrops[i];
+        const dist = Math.hypot(playerPos.x - d.mesh.position.x, playerPos.z - d.mesh.position.z);
+        if (dist < nearestDist) { nearestDist = dist; nearest = i; }
+    }
+    if (nearest === -1) {
+        promptEl.classList.add('hidden');
+        return;
+    }
+    const drop = weaponDrops[nearest];
+    const wInfo = WEAPONS[drop.weaponId];
+    promptEl.innerText = `按 [E] 拾取 ${wInfo.name}`;
+    promptEl.classList.remove('hidden');
+    if (isInteracting && frameCount - (playerState.lastPickupFrame || -999) > 30) {
+        playerState.lastPickupFrame = frameCount;
+        const isSecondary = drop.weaponId === 'pistol' || drop.weaponId === 'deagle';
+        if (isSecondary) {
+            inventory.secondary = drop.weaponId;
+            ammoState.secondary.clip = getEffectiveMag(wInfo);
+            ammoState.secondary.reserve = wInfo.reserve;
+            switchWeapon(2);
+        } else {
+            inventory.primary = drop.weaponId;
+            ammoState.primary.clip = getEffectiveMag(wInfo);
+            ammoState.primary.reserve = wInfo.reserve;
+            switchWeapon(1);
+        }
+        showKillFeed(`拾取了 ${wInfo.name}`);
+        removeWeaponDrop(nearest);
+        promptEl.classList.add('hidden');
+        updateHUD();
+    }
 }
 
 // #endregion

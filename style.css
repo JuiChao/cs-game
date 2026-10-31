@@ -256,7 +256,7 @@ h1, h2, h3, h4 {
     position: absolute;
     top: 50%;
     left: 50%;
-    z-index: 2;
+    z-index: 48;
     pointer-events: none;
 }
 
@@ -280,6 +280,14 @@ h1, h2, h3, h4 {
     transform: translate(-50%, -50%);
     border-radius: 50%;
     box-shadow: 0 0 2px rgba(0,0,0,0.8);
+}
+
+#crosshair.hit .ch-line, #crosshair.hit #ch-dot {
+    background-color: #ff3333 !important;
+}
+#crosshair.hit-headshot .ch-line, #crosshair.hit-headshot #ch-dot {
+    background-color: #ff0000 !important;
+    box-shadow: 0 0 6px #ff0000;
 }
 
 #hud {
@@ -491,6 +499,19 @@ h1, h2, h3, h4 {
     border: 1px solid rgba(255,255,255,0.2);
 }
 
+#pickup-prompt {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, 110px);
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    color: #f1c40f;
+    border: 1px solid rgba(241, 196, 15, 0.4);
+}
+
 #buy-prompt {
     position: absolute;
     bottom: 20%;
@@ -683,6 +704,7 @@ h1, h2, h3, h4 {
     .weapon-name { font-size: 0.75rem; }
     .currency-hud { bottom: 70px; right: 8px; font-size: 0.85rem; padding: 6px 10px; }
     #hud-armor { bottom: 105px; right: 8px; font-size: 0.75rem; padding: 4px 8px; }
+    #adrenaline-hud { bottom: 135px !important; right: 8px !important; font-size: 0.75rem !important; padding: 4px 8px !important; }
     .weapon-inventory {
         bottom: 8px;
         gap: 6px;
@@ -785,6 +807,7 @@ h1, h2, h3, h4 {
     #bullet-type-display { font-size: 0.55rem !important; }
     .currency-hud { bottom: 55px; right: 4px; font-size: 0.65rem; padding: 3px 6px; }
     #hud-armor { bottom: 82px; right: 4px; font-size: 0.6rem; padding: 2px 6px; }
+    #adrenaline-hud { bottom: 105px !important; right: 4px !important; font-size: 0.65rem !important; padding: 3px 6px !important; }
     .weapon-inventory {
         bottom: 4px;
         gap: 3px;

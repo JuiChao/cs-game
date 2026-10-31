@@ -1,6 +1,9 @@
 // #region 地图构建
 let gameInitialized = false;
 
+// 生化模式: 高台守点列表（buildBiolabMap 填充，其他地图为空）
+let platformSpots = [];
+
 function init3DGame() {
     if (!gameInitialized) {
         const container = document.getElementById('canvas-container');
@@ -20,6 +23,8 @@ function init3DGame() {
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
 
         const knifeRange = WEAPONS.knife.range;
@@ -38,8 +43,11 @@ function init3DGame() {
         scene.add(predictionMarker);
 
         controls = new THREE.PointerLockControls(camera, document.body);
+        controls.addEventListener('unlock', () => {
+            if (typeof resetInputState === 'function') resetInputState();
+        });
         
-        let isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+        isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia("(pointer: coarse)").matches;
         
         container.addEventListener('click', () => { 
             if (!isTouchDevice && roundActive && !playerState.isSpectating && document.getElementById('buy-menu').classList.contains('hidden')) {
@@ -59,9 +67,11 @@ function init3DGame() {
         if (isTouchDevice) {
             setupTouchControls();
         }
-        
+
         gameInitialized = true;
         requestAnimationFrame(animate);
+    } else {
+        rebuildMap();
     }
     resetRound();
 }
@@ -83,11 +93,29 @@ function rebuildMap() {
             }
         }
     }
-    
+
+    // Map-specific sky / fog
+    if (currentMap === 'inferno') {
+        scene.background = new THREE.Color(0xd4a76a);
+        scene.fog = new THREE.Fog(0xd4a76a, 30, 380);
+    } else if (currentMap === 'biolab') {
+        scene.background = new THREE.Color(0x3a4438);
+        scene.fog = new THREE.Fog(0x3a4438, 25, 360);
+    } else {
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 20, 300);
+    }
+
     if (isShootingRange) {
         buildShootingRangeMap();
     } else {
-        buildLargeMap();
+        if (currentMap === 'inferno') {
+            buildInfernoMap();
+        } else if (currentMap === 'biolab') {
+            buildBiolabMap();
+        } else {
+            buildLargeMap();
+        }
         buildNavGrid();
     }
     
@@ -98,6 +126,9 @@ function rebuildMap() {
             collidableMeshList.push(child);
         }
     });
+    if (typeof rebuildBulletSpatialGrid === 'function') {
+        rebuildBulletSpatialGrid();
+    }
 }
 
 function buildShootingRangeMap() {
@@ -134,10 +165,16 @@ function buildShootingRangeMap() {
     createWall(0, -250, 50, 2);
 }
 
-function getValidSpawnPoint(existingPoints, minDist = 80) {
+function getValidSpawnPoint(existingPoints, minDist = 80, area = null) {
     for (let i = 0; i < 500; i++) {
-        let x = (Math.random() - 0.5) * 750;
-        let z = (Math.random() - 0.5) * 750;
+        let x, z;
+        if (area) {
+            x = area.minX + Math.random() * (area.maxX - area.minX);
+            z = area.minZ + Math.random() * (area.maxZ - area.minZ);
+        } else {
+            x = (Math.random() - 0.5) * 750;
+            z = (Math.random() - 0.5) * 750;
+        }
         let valid = true;
         
         for (let pt of existingPoints) {
@@ -160,10 +197,41 @@ function getValidSpawnPoint(existingPoints, minDist = 80) {
         }
         if (valid) return {x, z};
     }
+    if (area) {
+        return { x: area.minX + Math.random() * (area.maxX - area.minX), z: area.minZ + Math.random() * (area.maxZ - area.minZ) };
+    }
     return {x: (Math.random() - 0.5) * 700, z: (Math.random() - 0.5) * 700};
 }
 
 function resetRound() {
+    isReloading = false;
+    if (typeof reloadTimer !== 'undefined' && reloadTimer) {
+        clearTimeout(reloadTimer);
+        reloadTimer = null;
+    }
+    if (typeof droppedMagazines !== 'undefined' && droppedMagazines) {
+        droppedMagazines.forEach(m => {
+            scene.remove(m.mesh);
+            if (m.mesh.geometry) m.mesh.geometry.dispose();
+            if (m.mesh.material) {
+                if (Array.isArray(m.mesh.material)) m.mesh.material.forEach(mat => mat.dispose());
+                else m.mesh.material.dispose();
+            }
+        });
+        droppedMagazines.length = 0;
+    }
+    if (typeof floatingDamages !== 'undefined' && floatingDamages) {
+        floatingDamages.forEach(fd => {
+            if (fd.elem) {
+                if (typeof fd.elem.remove === 'function') fd.elem.remove();
+                else if (fd.elem.parentNode) fd.elem.parentNode.removeChild(fd.elem);
+            }
+        });
+        floatingDamages.length = 0;
+    }
+    const dmgNumbers = document.getElementById('damage-numbers');
+    if (dmgNumbers) dmgNumbers.innerHTML = '';
+
     // Dispose all GPU resources before clearing arrays
     if (bots) bots.forEach(b => {
         scene.remove(b.mesh);
@@ -179,6 +247,11 @@ function resetRound() {
         scene.remove(g.mesh);
         if (g.mesh.geometry) g.mesh.geometry.dispose();
         if (g.mesh.material) g.mesh.material.dispose();
+        if (g.circleMesh) {
+            scene.remove(g.circleMesh);
+            if (g.circleMesh.geometry) g.circleMesh.geometry.dispose();
+            if (g.circleMesh.material) g.circleMesh.material.dispose();
+        }
     });
     if (activeFires) activeFires.forEach(f => {
         scene.remove(f.mesh);
@@ -187,9 +260,23 @@ function resetRound() {
     });
     if (particles) particles.forEach(p => {
         scene.remove(p.mesh);
-        if (p.mesh.geometry) p.mesh.geometry.dispose();
-        if (p.mesh.material) p.mesh.material.dispose();
+        if (p.mesh.geometry && p.mesh.geometry !== sharedParticleGeo && p.mesh.geometry !== sharedMuzzleGeo && p.mesh.geometry !== sharedFlameGeo) p.mesh.geometry.dispose();
+        if (p.mesh.material && !p.isPooled && !p.mesh.material.isPooled) p.mesh.material.dispose();
+        if (p.isPooled) p.inUse = false;
     });
+    if (typeof particlePool !== 'undefined' && Array.isArray(particlePool)) {
+        for (let i = 0; i < particlePool.length; i++) {
+            const p = particlePool[i];
+            if (p.mesh && p.mesh.parent) scene.remove(p.mesh);
+            p.inUse = false;
+        }
+        if (typeof particlePoolFree !== 'undefined' && Array.isArray(particlePoolFree)) {
+            particlePoolFree.length = 0;
+            for (let i = 0; i < particlePool.length; i++) {
+                particlePoolFree.push(particlePool[i]);
+            }
+        }
+    }
     bombState.planted = false;
     if (bombState.mesh) {
         const idx = collidableMeshList.indexOf(bombState.mesh);
@@ -209,14 +296,56 @@ function resetRound() {
     wallhackActive = false;
     activeFires = [];
     particles = [];
-    
-    let squadSpawns = [];
-    for (let i = 0; i < 10; i++) {
-        squadSpawns.push(getValidSpawnPoint(squadSpawns, 100));
+    playerState.killStreak = 0; // 新回合清零连杀
+    // 清理无人机与玩家傀儡模型
+    if (typeof removePlayerDummy === 'function') removePlayerDummy();
+    if (typeof activeDrones !== 'undefined' && activeDrones.length > 0) {
+        for (let i = activeDrones.length - 1; i >= 0; i--) {
+            if (typeof destroyDrone === 'function') destroyDrone(activeDrones[i], false, true);
+        }
+        activeDrones = [];
     }
+    if (typeof playerState !== 'undefined') {
+        playerState.isControllingDrone = false;
+        playerState.lastFlameDamageTick = 0;
+        playerState.cameraShake = 0;
+    }
+    if (typeof cleanupMortar === 'function') cleanupMortar();
+    else if (typeof cancelMortarCamera === 'function') cancelMortarCamera();
+    // 清理地雷
+    activeMines.forEach(m => removeMineMesh(m));
+    activeMines = [];
+    // 清理武器掉落
+    if (weaponDrops) weaponDrops.forEach(d => {
+        scene.remove(d.mesh);
+        if (d.mesh.geometry) d.mesh.geometry.dispose();
+        if (d.mesh.material) d.mesh.material.dispose();
+    });
+    weaponDrops = [];
+    // 清理残留烟雾云
+    if (activeSmokes) activeSmokes.forEach(s => {
+        scene.remove(s.group);
+        s.group.traverse(child => {
+            if (child.isMesh) {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            }
+        });
+    });
+    activeSmokes = [];
+    // 生化模式: 清理空投/路障/肾上腺素状态
+    if (typeof cleanupZombieGear === 'function') cleanupZombieGear();
+    if (typeof rebuildBulletSpatialGrid === 'function') rebuildBulletSpatialGrid();
     
-    let ctSpawns = squadSpawns.slice(0, 5);
-    let tSpawns = squadSpawns.slice(5, 10);
+    const spawnArea = MAP_SPAWN_AREAS[currentMap] || MAP_SPAWN_AREAS.dust2;
+    let tSpawns = [];
+    let ctSpawns = [];
+    for (let i = 0; i < 5; i++) {
+        tSpawns.push(getValidSpawnPoint(tSpawns, 40, spawnArea.t));
+    }
+    for (let i = 0; i < 5; i++) {
+        ctSpawns.push(getValidSpawnPoint(ctSpawns, 40, spawnArea.ct));
+    }
     
     if (isShootingRange) {
         camera.position.set(0, 2, 0);
@@ -244,7 +373,28 @@ function resetRound() {
     playerState.hp = 100;
     playerState.isSpectating = false;
     document.getElementById('spectator-prompt').classList.add('hidden');
-    
+
+    // 生化模式回合重置: 玩家恢复人类身份，恢复感染时被没收的武器
+    playerState.isZombie = false;
+    playerState.isSource = false;
+    playerState.maxHp = 100;
+    playerState.zombieRespawnTimer = 0;
+    playerState.zombieSlowTimer = 0;
+    if (gameMode === 'zombie') {
+        playerState.team = 'CT';
+    }
+    if (playerState.prevMelees) {
+        inventory.melees = playerState.prevMelees;
+        inventory.melee = (playerState.prevMelee && playerState.prevMelee !== 'zombieClaw') ? playerState.prevMelee : 'knife';
+        inventory.primary = playerState.prevPrimary || null;
+        inventory.secondary = playerState.prevSecondary || 'pistol';
+        playerState.prevMelees = null;
+    }
+    if (playerState.isZombie === false && inventory.melee === 'zombieClaw') {
+        inventory.melee = 'knife';
+        inventory.melees = ['knife', 'kukri', 'switchblade'];
+    }
+
     // Auto switch to primary if available
     if (inventory.primary) switchWeapon(1);
     else switchWeapon(2);
@@ -252,7 +402,11 @@ function resetRound() {
     bombState.planted = false;
     bombState.plantProgress = 0;
     bombState.timer = 60;
-    
+
+    // 每回合重置击杀统计（MVP 用）
+    matchState.roundKills = { player: 0, myBots: 0, enemyBots: 0 };
+    matchState.roundBestKiller = null;
+
     roundActive = true;
     frameCount = 0;
     playerState.lastShot = -1000;
@@ -266,6 +420,26 @@ function resetRound() {
     playerState.bulletTypes = [];
     playerState.armorPlates = 0;
     playerState.gatlingFireStartFrame = 0;
+    playerState.burstQueue = 0;
+    playerState.burstWeapon = null;
+    playerState.burstNextShot = 0;
+
+    if (typeof showZombieFilter === 'function') showZombieFilter(false);
+    const _zcd = document.getElementById('zombie-countdown');
+    if (_zcd) _zcd.classList.add('hidden');
+    const _s1 = document.getElementById('slot-1');
+    if (_s1 && inventory.primary) _s1.classList.remove('hidden');
+    const _s2 = document.getElementById('slot-2');
+    if (_s2) _s2.classList.remove('hidden');
+    const _s4 = document.getElementById('slot-4');
+    if (_s4 && Object.values(inventory.grenades).some(v => v > 0)) _s4.classList.remove('hidden');
+    const _sp2 = document.getElementById('spectator-prompt');
+    if (_sp2) {
+        const _spH2 = _sp2.querySelector('h2');
+        if (_spH2) _spH2.innerText = '你已阵亡 (Spectating)';
+    }
+
+    if (typeof cleanupMortar === 'function') cleanupMortar();
     if (typeof updateArmorHUD === 'function') updateArmorHUD();
     
     document.getElementById('bomb-status').classList.add('hidden');
@@ -319,6 +493,50 @@ function createProceduralTexture(type) {
             const y = Math.random() * size;
             ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.15})`;
             ctx.fillRect(x, y, 2, 2);
+        }
+    } else if (type === 'grass') {
+        // Grass/dirt ground texture for Inferno
+        ctx.fillStyle = '#5a7042';
+        ctx.fillRect(0, 0, size, size);
+        for (let i = 0; i < 9000; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const shade = Math.random();
+            if (shade < 0.33) ctx.fillStyle = 'rgba(70,95,55,0.5)';
+            else if (shade < 0.66) ctx.fillStyle = 'rgba(90,120,68,0.5)';
+            else ctx.fillStyle = 'rgba(50,75,40,0.4)';
+            ctx.fillRect(x, y, 2, 2);
+        }
+        // Dirt patches
+        for (let i = 0; i < 25; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            ctx.fillStyle = `rgba(130,105,72,${0.2 + Math.random() * 0.25})`;
+            ctx.beginPath();
+            ctx.arc(x, y, 4 + Math.random() * 12, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (type === 'plaster') {
+        // Plaster wall texture (warm Mediterranean tones for Inferno)
+        ctx.fillStyle = '#c4a882';
+        ctx.fillRect(0, 0, size, size);
+        for (let i = 0; i < 6000; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const shade = Math.random();
+            if (shade < 0.33) ctx.fillStyle = 'rgba(180,155,120,0.35)';
+            else if (shade < 0.66) ctx.fillStyle = 'rgba(200,175,140,0.35)';
+            else ctx.fillStyle = 'rgba(150,125,95,0.3)';
+            ctx.fillRect(x, y, 3, 3);
+        }
+        // Cracks
+        for (let i = 0; i < 8; i++) {
+            ctx.strokeStyle = `rgba(80,65,45,${0.15 + Math.random() * 0.2})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(Math.random() * size, 0);
+            ctx.lineTo(Math.random() * size, size);
+            ctx.stroke();
         }
     }
     
@@ -464,6 +682,7 @@ function buildLargeMap() {
 
     // Bomb Zones
     bombZones = [];
+    platformSpots = [];
     const zoneMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.3 });
     const zoneGeo = new THREE.BoxGeometry(60, 0.1, 60);
     
@@ -476,6 +695,403 @@ function buildLargeMap() {
     zoneB.position.set(330, 0.05, -330); // Top-right (A Site area)
     scene.add(zoneB);
     bombZones.push({ mesh: zoneB, name: 'B 区', labelId: 'zoneB-label' });
+}
+
+// ── de_inferno: 意大利小镇 ──
+// T Spawn (南) → Mid (中庭拱门) → CT Spawn (北)
+// T Spawn → Banana (香蕉道) → B Site (西北)
+// Mid → Apartments (公寓) → B Site
+// Mid → A Short (A小道) → A Site (东北)
+// CT Spawn → A Site / B Site
+function buildInfernoMap() {
+    // Floor - grass/dirt ground
+    const floorTex = createProceduralTexture('grass');
+    floorTex.repeat.set(20, 20);
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 1.0 });
+    const floorGeo = new THREE.PlaneGeometry(800, 800);
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.name = 'floor';
+    scene.add(floor);
+
+    // Wall texture (plaster for Mediterranean feel)
+    const wallTex = createProceduralTexture('plaster');
+    wallTex.wrapS = THREE.RepeatWrapping;
+    wallTex.wrapT = THREE.RepeatWrapping;
+    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
+    const boxMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+
+    const createWall = (x, z, w, d, h = 30) => {
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const mat = wallMat.clone();
+        mat.map = wallTex.clone();
+        mat.map.repeat.set(Math.max(w, d) / 20, h / 20);
+        const wall = new THREE.Mesh(geo, mat);
+        wall.position.set(x, h / 2, z);
+        wall.name = 'wall';
+        scene.add(wall);
+    };
+
+    const sharedBoxGeo = new THREE.BoxGeometry(10, 10, 10);
+    const createBox = (x, z) => {
+        const box = new THREE.Mesh(sharedBoxGeo, boxMat);
+        box.position.set(x, 5, z);
+        box.name = 'wall';
+        scene.add(box);
+    };
+
+    const sharedDoorMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
+    const createDoor = (x, z, w, d) => {
+        const geo = new THREE.BoxGeometry(w, 40, d);
+        const door = new THREE.Mesh(geo, sharedDoorMat);
+        door.position.set(x, 20, z);
+        door.name = 'wall';
+        scene.add(door);
+    };
+
+    // ── 外围边界 ──
+    createWall(0, -400, 800, 4);   // 北
+    createWall(0, 400, 800, 4);    // 南
+    createWall(-400, 0, 4, 800);   // 西
+    createWall(400, 0, 4, 800);    // 东
+
+    // ── T 出生区 (南中) ──
+    createWall(-70, 380, 4, 40);   // T出生后墙左
+    createWall(70, 380, 4, 40);    // T出生后墙右
+
+    // ── 中庭走廊 (Mid) ──
+    // Mid 左墙南段: z=50~250
+    createWall(-50, 150, 4, 200);
+    // Mid 右墙南段: z=25~175
+    createWall(50, 100, 4, 150);
+    // Mid 左墙北段: z=-150~-50
+    createWall(-50, -100, 4, 100);
+    // Mid 右墙北段: z=-150~-50
+    createWall(50, -100, 4, 100);
+    // 左侧缺口 z=-50~50 = 公寓入口
+    // 右侧缺口 z=-50~25 = A小道入口
+
+    // ── 香蕉道 (Banana: T→B, 左侧弯道) ──
+    createWall(-130, 300, 4, 100);  // 香蕉道右墙 (隔开T出生)
+    createWall(-230, 300, 4, 100);  // 香蕉道外墙
+    createWall(-230, 250, 100, 4);  // 香蕉道转弯墙
+    createWall(-230, 130, 4, 240);  // 香蕉道北侧外墙: z=10~250
+    createWall(-150, 80, 4, 100);   // 香蕉道北侧内墙: z=30~130 (z<30 留缺口进入B区)
+
+    // ── 公寓 (Apartments: Mid↔B, 左侧) ──
+    createWall(-150, -25, 4, 150);  // 公寓左墙: z=-100~50
+
+    // ── A小道 (A Short: Mid↔A, 右侧) ──
+    createWall(150, -25, 4, 150);   // A小道右墙: z=-100~50
+
+    // ── B 区 (西北) ──
+    createWall(-320, -175, 4, 150);  // B区外墙: z=-250~-100
+    createWall(-225, -250, 190, 4);  // B区后墙: x=-320~-130
+    // B区前方开放 (连接公寓和香蕉道)
+
+    // ── A 区 (东北) ──
+    createWall(320, -175, 4, 150);   // A区外墙: z=-250~-100
+    createWall(225, -250, 190, 4);   // A区后墙: x=130~320
+    // A区前方开放 (连接A小道和CT)
+
+    // ── CT 出生区 (北中) ──
+    createWall(-70, -380, 4, 40);   // CT出生后墙左
+    createWall(70, -380, 4, 40);    // CT出生后墙右
+    // CT出生分隔墙 (连接到A区和B区)
+    createWall(-130, -300, 4, 100);  // CT→B区分隔: z=-350~-250
+    createWall(130, -300, 4, 100);   // CT→A区分隔: z=-350~-250
+
+    // ── 掩马 (Doors / Arches) ──
+    createDoor(-15, 200, 10, 4);     // T出生到Mid的拱门
+    createDoor(15, 200, 10, 4);
+
+    // ── 掩掩体 (Cover Boxes) ──
+    // B区掩体
+    createBox(-250, -200);   // B默认安放点
+    createBox(-220, -180);   // B车位
+    createBox(-280, -220);   // B后方
+    createBox(-200, -230);   // B入口掩体
+    createBox(-170, -150);   // B公寓入口掩体
+
+    // A区掩体
+    createBox(250, -200);    // A默认安放点
+    createBox(220, -180);    // A坑位
+    createBox(280, -220);    // A后方
+    createBox(200, -230);    // A入口掩体
+    createBox(170, -150);    // A小道入口掩体
+
+    // 中庭掩体
+    createBox(-20, 100);     // Mid箱子
+    createBox(20, 50);      // Mid交叉位
+    createBox(0, -25);       // 拱门掩体
+    createBox(-30, -25);    // 拱门左侧
+    createBox(30, -25);     // 拱门右侧
+    createBox(0, -120);     // Mid北侧
+
+    // 香蕉道掩体
+    createBox(-180, 250);   // 香蕉道掩体
+    createBox(-200, 100);   // 香蕉道中段
+
+    // 公寓掩体
+    createBox(-100, -25);   // 公寓掩体
+
+    // A小道掩体
+    createBox(100, -25);    // A小道掩体
+
+    // CT出生区掩体
+    createBox(-30, -320);   // CT掩体
+    createBox(30, -320);    // CT掩体
+
+    // ── 爆破区 ──
+    bombZones = [];
+    const zoneMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.3 });
+    const zoneGeo = new THREE.BoxGeometry(60, 0.1, 60);
+
+    // B区 (西北) → 标为A区
+    const zoneA = new THREE.Mesh(zoneGeo, zoneMat);
+    zoneA.position.set(-250, 0.05, -200);
+    scene.add(zoneA);
+    bombZones.push({ mesh: zoneA, name: 'A 区', labelId: 'zoneA-label' });
+
+    // A区 (东北) → 标为B区
+    const zoneB = new THREE.Mesh(zoneGeo.clone(), zoneMat.clone());
+    zoneB.position.set(250, 0.05, -200);
+    scene.add(zoneB);
+    bombZones.push({ mesh: zoneB, name: 'B 区', labelId: 'zoneB-label' });
+    platformSpots = [];
+}
+
+// ── 生化实验室 (Biolab): 丧尸围城守点图 ──
+// 人类出生: 中央广场 (南)
+// 五大高台守点: 中央天台(10)/西南货柜(8)/东南哨塔(14)/西北水塔(12)/东北脚手架(8)
+// 玩家与Bot均可经台阶(step-up)登高; 僵尸走楼梯或围台攻击台边人类
+function buildBiolabMap() {
+    // Floor - 混凝土地面
+    const floorTex = createProceduralTexture('stone');
+    floorTex.repeat.set(20, 20);
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 1.0 });
+
+    const floorGeo = new THREE.PlaneGeometry(800, 800);
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.name = 'floor';
+    scene.add(floor);
+
+    // Materials
+    let clonedWallMaterials = [];
+    const wallTex = createProceduralTexture('stone');
+    wallTex.wrapS = THREE.RepeatWrapping;
+    wallTex.wrapT = THREE.RepeatWrapping;
+    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
+    const platformMat = new THREE.MeshStandardMaterial({ color: 0x4a5548, roughness: 0.85 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x5a6a5a, roughness: 0.6, metalness: 0.3 });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x2a8a3a, roughness: 0.5, emissive: 0x002a08 });
+
+    // 墙体: yBase 支持悬空护栏 (护栏建在高台面上)
+    const createWall = (x, z, w, d, h = 30, yBase = 0, mat = null) => {
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const useMat = mat || wallMat.clone();
+        if (!mat) {
+            useMat.map = wallTex.clone();
+            useMat.map.repeat.set(Math.max(w, d) / 20, h / 20);
+            clonedWallMaterials.push(useMat);
+        }
+        const wall = new THREE.Mesh(geo, useMat);
+        wall.position.set(x, yBase + h / 2, z);
+        wall.name = 'wall';
+        scene.add(wall);
+    };
+
+    // 高台平台 (实心, 从地面起)
+    const createPlatform = (x, z, w, d, h) => {
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const wall = new THREE.Mesh(geo, platformMat);
+        wall.position.set(x, h / 2, z);
+        wall.name = 'wall';
+        scene.add(wall);
+    };
+
+    // 直跑台阶: 每级高2(≤step-up 2.6), 从地面逐级升到台面高度
+    // (x, z): 台阶中心; w: 宽度; dir: 延伸方向 'N'|'S'|'E'|'W'; topH: 顶端高度
+    const createStairs = (x, z, w, dir, topH) => {
+        const steps = Math.floor(topH / 2);
+        const stepDepth = 7;
+        for (let i = 0; i < steps; i++) {
+            const h = (i + 1) * 2;
+            const off = (steps - i) * stepDepth - stepDepth / 2;
+            let sx = x, sz = z, sw = w, sd = stepDepth;
+            if (dir === 'N') { sz = z - off; }
+            else if (dir === 'S') { sz = z + off; }
+            else if (dir === 'E') { sx = x + off; sw = stepDepth; sd = w; }
+            else { sx = x - off; sw = stepDepth; sd = w; }
+            createWall(sx, sz, sw, sd, h, 0, metalMat);
+        }
+    };
+
+    // 台上护栏: 高1.2, 不挡玩家视线(眼高在护栏上方), 标记 noClimb 不可攀爬
+    const createRail = (x, z, w, d, yBase) => {
+        const geo = new THREE.BoxGeometry(w, 1.2, d);
+        const rail = new THREE.Mesh(geo, railMat);
+        rail.position.set(x, yBase + 0.6, z);
+        rail.name = 'wall';
+        rail.userData.noClimb = true;
+        scene.add(rail);
+    };
+
+    const createBox = (x, z, h = 10) => {
+        const geo = new THREE.BoxGeometry(10, h, 10);
+        const box = new THREE.Mesh(geo, metalMat);
+        box.position.set(x, h / 2, z);
+        box.name = 'wall';
+        scene.add(box);
+    };
+
+    // ── 外围墙 ──
+    createWall(0, -400, 800, 4);
+    createWall(0, 400, 800, 4);
+    createWall(-400, 0, 4, 800);
+    createWall(400, 0, 4, 800);
+
+    // ═══ 守点1: 中央天台 (高10, 均衡博弈点) ═══
+    // 台面 x∈[-35,35], z∈[-95,-25]
+    createPlatform(0, -60, 70, 70, 10);
+    createStairs(0, -25, 20, 'S', 10); // 南侧直跑台阶
+    // 台上护栏 (南侧留20宽缺口对准台阶, 其余三面围)
+    createRail(0, -94.4, 70, 1.2, 10);
+    createRail(-34.4, -60, 1.2, 70, 10);
+    createRail(34.4, -60, 1.2, 70, 10);
+    createRail(-27, -25.6, 16, 1.2, 10);
+    createRail(27, -25.6, 16, 1.2, 10);
+    // 台上掩体
+    createBox(-20, -75);
+    createBox(18, -50, 10);
+
+    // ═══ 守点2: 西南货柜平台 (高8, 激进输出位) ═══
+    // 台面 x∈[-260,-220], z∈[160,200]
+    createPlatform(-240, 180, 40, 40, 8);
+    createStairs(-220, 180, 14, 'E', 8); // 东侧台阶
+    createRail(-240, 199.4, 40, 1.2, 8);
+    createRail(-259.4, 180, 1.2, 40, 8);
+    createRail(-240, 160.6, 40, 1.2, 8);
+    // 货柜迷宫 (地面博弈点)
+    createBox(-300, 120);
+    createBox(-288, 132);
+    createBox(-300, 144);
+    createBox(-280, 200);
+    createBox(-290, 240);
+    createBox(-250, 260);
+    createBox(-320, 180);
+    createBox(-200, 240);
+    createBox(-160, 200);
+    createBox(-180, 160);
+
+    // ═══ 守点3: 东南哨塔 (高14, 安全点但台阶长) ═══
+    // 塔面 x∈[227,253], z∈[187,213]
+    createPlatform(240, 200, 26, 26, 14);
+    createStairs(240, 187, 12, 'N', 14); // 北侧直跑长台阶 (7级)
+    // 塔顶护栏 (北侧留缺口对准台阶)
+    createRail(240, 212.4, 26, 1.2, 14);
+    createRail(227.6, 200, 1.2, 26, 14);
+    createRail(252.4, 200, 1.2, 26, 14);
+    createRail(229, 187.6, 5, 1.2, 14);
+    createRail(251, 187.6, 5, 1.2, 14);
+    // 哨塔周边废墟掩体
+    createBox(300, 150);
+    createBox(312, 162);
+    createBox(300, 240);
+    createBox(280, 280);
+    createBox(330, 200);
+    createBox(200, 280);
+
+    // ═══ 中央出生广场防线 (南, 人类出生) ═══
+    // 弧形沙袋防线 + 箱阵
+    createBox(-60, 90);
+    createBox(-40, 100);
+    createBox(40, 100);
+    createBox(60, 90);
+    createWall(0, 70, 30, 4, 6);    // 广场前矮墙
+    createWall(-90, 130, 4, 40, 8); // 两侧翼墙
+    createWall(90, 130, 4, 40, 8);
+    createBox(-20, 170);
+    createBox(20, 170);
+
+    // ═══ 西侧长廊 (双墙夹道, 地面博弈点) ═══
+    createWall(-150, 60, 4, 200);
+    createWall(-110, 60, 4, 200);
+    createBox(-130, 20);
+    createBox(-130, 100);
+
+    // ═══ 东侧废墟 (地面博弈点) ═══
+    createWall(150, 60, 4, 200);
+    createBox(130, 20);
+    createBox(130, 100);
+    createBox(170, 40);
+    createBox(170, 120);
+
+    // ═══ 北部丧尸侧开阔地 (少掩体, 丧尸冲锋走廊) ═══
+    createBox(-100, -200);
+    createBox(100, -200);
+    createBox(0, -260);
+    createWall(-60, -320, 4, 120, 20); // 北侧残墙
+    createWall(60, -320, 4, 120, 20);
+
+    // ═══ 东北/西北连接通道掩体 ═══
+    createBox(-300, -100);
+    createBox(-280, -140);
+    createBox(300, -100);
+    createBox(280, -140);
+    createBox(-200, -300);
+    createBox(200, -300);
+
+    // ═══ 守点4: 西北水塔 (高12, 深入丧尸腹地的安全点) ═══
+    // 塔面 x∈[-255,-225], z∈[-215,-185], 南侧长台阶
+    createPlatform(-240, -200, 30, 30, 12);
+    createStairs(-240, -185, 14, 'S', 12);
+    createRail(-240, -215.6, 30, 1.2, 12);      // 北
+    createRail(-255.6, -200, 1.2, 30, 12);      // 西
+    createRail(-224.4, -200, 1.2, 30, 12);      // 东
+    createRail(-251, -184.4, 8, 1.2, 12);       // 南侧台阶左段
+    createRail(-229, -184.4, 8, 1.2, 12);       // 南侧台阶右段
+    // 通往水塔的冲锋掩体
+    createBox(-290, -240);
+    createBox(-200, -250);
+
+    // ═══ 守点5: 东北脚手架 (高8, 激进前压点, 台边可被利爪够到) ═══
+    // 台面 x∈[223,257], z∈[-217,-183], 西侧台阶
+    createPlatform(240, -200, 34, 34, 8);
+    createStairs(223, -200, 14, 'W', 8);
+    createRail(240, -217.6, 34, 1.2, 8);        // 北
+    createRail(257.6, -200, 1.2, 34, 8);        // 东
+    createRail(240, -182.4, 34, 1.2, 8);        // 南
+    createRail(222.4, -212, 1.2, 10, 8);        // 西侧台阶上段
+    createRail(222.4, -188, 1.2, 10, 8);        // 西侧台阶下段
+    // 脚手架周边掩体
+    createBox(290, -240);
+    createBox(200, -250);
+
+    // 生化模式无爆破区; 若在爆破模式下运行生化实验室, 提供保底爆破点A与B
+    bombZones = [];
+    if (typeof gameMode !== 'undefined' && gameMode === 'bomb') {
+        const zoneMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.3 });
+        const zoneGeo = new THREE.BoxGeometry(60, 0.1, 60);
+        
+        const zoneA = new THREE.Mesh(zoneGeo, zoneMat);
+        zoneA.position.set(-200, 0.05, -200);
+        scene.add(zoneA);
+        bombZones.push({ mesh: zoneA, name: 'A 区', labelId: 'zoneA-label' });
+        
+        const zoneB = new THREE.Mesh(zoneGeo.clone(), zoneMat.clone());
+        zoneB.position.set(200, 0.05, -200);
+        scene.add(zoneB);
+        bombZones.push({ mesh: zoneB, name: 'B 区', labelId: 'zoneB-label' });
+    }
+    platformSpots = [
+        { x: 0, z: -60, h: 10 },      // 中央天台
+        { x: -240, z: 180, h: 8 },    // 西南货柜平台
+        { x: 240, z: 200, h: 14 },    // 东南哨塔
+        { x: -240, z: -200, h: 12 },  // 西北水塔
+        { x: 240, z: -200, h: 8 }     // 东北脚手架
+    ];
 }
 
 // #endregion

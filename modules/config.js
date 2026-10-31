@@ -1,8 +1,100 @@
 // #region 全局状态与配置
 // --- GLOBAL STATE & UI LOGIC ---
+function checkIsTouchDevice() {
+    return Boolean(
+        (typeof window !== 'undefined' && window.isTouchDevice) ||
+        (typeof window !== 'undefined' && 'ontouchstart' in window) ||
+        (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+        (typeof window !== 'undefined' && window.matchMedia && window.matchMedia("(pointer: coarse)").matches)
+    );
+}
+var isTouchDevice = checkIsTouchDevice();
+if (typeof window !== 'undefined') window.isTouchDevice = isTouchDevice;
+
+function isPlayerControlActive() {
+    if (typeof roundActive !== 'undefined' && !roundActive) return false;
+    if (typeof playerState !== 'undefined' && (playerState.hp <= 0 || playerState.isSpectating)) return false;
+    if (typeof mortarMapOpen !== 'undefined' && mortarMapOpen) return false;
+    if (typeof mortarCameraActive !== 'undefined' && mortarCameraActive) return false;
+    if (typeof controls !== 'undefined' && controls && controls.isLocked) return true;
+    if (checkIsTouchDevice()) {
+        const buyMenu = document.getElementById('buy-menu');
+        if (buyMenu && !buyMenu.classList.contains('hidden')) return false;
+        const scopePanel = document.getElementById('scope-panel');
+        if (scopePanel && !scopePanel.classList.contains('hidden')) return false;
+        return true;
+    }
+    return false;
+}
+
+function isDevMode() {
+    if (typeof window !== 'undefined' && window.__DEV__ === true) return true;
+    try {
+        if (typeof window !== 'undefined' && window.location && window.location.search) {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('debug') === 'true' || params.get('dev') === 'true';
+        }
+    } catch (e) {}
+    return false;
+}
+if (typeof window !== 'undefined') window.isDevMode = isDevMode;
+
 let playerCurrency = 3200;
 let playerScore = 0;
-let matchState = { tWins: 0, ctWins: 0, maxWins: 5, lossStreakT: 0, lossStreakCT: 0, botMoneyT: new Array(10).fill(800), botMoneyCT: new Array(10).fill(800) };
+let matchState = { tWins: 0, ctWins: 0, maxWins: 8, lossStreakT: 0, lossStreakCT: 0, botMoneyT: new Array(10).fill(800), botMoneyCT: new Array(10).fill(800), roundKills: { player: 0, myBots: 0, enemyBots: 0 }, roundBestKiller: null };
+let activeSmokes = [];   // 烟雾云: { group, x, z, life, grow }
+let weaponDrops = [];    // 武器掉落: { mesh, weaponId, life }
+let activeMines = [];    // 地雷: { group, lamp, circle, x, z, team, armTimer, isPlayer }
+
+// ── 游戏模式: 'bomb' 爆破 | 'zombie' 生化 ──
+let gameMode = 'bomb';
+
+// ── 生化模式配置 (CS Biohazard 风格) ──
+const ZOMBIE = {
+    infectionDelay: 15,      // 感染爆发倒计时（秒），也是购买窗口
+    sourceCount: 2,          // 母体僵尸数量
+    sourceHp: 3000,          // 母体僵尸血量
+    hp: 1500,                // 普通僵尸血量
+    speed: 30,               // 僵尸Bot移动速度（普通Bot为22）
+    playerSpeedMult: 1.45,   // 僵尸玩家移速倍率
+    attackRange: 14,         // 僵尸Bot感染攻击距离
+    attackCooldown: 45,      // 僵尸Bot感染攻击间隔（帧）
+    respawnFrames: 480,      // 僵尸死亡后重生时间（8秒）
+    regenPerSec: 25,         // 僵尸每秒回血
+    newSlowFrames: 1800,     // 新变僵尸适应期时长（帧，30秒）
+    newSlowMult: 0.5,        // 新变僵尸适应期移速倍率
+    serumCost: 8000,         // 变异血清价格（爆发后可购买，变身为母体僵尸）
+    playerDmgMult: 1.25,     // 生化模式下玩家对僵尸的伤害加成倍率
+    // 空投补给
+    airdropDelay: 30,        // 感染爆发后首次空投延迟（秒）
+    airdropInterval: 75,     // 后续空投间隔（秒）
+    airdropLife: 20,         // 空投落地后可拾取时长（秒）
+    airdropHp: 600,          // 空投箱血量（僵尸可摧毁）
+    // 沙袋路障
+    barrierHp: 600,          // 沙袋路障血量
+    barrierMax: 12,          // 场上路障数量上限
+    // 肾上腺素
+    adrenalineCost: 300,     // 肾上腺素价格
+    adrenalineDuration: 8,   // 肾上腺素持续（秒）
+    adrenalineMult: 1.5      // 肾上腺素移速倍率
+};
+
+// 生化模式: 对僵尸目标的伤害加成倍率（仅在玩家伤害来源的结算点调用）
+function zombieDmgTakenMult(target) {
+    return (gameMode === 'zombie' && target && target.team === 'ZOMBIE') ? ZOMBIE.playerDmgMult : 1;
+}
+
+// 生化模式爆破系(手雷/燃烧弹/迫击炮/无人机)对僵尸伤害×3
+function zombieExplosiveDmgMult(target) {
+    return (gameMode === 'zombie' && target && target.team === 'ZOMBIE') ? 3 : 1;
+}
+
+// 冰冻子弹减速倍率: 1层50% / 2层65% / 3层80% 减速（供Bot移速计算调用）
+function botFreezeSpeedMult(bot) {
+    if (!bot || !(bot.freezeTimer > 0)) return 1;
+    const stacks = Math.max(1, Math.min(BULLET_TYPES.freeze.maxFreezeStacks, bot.freezeStacks || 1));
+    return 1 - (0.5 + 0.15 * (stacks - 1));
+}
 
 // Bot Difficulty Settings
 const BOT_DIFFICULTY_SETTINGS = {
@@ -28,20 +120,26 @@ const WEAPONS = {
     sniper: { id: 'sniper', name: '狙击步枪 (AWP)', damage: 110, fireRate: 64, spread: 0.00025, mag: 10, reserve: 30, auto: false, range: 500, color: 0x1a4314, length: 1.2, killReward: 100, dropRate: 0.000008 },
     marksman: { id: 'marksman', name: '射手步枪 (DMR)', damage: 34, fireRate: 6.86, spread: 0.002, mag: 25, reserve: 90, auto: true, range: 450, color: 0x2e4a23, length: 1.1, killReward: 300, dropRate: 0.000012 },
     smg: { id: 'smg', name: '冲锋枪 (P90)', damage: 27.8, fireRate: 3.4, spread: 0.00625, mag: 50, reserve: 150, auto: true, range: 120, color: 0x444444, length: 0.5, killReward: 600, dropRate: 0.000035 },
-    shotgun: { id: 'shotgun', name: '连发霰弹枪 (Auto)', damage: 12, fireRate: 13.5, spread: 0.00511, mag: 12, reserve: 36, auto: true, range: 50, color: 0x222222, length: 0.9, killReward: 900, dropRate: 0.000080 },
+    mk4: { id: 'mk4', name: 'MK4 冲锋枪 (三连发)', damage: 32, fireRate: 6.16, burst: 3, burstDelay: 3, spread: 0.004, mag: 30, reserve: 90, auto: false, range: 160, color: 0x3a4a5a, length: 0.55, killReward: 600, reloadTime: 2.2, dropRate: 0.000030 },
+    shotgun: { id: 'shotgun', name: '连发霰弹枪 (Auto)', damage: 6, fireRate: 13.5, spread: 0.00511, mag: 12, reserve: 36, auto: true, range: 50, color: 0x222222, length: 0.9, killReward: 900, dropRate: 0.000080 },
     m249: { id: 'm249', name: '重机枪 (M249)', damage: 30, fireRate: 5.19, spread: 0.02, mag: 100, reserve: 200, auto: true, range: 180, color: 0x113311, length: 1.0, killReward: 300, dropRate: 0.000030 },
     gatling: { id: 'gatling', name: '加特林 (Gatling)', damage: 12.5, fireRate: 8, spread: 0.015, mag: 400, reserve: 800, auto: true, range: 200, color: 0x2a2a3a, length: 0.7, killReward: 300, reloadTime: 5, dropRate: 0.000035 },
     ash12: { id: 'ash12', name: 'ASH-12 (突击步枪)', damage: 65, fireRate: 10.5, spread: 0.008, mag: 30, reserve: 90, auto: true, range: 300, color: 0x1a1a2e, length: 0.85, killReward: 300, dropRate: 0.000018 },
     flamethrower: { id: 'flamethrower', name: '喷火器 (Flamethrower)', damage: 3, fireRate: 0, spread: 0.02, mag: 300, reserve: 600, auto: true, range: 1050, color: 0x8B0000, length: 0.8, killReward: 300, reloadTime: 4 },
     deagle: { id: 'deagle', name: '沙漠之鹰 (Deagle)', damage: 60, fireRate: 20, spread: 0.005, mag: 7, reserve: 35, auto: false, range: 150, color: 0x777777, length: 0.45, killReward: 300, dropRate: 0.000025 },
     knife: { id: 'knife', name: '战术小刀 (Karambit)', damage: 34, fireRate: 16, spread: 0, mag: '-', reserve: '-', auto: true, range: 8.05, color: 0xcccccc, length: 0.3, killReward: 1500 },
+    zombieClaw: { id: 'zombieClaw', name: '僵尸利爪 (Claw)', damage: 45, fireRate: 22, spread: 0, mag: '-', reserve: '-', auto: true, range: 16.0, color: 0x4a7a3a, length: 0.35, killReward: 0 },
     kukri: { id: 'kukri', name: '尼泊尔军刀 (Kukri)', damage: 55, fireRate: 34, spread: 0, mag: '-', reserve: '-', auto: true, range: 15.0, color: 0xaaaaaa, length: 0.4, killReward: 1500 },
     switchblade: { id: 'switchblade', name: '北极星弹簧刀 (Switchblade)', damage: 35, fireRate: 20, spread: 0, mag: '-', reserve: '-', auto: true, range: 12.0, color: 0xcccccc, length: 0.35, killReward: 1500 },
     hegrenade: { id: 'hegrenade', name: '手雷 (HE)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x005500, length: 0.2, killReward: 300 },
     flashbang: { id: 'flashbang', name: '闪光弹 (Flash)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xaaaaaa, length: 0.2, killReward: 300 },
     molotov: { id: 'molotov', name: '燃烧瓶 (Molotov)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xaa4400, length: 0.2, killReward: 300 },
+    smoke: { id: 'smoke', name: '烟雾弹 (Smoke)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x9aa0a6, length: 0.2, killReward: 300 },
     sandbag: { id: 'sandbag', name: '沙包 (Sandbag)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xc2b280, length: 0.25, killReward: 0 },
-    drone: { id: 'drone', name: '战术无人机 (Drone)', damage: 150, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x2c3e50, length: 0.3, killReward: 300 }
+    mine: { id: 'mine', name: '地雷 (Mine)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x2a3a2a, length: 0.2, killReward: 300 },
+    drone: { id: 'drone', name: '战术无人机 (Drone)', damage: 150, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x2c3e50, length: 0.3, killReward: 300 },
+    mortar: { id: 'mortar', name: '迫击炮 (Mortar)', damage: 150, fireRate: 120, spread: 0, mag: 1, reserve: 5, auto: false, range: 0, color: 0x4a5a2a, length: 0.6, killReward: 300, explosionRadius: 50 },
+    c4: { id: 'c4', name: 'C4 炸弹', damage: 500, fireRate: 0, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x333333, length: 0.3, killReward: 300 }
 };
 
 // Deterministic recoil patterns (CS-style learnable spray patterns)
@@ -64,6 +162,9 @@ const RECOIL_PATTERNS = {
         [0.012, 0], [0.012, 0.002], [0.010, -0.003], [0.010, 0.003], [0.008, -0.002],
         [0.008, 0.004], [0.008, -0.004], [0.006, 0.005], [0.006, -0.005]
     ],
+    mk4: [
+        [0.012, 0], [0.015, 0.004], [0.018, -0.006]
+    ],
     shotgun: [[0.04, 0]],
     m249: [
         [0.0144, 0], [0.0144, 0.0024], [0.012, -0.0032], [0.012, 0.0032], [0.0096, -0.0024],
@@ -81,7 +182,7 @@ let inventory = {
     secondary: 'pistol',
     melee: 'knife',
     melees: ['knife', 'kukri', 'switchblade'],
-    grenades: { hegrenade: 0, flashbang: 0, molotov: 0, sandbag: 0, drone: 0 },
+    grenades: { hegrenade: 0, flashbang: 0, molotov: 0, smoke: 0, sandbag: 0, mine: 0, drone: 0 },
     currentGrenade: null,
     currentSlot: 2 // 1: Primary, 2: Secondary, 3: Melee, 4: Grenade
 };
@@ -104,6 +205,30 @@ let dropCompensationOffset = 0;
 let roundTime = 240;
 let roundTimerInterval = null;
 let wallhackActive = false;
+
+// ── Map Selection ──
+let currentMap = 'dust2';
+
+const MAP_LIST = {
+    dust2:    { id: 'dust2',    name: 'Dust II',   desc: '沙漠城镇，经典对称爆破图' },
+    inferno:  { id: 'inferno',  name: 'Inferno',   desc: '意大利小镇，中庭拱门与香蕉道' },
+    biolab:   { id: 'biolab',   name: '生化实验室', desc: '丧尸围城，三大高台守点与货柜迷宫' }
+};
+
+const MAP_SPAWN_AREAS = {
+    dust2: {
+        t: { minX: -350, maxX: 350, minZ: 270, maxZ: 370 },
+        ct: { minX: -350, maxX: 350, minZ: -370, maxZ: -270 }
+    },
+    inferno: {
+        t: { minX: -55, maxX: 55, minZ: 275, maxZ: 350 },
+        ct: { minX: -55, maxX: 55, minZ: -350, maxZ: -275 }
+    },
+    biolab: {
+        t: { minX: -70, maxX: 70, minZ: 110, maxZ: 200 },
+        ct: { minX: -70, maxX: 70, minZ: 110, maxZ: 200 }
+    }
+};
 
 // ── Scope / Optic Definitions ──
 // fov: ADS FOV when using this scope (base hipfire FOV = 75)
@@ -145,18 +270,37 @@ const BULLET_TYPES = {
     },
     tracking: {
         id: 'tracking', name: '追踪子弹', cost: 700, costType: 'currency',
-        desc: '发射后追踪附近敌人，追踪效率较低可能脱靶，子弹伤害降至50%',
-        damageMult: 0.50, trackingRange: 60, trackingStrength: 0.24
+        desc: '发射后追踪附近敌人，每0.1秒3%概率脱靶（脱靶后永久失去追踪并偏转飞离），子弹伤害降至50%',
+        damageMult: 0.50, trackingRange: 30, trackingStrength: 0.24
     },
     light: {
         id: 'light', name: '轻型子弹', cost: 1200, costType: 'currency',
-        desc: '子弹伤害降低30%，飞行速度+20%，枪械射速+35%，后坐力减少60%，弹匣容量+50%',
-        damageMult: 0.70, speedMult: 1.2, fireRateMult: 0.65, recoilMult: 0.4, magMult: 1.5
+        desc: '子弹伤害降低30%，飞行速度+20%，枪械射速+70%，后坐力减少60%，弹匣容量+50%；AWP专用：全自动、射速420发/分、弹匣25发、身体伤害-40%',
+        damageMult: 0.70, speedMult: 1.2, fireRateMult: 0.30, recoilMult: 0.4, magMult: 1.5
     },
     dual: {
         id: 'dual', name: '双头弹', cost: 600, costType: 'currency',
         desc: '一次发射两颗子弹，伤害降低35%，子弹飞出后上下逐渐分离，射速降低45%，飞行速度降低65%',
         damageMult: 0.65, bulletCount: 2
+    },
+    shock: {
+        id: 'shock', name: '电击子弹', cost: 800, costType: 'currency',
+        desc: '命中麻痹敌人0.8秒，完全停止移动与开火',
+        stunFrames: 48
+    },
+    freeze: {
+        id: 'freeze', name: '冰冻子弹', cost: 700, costType: 'currency',
+        desc: '命中减速50%持续3秒，可叠加最多3层（2层65%、3层80%减速）',
+        freezeFrames: 180, maxFreezeStacks: 3
+    },
+    ricochet: {
+        id: 'ricochet', name: '跳弹', cost: 600, costType: 'currency',
+        desc: '命中墙壁或地面最多反弹5次，每弹一次伤害与弹速各-20%，反弹后轻微追踪附近敌人（无目标则直线飞离）'
+    },
+    fragment: {
+        id: 'fragment', name: '破片子弹', cost: 900, costType: 'currency',
+        desc: '命中敌人后分裂3发弹丸向四周飞散，每发弹丸造成35%伤害（霰弹枪不可用）',
+        fragmentCount: 3, fragmentDamageRatio: 0.35
     }
 };
 
