@@ -99,8 +99,17 @@ function updateHUD() {
     if (document.getElementById('hud-score')) {
         document.getElementById('hud-score').innerText = playerScore;
     }
+    if (document.getElementById('hud-credits') && typeof playerCurrency !== 'undefined') {
+        document.getElementById('hud-credits').innerText = playerCurrency;
+    }
     const hpVal = document.getElementById('hp-val');
-    if (hpVal) hpVal.innerText = Math.ceil(playerState.hp);
+    if (hpVal) {
+        hpVal.innerText = Math.ceil(playerState.hp);
+        const hudLeft = document.querySelector('.hud-left');
+        if (hudLeft) {
+            hudLeft.classList.toggle('critical-vitals', playerState.hp <= 25);
+        }
+    }
     const hpMax = playerState.maxHp || 100;
     const hpFill = document.getElementById('hp-fill');
     if (hpFill) hpFill.style.width = `${Math.max(0, Math.min(100, (playerState.hp / hpMax) * 100))}%`;
@@ -176,6 +185,9 @@ function updateHUD() {
 
 // 玩家受击屏幕边缘红色晕影提示 (Damage Vignette)
 function triggerDamageVignette(intensity = 1.0) {
+    if (typeof triggerHitAberration === 'function') {
+        triggerHitAberration(intensity * 0.025);
+    }
     const el = document.getElementById('damage-vignette');
     if (!el) return;
     el.style.opacity = Math.min(1.0, 0.4 + intensity * 0.4);

@@ -190,7 +190,12 @@ function onWindowResize() {
     if (camera && renderer) {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+        renderer.setPixelRatio(dpr);
         renderer.setSize(window.innerWidth, window.innerHeight);
+        if (typeof onPostprocessingResize === 'function') {
+            onPostprocessingResize(window.innerWidth, window.innerHeight);
+        }
     }
 }
 

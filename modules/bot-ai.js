@@ -441,6 +441,9 @@ function botAI(delta) {
 
                     // 敌人枪声: 距离衰减 + 立体声定位
                     playGunSound(b.weapon, botEye);
+                    if (typeof triggerBotMuzzleFlash === 'function') {
+                        triggerBotMuzzleFlash(botEye);
+                    }
 
                     for (let j = 0; j < bulletCount; j++) {
                         let currentSpreadDir = dir.clone();

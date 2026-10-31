@@ -4,6 +4,22 @@ let clock, raycaster;
 let roundActive = false;
 let frameCount = 0;
 
+// Global Lighting & Atmosphere References (persistent across map reloads)
+let hemiLight = null;
+let dirLight = null;
+let baseAmbientLight = null;
+let playerMuzzleLight = null;
+let botMuzzleLight = null;
+let playerMuzzleTimer = 0;
+let botMuzzleTimer = 0;
+
+// Atmospheric Dust Motes
+let dustMotePoints = null;
+const DUST_MOTE_COUNT = 350;
+const motePositions = new Float32Array(DUST_MOTE_COUNT * 3);
+const moteVelocities = new Float32Array(DUST_MOTE_COUNT * 3);
+const motePhases = new Float32Array(DUST_MOTE_COUNT);
+
 let roundCountdownInterval = null;
 
 // Entities
@@ -120,20 +136,20 @@ let bombState = {
 };
 
 // Shared resources for bullets and particles (avoids per-shot GC pressure)
-const sharedBulletGeo = new THREE.BoxGeometry(0.1, 0.1, 1);
-const sharedBulletGeoGatling = new THREE.BoxGeometry(0.3, 0.3, 2);
-const sharedBulletMatYellow = new THREE.MeshBasicMaterial({ color: 0xfffb00 });
-const sharedBulletMatOrange = new THREE.MeshBasicMaterial({ color: 0xff4500 });
-const sharedBulletMatRed = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-const sharedBulletMatGreen = new THREE.MeshBasicMaterial({ color: 0x44ff00 });
-const sharedBulletMatCyan = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-const sharedBulletMatWhite = new THREE.MeshBasicMaterial({ color: 0xffffff });
-const sharedBulletMatLightBlue = new THREE.MeshBasicMaterial({ color: 0x88ccff });
-const sharedBulletMatMagenta = new THREE.MeshBasicMaterial({ color: 0xff00ff });
-const sharedBulletMatShock = new THREE.MeshBasicMaterial({ color: 0xcc66ff });
-const sharedBulletMatFreeze = new THREE.MeshBasicMaterial({ color: 0x99e6ff });
-const sharedBulletMatRicochet = new THREE.MeshBasicMaterial({ color: 0xb0b0b0 });
-const sharedBulletMatFragment = new THREE.MeshBasicMaterial({ color: 0xff5533 });
+const sharedBulletGeo = new THREE.BoxGeometry(0.08, 0.08, 3.2);
+const sharedBulletGeoGatling = new THREE.BoxGeometry(0.25, 0.25, 4.5);
+const sharedBulletMatYellow = new THREE.MeshBasicMaterial({ color: 0xfffa44, blending: THREE.AdditiveBlending });
+const sharedBulletMatOrange = new THREE.MeshBasicMaterial({ color: 0xff8811, blending: THREE.AdditiveBlending });
+const sharedBulletMatRed = new THREE.MeshBasicMaterial({ color: 0xff3322, blending: THREE.AdditiveBlending });
+const sharedBulletMatGreen = new THREE.MeshBasicMaterial({ color: 0x33ff66, blending: THREE.AdditiveBlending });
+const sharedBulletMatCyan = new THREE.MeshBasicMaterial({ color: 0x00f0ff, blending: THREE.AdditiveBlending });
+const sharedBulletMatWhite = new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending });
+const sharedBulletMatLightBlue = new THREE.MeshBasicMaterial({ color: 0x88ccff, blending: THREE.AdditiveBlending });
+const sharedBulletMatMagenta = new THREE.MeshBasicMaterial({ color: 0xff33cc, blending: THREE.AdditiveBlending });
+const sharedBulletMatShock = new THREE.MeshBasicMaterial({ color: 0xcc66ff, blending: THREE.AdditiveBlending });
+const sharedBulletMatFreeze = new THREE.MeshBasicMaterial({ color: 0x88eeff, blending: THREE.AdditiveBlending });
+const sharedBulletMatRicochet = new THREE.MeshBasicMaterial({ color: 0xd0d0d0, blending: THREE.AdditiveBlending });
+const sharedBulletMatFragment = new THREE.MeshBasicMaterial({ color: 0xff5533, blending: THREE.AdditiveBlending });
 const sharedFlameGeo = new THREE.BoxGeometry(0.15, 0.15, 0.3);
 const sharedFlameMat = new THREE.MeshBasicMaterial({ color: 0xff5500, transparent: true, opacity: 0.8 });
 const sharedParticleGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);

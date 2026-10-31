@@ -459,6 +459,11 @@ function handleShooting(initialClick = false) {
     // 枪声: 每次扳机播放一次
     playGunSound(weapon.id);
 
+    // Muzzle Flash Dynamic Lighting (F17)
+    if (typeof triggerMuzzleFlash === 'function') {
+        triggerMuzzleFlash(weapon);
+    }
+
 
 
     // Camera recoil (deterministic pattern-based, CS-style) & Camera Shake

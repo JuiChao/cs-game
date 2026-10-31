@@ -4,6 +4,109 @@ let gameInitialized = false;
 // 生化模式: 高台守点列表（buildBiolabMap 填充，其他地图为空）
 let platformSpots = [];
 
+const MAP_LIGHTING_CONFIGS = {
+    dust2: {
+        sky: 0x87CEEB,
+        fogNear: 30, fogFar: 340,
+        hemiSky: 0x90caf9, hemiGround: 0xd7b48c, hemiIntensity: 0.65,
+        dirColor: 0xfffaed, dirIntensity: 0.85, dirPos: [120, 220, 80],
+        dustColor: 0xf5d996, dustOpacity: 0.45
+    },
+    inferno: {
+        sky: 0xd4a76a,
+        fogNear: 30, fogFar: 380,
+        hemiSky: 0xf39c12, hemiGround: 0x6e4720, hemiIntensity: 0.70,
+        dirColor: 0xffaa66, dirIntensity: 0.90, dirPos: [160, 180, 110],
+        dustColor: 0xffb366, dustOpacity: 0.40
+    },
+    biolab: {
+        sky: 0x1a2621,
+        fogNear: 20, fogFar: 300,
+        hemiSky: 0x4ef0af, hemiGround: 0x0f1a14, hemiIntensity: 0.55,
+        dirColor: 0x80ffcc, dirIntensity: 0.70, dirPos: [40, 160, 40],
+        dustColor: 0x00ff88, dustOpacity: 0.55
+    },
+    shootingRange: {
+        sky: 0x4a5b6d,
+        fogNear: 20, fogFar: 320,
+        hemiSky: 0xd0e8ff, hemiGround: 0x333a40, hemiIntensity: 0.65,
+        dirColor: 0xffffff, dirIntensity: 0.80, dirPos: [0, 140, -50],
+        dustColor: 0x88ccff, dustOpacity: 0.35
+    }
+};
+
+function updateSceneLighting(mapId) {
+    const isSR = typeof isShootingRange !== 'undefined' && isShootingRange;
+    const cfg = isSR ? MAP_LIGHTING_CONFIGS.shootingRange : (MAP_LIGHTING_CONFIGS[mapId] || MAP_LIGHTING_CONFIGS.dust2);
+    
+    // Sky & Fog
+    scene.background = new THREE.Color(cfg.sky);
+    scene.fog = new THREE.Fog(cfg.sky, cfg.fogNear, cfg.fogFar);
+    
+    // Hemisphere Light
+    if (hemiLight) {
+        hemiLight.color.setHex(cfg.hemiSky);
+        hemiLight.groundColor.setHex(cfg.hemiGround);
+        hemiLight.intensity = cfg.hemiIntensity;
+    }
+    
+    // Directional Light
+    if (dirLight) {
+        dirLight.color.setHex(cfg.dirColor);
+        dirLight.intensity = cfg.dirIntensity;
+        dirLight.position.set(cfg.dirPos[0], cfg.dirPos[1], cfg.dirPos[2]);
+    }
+    
+    // Atmospheric Dust Motes
+    if (dustMotePoints && dustMotePoints.material) {
+        dustMotePoints.material.color.setHex(cfg.dustColor);
+        dustMotePoints.material.opacity = cfg.dustOpacity;
+    }
+}
+
+function initAtmosphericDustMotes() {
+    if (dustMotePoints) return;
+    for (let i = 0; i < DUST_MOTE_COUNT; i++) {
+        const i3 = i * 3;
+        motePositions[i3] = (Math.random() - 0.5) * 80;
+        motePositions[i3 + 1] = Math.random() * 20 + 0.5;
+        motePositions[i3 + 2] = (Math.random() - 0.5) * 80;
+        moteVelocities[i3] = (Math.random() - 0.5) * 0.3;
+        moteVelocities[i3 + 1] = Math.random() * 0.15 - 0.05;
+        moteVelocities[i3 + 2] = (Math.random() - 0.5) * 0.3;
+        motePhases[i] = Math.random() * Math.PI * 2;
+    }
+    
+    const moteGeo = new THREE.BufferGeometry();
+    moteGeo.setAttribute('position', new THREE.BufferAttribute(motePositions, 3));
+    
+    // Procedural soft circular particle sprite
+    const c = document.createElement('canvas');
+    c.width = 32; c.height = 32;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    g.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    g.addColorStop(0.35, 'rgba(255, 255, 255, 0.6)');
+    g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 32, 32);
+    const moteTex = new THREE.CanvasTexture(c);
+    
+    const moteMat = new THREE.PointsMaterial({
+        size: 0.9,
+        map: moteTex,
+        transparent: true,
+        opacity: 0.45,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    
+    dustMotePoints = new THREE.Points(moteGeo, moteMat);
+    dustMotePoints.frustumCulled = false;
+    dustMotePoints.name = 'dustMotes';
+    scene.add(dustMotePoints);
+}
+
 function init3DGame() {
     if (!gameInitialized) {
         const container = document.getElementById('canvas-container');
@@ -14,18 +117,66 @@ function init3DGame() {
         scene.fog = new THREE.Fog(0x87CEEB, 20, 300);
 
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+        scene.add(camera);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(100, 200, 100);
+        // 1. Dual-Bounce Ambient Hemisphere Light (F16)
+        hemiLight = new THREE.HemisphereLight(0x90caf9, 0xd7b48c, 0.65);
+        hemiLight.name = 'hemiLight';
+        scene.add(hemiLight);
+
+        // Base Gentle Ambient (fill in deepest crevices)
+        baseAmbientLight = new THREE.AmbientLight(0xffffff, 0.2);
+        baseAmbientLight.name = 'baseAmbientLight';
+        scene.add(baseAmbientLight);
+
+        // 2. Soft Directional Light with Acne Prevention (F16)
+        dirLight = new THREE.DirectionalLight(0xfffaed, 0.85);
+        dirLight.position.set(120, 220, 80);
+        dirLight.castShadow = true;
+        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+        const shadowRes = isTouch ? 1024 : 2048;
+        dirLight.shadow.mapSize.width = shadowRes;
+        dirLight.shadow.mapSize.height = shadowRes;
+        dirLight.shadow.camera.near = 10;
+        dirLight.shadow.camera.far = 600;
+        const d = 320;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        dirLight.shadow.bias = -0.0004;
+        dirLight.shadow.normalBias = 0.05;
+        dirLight.shadow.radius = 2.0;
         scene.add(dirLight);
 
+        // 3. Transient Player Weapon Muzzle Flash Light (F17)
+        playerMuzzleLight = new THREE.PointLight(0xffaa33, 0, 16, 2);
+        playerMuzzleLight.name = 'playerMuzzleLight';
+        playerMuzzleLight.castShadow = false;
+        playerMuzzleLight.position.set(0.35, -0.25, -0.8);
+        camera.add(playerMuzzleLight);
+
+        // 4. Transient Bot Muzzle Flash Light (F17)
+        botMuzzleLight = new THREE.PointLight(0xff8822, 0, 14, 2);
+        botMuzzleLight.name = 'botMuzzleLight';
+        botMuzzleLight.castShadow = false;
+        scene.add(botMuzzleLight);
+
         renderer = new THREE.WebGLRenderer({ antialias: true });
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+        renderer.setPixelRatio(dpr);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
+
+        // 5. Atmospheric Dust Motes (F17)
+        initAtmosphericDustMotes();
+
+        // 6. Postprocessing Pipeline (F13, F14, F15, F18)
+        if (typeof initPostprocessing === 'function') {
+            initPostprocessing(renderer, scene, camera, window.innerWidth, window.innerHeight);
+        }
 
         const knifeRange = WEAPONS.knife.range;
         const knifeRingGeo = new THREE.RingGeometry(knifeRange * 0.9, knifeRange, 32);
@@ -94,17 +245,8 @@ function rebuildMap() {
         }
     }
 
-    // Map-specific sky / fog
-    if (currentMap === 'inferno') {
-        scene.background = new THREE.Color(0xd4a76a);
-        scene.fog = new THREE.Fog(0xd4a76a, 30, 380);
-    } else if (currentMap === 'biolab') {
-        scene.background = new THREE.Color(0x3a4438);
-        scene.fog = new THREE.Fog(0x3a4438, 25, 360);
-    } else {
-        scene.background = new THREE.Color(0x87CEEB);
-        scene.fog = new THREE.Fog(0x87CEEB, 20, 300);
-    }
+    // Dynamic map-specific lighting, sky, fog, and dust motes (F16, F17)
+    updateSceneLighting(currentMap);
 
     if (isShootingRange) {
         buildShootingRangeMap();
@@ -124,6 +266,12 @@ function rebuildMap() {
         if (child.name === 'wall') {
             child.worldBox = new THREE.Box3().setFromObject(child);
             collidableMeshList.push(child);
+        }
+        if (child.name === 'floor') {
+            child.receiveShadow = true;
+        } else if (child.name === 'wall' || child.name === 'roof' || child.name === 'bombSite' || child.name === 'box' || child.name === 'door') {
+            child.castShadow = true;
+            child.receiveShadow = true;
         }
     });
     if (typeof rebuildBulletSpatialGrid === 'function') {

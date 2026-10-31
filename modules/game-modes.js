@@ -640,6 +640,12 @@ function endRound(msg, tWin, reason = 'elimination') {
     document.getElementById('result-desc').innerText = endMsg;
     document.getElementById('result-desc').style.color = tWin ? '#e67e22' : '#3498db';
 
+    const resultScreenEl = document.getElementById('result-screen');
+    if (resultScreenEl) {
+        resultScreenEl.classList.toggle('victory', isPlayerWin);
+        resultScreenEl.classList.toggle('defeat', !isPlayerWin);
+    }
+
     // 回合 MVP + 当前比分 + 连败补偿 展示
     const mvpEl = document.getElementById('result-mvp');
     if (mvpEl) {
@@ -745,8 +751,11 @@ function nextRound() {
         const _resetScore = document.getElementById('hud-score');
         if (_resetScore) _resetScore.innerText = playerScore;
     }
-    document.getElementById('result-screen').classList.remove('active');
-    document.getElementById('result-screen').classList.add('hidden');
+    const resultScreenEl = document.getElementById('result-screen');
+    if (resultScreenEl) {
+        resultScreenEl.classList.remove('active', 'victory', 'defeat');
+        resultScreenEl.classList.add('hidden');
+    }
     
     init3DGame();
 }

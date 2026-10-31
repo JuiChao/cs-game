@@ -154,6 +154,14 @@ function spawnBots(ctSpawns, tSpawns) {
         const rightHand = new THREE.Mesh(handGeo, handMat);
         rightHand.position.set(0.9, 1.8, 0.3);
         group.add(rightHand);
+
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+
         // Buy logic
         let money = team === 'T' ? matchState.botMoneyT[tCount] : matchState.botMoneyCT[ctCount];
         let weaponId = 'pistol';
@@ -1143,6 +1151,33 @@ function createPoisonParticle(pos) {
     const vy = Math.random() * 4 + 1;
     const vz = (Math.random() - 0.5) * 3;
     obtainParticle(sharedParticleGeo, 0x44ff00, px, py, pz, vx, vy, vz, 0.6 + Math.random() * 0.3, 1.0, 1.0);
+}
+
+function triggerMuzzleFlash(weapon) {
+    if (!playerMuzzleLight) return;
+    const bt = (typeof playerState !== 'undefined' && playerState.bulletType) ? playerState.bulletType : 'normal';
+    if (bt === 'incendiary') playerMuzzleLight.color.setHex(0xff3311);
+    else if (bt === 'tracking') playerMuzzleLight.color.setHex(0x00f0ff);
+    else if (bt === 'poison') playerMuzzleLight.color.setHex(0x33ff33);
+    else if (bt === 'shock') playerMuzzleLight.color.setHex(0xcc66ff);
+    else if (bt === 'freeze') playerMuzzleLight.color.setHex(0x88eeff);
+    else playerMuzzleLight.color.setHex(0xffaa33);
+    
+    let peak = 3.0;
+    if (weapon && weapon.id === 'shotgun') peak = 5.0;
+    else if (weapon && (weapon.id === 'sniper' || weapon.id === 'ash12')) peak = 4.5;
+    else if (weapon && weapon.id === 'deagle') peak = 3.8;
+    else if (weapon && (weapon.id === 'smg' || weapon.id === 'pistol' || weapon.id === 'glock')) peak = 2.2;
+    
+    playerMuzzleLight.intensity = peak;
+    playerMuzzleTimer = 0.06;
+}
+
+function triggerBotMuzzleFlash(pos) {
+    if (!botMuzzleLight || !pos) return;
+    botMuzzleLight.position.copy(pos);
+    botMuzzleLight.intensity = 2.5;
+    botMuzzleTimer = 0.05;
 }
 
 function createMuzzleFire(pos, dir) {

@@ -9,44 +9,78 @@
 </head>
 <body>
 
-    <!-- Main Menu -->
-    <div id="main-menu" class="screen active">
+    <!-- Main Menu (F8) -->
+    <div id="main-menu" class="screen active cyber-menu">
         <div class="background-overlay"></div>
-        <h1>反恐行动 <br><span class="subtitle">3D 爆破模式</span></h1>
+        <div class="cyber-grid-floor"></div>
         
-        <div class="operator-selection">
-            <button id="start-btn" onclick="startGame()">开始匹配 (加入 T 阵营)</button>
-            <button id="range-btn" onclick="startShootingRange()" style="margin-top: 10px; background: rgba(50,50,50,0.8);">进入靶场 (Shooting Range)</button>
-        </div>
-
-        <div style="margin-top: 15px; text-align: center;">
-            <label style="color: #aaa; font-size: 14px; display: block; margin-bottom: 5px;">游戏模式</label>
-            <div style="display: flex; gap: 8px; justify-content: center;">
-                <button onclick="selectGameMode('bomb')" style="padding: 8px 18px; background: rgba(52,152,219,0.3); border: 1px solid #3498db; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">爆破模式</button>
-                <button onclick="selectGameMode('zombie')" style="padding: 8px 18px; background: rgba(46,204,113,0.3); border: 1px solid #2ecc71; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">生化模式</button>
+        <div class="main-menu-console glass-panel">
+            <div class="menu-sys-badge"><span class="pulse-dot"></span>SYS.VER 2.4 // PROTOCOL ACTIVE</div>
+            <h1>反恐行动 <br><span class="subtitle">3D 爆破模式</span></h1>
+            
+            <div class="operator-selection">
+                <button id="start-btn" class="tactical-launch-btn" onclick="startGame()">开始匹配 (加入 T 阵营)</button>
+                <button id="range-btn" class="tactical-sub-btn" onclick="startShootingRange()">进入靶场 (Shooting Range)</button>
             </div>
-            <div style="margin-top: 5px; color: #888; font-size: 12px;">当前模式：<span id="mode-label" style="color: #2ecc71; font-weight: bold;">爆破</span></div>
-        </div>
 
-        <div style="margin-top: 15px; text-align: center;">
-            <label style="color: #aaa; font-size: 14px; display: block; margin-bottom: 5px;">地图选择</label>
-            <div style="display: flex; gap: 8px; justify-content: center;">
-                <button onclick="selectMap('dust2')" style="padding: 8px 18px; background: rgba(210,180,120,0.3); border: 1px solid #d2a878; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">Dust II</button>
-                <button onclick="selectMap('inferno')" style="padding: 8px 18px; background: rgba(90,130,70,0.3); border: 1px solid #5a7042; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">Inferno</button>
-                <button onclick="selectMap('biolab')" style="padding: 8px 18px; background: rgba(46,204,113,0.3); border: 1px solid #2ecc71; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">生化实验室</button>
+            <!-- Game Mode Selector -->
+            <div class="menu-config-section">
+                <div class="menu-section-header">
+                    <span class="menu-section-tag">MODE</span>
+                    <label class="menu-section-label">游戏模式</label>
+                </div>
+                <div class="menu-chip-group">
+                    <button class="menu-chip mode-chip" onclick="selectGameMode('bomb')">
+                        <span class="chip-icon">💣</span> 爆破模式
+                    </button>
+                    <button class="menu-chip mode-chip" onclick="selectGameMode('zombie')">
+                        <span class="chip-icon">☣</span> 生化模式
+                    </button>
+                </div>
+                <div class="menu-status-bar">
+                    当前模式：<span id="mode-label" class="status-pill status-pill-mode">爆破</span>
+                </div>
             </div>
-            <div style="margin-top: 5px; color: #888; font-size: 12px;">当前地图：<span id="map-label" style="color: #d2a878; font-weight: bold;">Dust II</span><br>生化模式自动选用专属地图「生化实验室」（三大高台守点）</div>
-        </div>
 
-        <div style="margin-top: 15px; text-align: center;">
-            <label style="color: #aaa; font-size: 14px; display: block; margin-bottom: 5px;">Bot 难度</label>
-            <div style="display: flex; gap: 8px; justify-content: center;">
-                <button onclick="setBotDifficulty('easy')" style="padding: 6px 16px; background: rgba(46,204,113,0.3); border: 1px solid #2ecc71; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">简单</button>
-                <button onclick="setBotDifficulty('medium')" style="padding: 6px 16px; background: rgba(241,196,15,0.3); border: 1px solid #f1c40f; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">中等</button>
-                <button onclick="setBotDifficulty('hard')" style="padding: 6px 16px; background: rgba(231,76,60,0.3); border: 1px solid #e74c3c; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">困难</button>
-                <button onclick="setBotDifficulty('pro')" style="padding: 6px 16px; background: rgba(155,89,182,0.3); border: 1px solid #9b59b6; color: white; border-radius: 4px; cursor: pointer; font-size: 13px;">专家</button>
+            <!-- Map Selector -->
+            <div class="menu-config-section">
+                <div class="menu-section-header">
+                    <span class="menu-section-tag">MAP</span>
+                    <label class="menu-section-label">战术地图</label>
+                </div>
+                <div class="menu-chip-group">
+                    <button class="menu-chip map-chip" onclick="selectMap('dust2')">
+                        <span class="chip-dot dust2"></span> Dust II
+                    </button>
+                    <button class="menu-chip map-chip" onclick="selectMap('inferno')">
+                        <span class="chip-dot inferno"></span> Inferno
+                    </button>
+                    <button class="menu-chip map-chip" onclick="selectMap('biolab')">
+                        <span class="chip-dot biolab"></span> 生化实验室
+                    </button>
+                </div>
+                <div class="menu-status-bar">
+                    当前地图：<span id="map-label" class="status-pill status-pill-map">Dust II</span>
+                    <span class="menu-map-tip">（生化模式自动选用专属地图「生化实验室」（三大高台守点））</span>
+                </div>
             </div>
-            <div style="margin-top: 5px; color: #888; font-size: 12px;">当前难度：<span id="difficulty-label" style="color: #f1c40f; font-weight: bold;">中等</span></div>
+
+            <!-- Bot Difficulty Selector -->
+            <div class="menu-config-section">
+                <div class="menu-section-header">
+                    <span class="menu-section-tag">AI TIER</span>
+                    <label class="menu-section-label">Bot 难度</label>
+                </div>
+                <div class="menu-chip-group difficulty-grid">
+                    <button class="menu-chip diff-chip easy" onclick="setBotDifficulty('easy')">简单</button>
+                    <button class="menu-chip diff-chip medium" onclick="setBotDifficulty('medium')">中等</button>
+                    <button class="menu-chip diff-chip hard" onclick="setBotDifficulty('hard')">困难</button>
+                    <button class="menu-chip diff-chip pro" onclick="setBotDifficulty('pro')">专家</button>
+                </div>
+                <div class="menu-status-bar">
+                    当前难度：<span id="difficulty-label" class="status-pill status-pill-diff">中等</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -158,13 +192,13 @@
             <!-- 生化模式: 感染爆发倒计时 -->
             <div id="zombie-countdown" class="hidden" style="position: absolute; top: 12%; left: 50%; transform: translateX(-50%); color: #00ff88; font-size: 1.4rem; font-weight: bold; font-family: 'Orbitron', 'Inter', 'Microsoft YaHei', sans-serif; text-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; z-index: 60;">感染爆发倒计时: 15 秒</div>
             <!-- Minimap -->
-            <div id="minimap-container" style="position: absolute; top: 20px; left: 20px; width: 240px; height: 240px; background: rgba(20, 25, 30, 0.6); border: 2px solid rgba(255,255,255,0.2); border-radius: 10px; overflow: hidden; z-index: 10; backdrop-filter: blur(5px);">
+            <div id="minimap-container">
                 <canvas id="minimap-canvas" width="240" height="240"></canvas>
             </div>
             <div id="zoneA-label" style="position:absolute; top:-100px; left:-100px; color:yellow; font-size: 14px; font-weight:bold; text-shadow: 1px 1px 2px black; transform: translate(-50%, -50%); pointer-events: none; z-index: 5;"></div>
             <div id="zoneB-label" style="position:absolute; top:-100px; left:-100px; color:yellow; font-size: 14px; font-weight:bold; text-shadow: 1px 1px 2px black; transform: translate(-50%, -50%); pointer-events: none; z-index: 5;"></div>
             <div class="hud-top glass-bar">
-                <div class="team-score t-score" style="text-align: right;"><span id="label-t">T</span> 存活：<span id="score-t">0</span> <br><small style="font-size:0.9rem; color:#aaa;">胜利回合：<span id="wins-t">0</span></small></div>
+                <div class="team-score t-score"><span id="label-t">T</span> 存活：<span id="score-t">0</span> <br><small style="font-size:0.9rem; color:#aaa;">胜利回合：<span id="wins-t">0</span></small></div>
                 <div class="round-timer" id="round-timer">02:00</div>
                 <div class="team-score ct-score"><span id="label-ct">CT</span> 存活：<span id="score-ct">0</span> <br><small style="font-size:0.9rem; color:#aaa;">胜利回合：<span id="wins-ct">0</span></small></div>
             </div>
@@ -179,7 +213,10 @@
             
             <div class="hud-bottom">
                 <div class="hud-left glass-panel-small">
-                    <div class="health-text">HP <span id="hp-val">100</span></div>
+                    <div class="vitality-header">
+                        <div class="health-text">HP <span id="hp-val">100</span></div>
+                        <div id="hud-armor" class="armor-badge">护甲 0/6 (0%)</div>
+                    </div>
                     <div class="health-bar"><div id="hp-fill"></div></div>
                 </div>
 
@@ -190,18 +227,17 @@
                     <div class="inv-slot hidden" id="slot-4" onclick="switchWeapon(4)"><span class="key">4</span> 投掷物</div>
                 </div>
 
-                <div class="hud-right glass-panel-small">
-                    <div class="ammo-text"><span id="ammo-clip">20</span><span class="ammo-sep">/</span><span id="ammo-reserve">120</span></div>
-                    <div class="weapon-name" id="weapon-name">格洛克手枪</div>
-                    <div id="bullet-type-display" style="font-size: 11px; color: #aaa; margin-top: 2px;">普通子弹</div>
-                </div>
-
-                <div class="currency-hud glass-panel-small" style="bottom: 200px; right: 30px; position: absolute;">
-                    积分: <span id="hud-score">0</span> &nbsp;|&nbsp; $ <span id="hud-credits">800</span>
-                </div>
-
-                <div id="hud-armor" class="glass-panel-small" style="bottom: 240px; right: 30px; position: absolute; padding: 6px 12px; font-size: 14px; color: #8af; border-radius: 6px;">
-                    护甲 0/6 (0%)
+                <div class="hud-right-wrapper">
+                    <div class="currency-hud glass-panel-small">
+                        积分: <span id="hud-score">0</span> &nbsp;|&nbsp; $ <span id="hud-credits">800</span>
+                    </div>
+                    <div class="hud-right glass-panel-small">
+                        <div class="ammo-row ammo-text"><span id="ammo-clip">20</span><span class="ammo-sep">/</span><span id="ammo-reserve">120</span></div>
+                        <div class="weapon-info-row">
+                            <div class="weapon-name" id="weapon-name">格洛克手枪</div>
+                            <div id="bullet-type-display" style="font-size: 11px; color: #aaa; margin-top: 2px;">普通子弹</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="adrenaline-hud" style="display: none; bottom: 160px; right: 30px; position: absolute; padding: 6px 12px; font-size: 14px; color: #ffd700; text-shadow: 0 0 6px rgba(0,0,0,0.8); background: rgba(30,20,0,0.5); border-radius: 6px;"></div>
@@ -299,25 +335,65 @@
         </div>
     </div>
 
-    <!-- Match Result Overlay -->
-    <div id="result-screen" class="screen hidden">
-        <h1 id="result-title">回合结束</h1>
-        <p id="result-desc">恐怖分子获胜</p>
-        <p id="result-mvp" style="color:#f1c40f; font-weight:600; margin:8px 0 0 0;"></p>
-        <div id="result-countdown" style="font-size: 1.5rem; color: #fff; margin-top: 15px; font-weight: bold;"></div>
-        <button onclick="nextRound()" style="margin-top: 20px;">强制下一回合</button>
+    <!-- Match Result Overlay (F10) -->
+    <div id="result-screen" class="screen hidden cinematic-result">
+        <div class="result-backdrop-effects">
+            <div class="result-scanlines"></div>
+            <div class="result-vignette"></div>
+        </div>
+        
+        <div class="result-card glass-panel">
+            <div class="result-banner">
+                <div class="result-sub-badge"><span class="badge-icon">◈</span> MISSION STATUS <span class="badge-icon">◈</span></div>
+                <h1 id="result-title">回合结束</h1>
+                <div class="result-desc-badge">
+                    <p id="result-desc">恐怖分子获胜</p>
+                </div>
+            </div>
+
+            <!-- MVP & Accolades Highlight Card -->
+            <div class="result-mvp-card">
+                <div class="mvp-card-header">
+                    <span class="mvp-star">★</span>
+                    <span class="mvp-tag">ROUND RECAP & RECOGNITION</span>
+                    <span class="mvp-star">★</span>
+                </div>
+                <p id="result-mvp" style="color:#f1c40f; font-weight:600; margin:8px 0 0 0;"></p>
+            </div>
+
+            <!-- Chronometer & Next Action -->
+            <div class="result-footer">
+                <div id="result-countdown"></div>
+                <button id="next-round-btn" class="tactical-action-btn" onclick="nextRound()">强制下一回合</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Scope Selection Panel (press T to toggle) -->
-    <div id="scope-panel" class="screen hidden glass-panel" style="max-width: 520px; padding: 20px;">
-        <div class="mod-header">
-            <h2><span class="highlight">瞄准镜选择</span> SCOPE SELECT</h2>
-            <div style="color:#aaa; font-size:13px;">按 [T] 关闭 · 免费</div>
+    <!-- Scope Selection Panel (F9) -->
+    <div id="scope-panel" class="screen hidden glass-panel tactical-scope-panel">
+        <div class="mod-header scope-modal-header">
+            <div class="scope-header-title">
+                <span class="scope-telemetry-badge">OPTICS MATRIX // MK-IV</span>
+                <h2><span class="highlight">瞄准镜选择</span> SCOPE SELECT</h2>
+            </div>
+            <div class="scope-shortcut-pill"><span class="key-tag">T</span> 关闭 · 免费</div>
         </div>
-        <div id="scope-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px;">
+        
+        <div id="scope-grid" class="scope-grid-container">
+            <!-- 8 dynamic scope buttons populated by buildScopeGrid() -->
         </div>
-        <div style="margin-top: 12px; text-align: center; color: #888; font-size: 12px;">当前：<span id="current-scope-label" style="color: #f1c40f; font-weight: bold;">红点瞄准镜</span></div>
-        <button class="deploy-btn glass-btn" onclick="toggleScopePanel()" style="margin-top: 15px; width: 100%;">关闭 (按 T)</button>
+
+        <div class="scope-status-footer">
+            <div class="scope-status-readout">
+                <span class="readout-label">当前瞄具：</span>
+                <span id="current-scope-label">红点瞄准镜</span>
+            </div>
+            <div class="scope-reticle-legend">
+                <span>● 1.0X-8.0X MAGNIFICATION</span>
+            </div>
+        </div>
+
+        <button class="deploy-btn glass-btn tactical-deploy-btn" onclick="toggleScopePanel()">关闭 (按 T)</button>
     </div>
 
     <!-- Three.js and Libraries -->
@@ -325,7 +401,18 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+
+    <!-- Three.js Postprocessing Libraries (r128) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/Pass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
     <!-- Game Modules (load order = dependency order) -->
+    <script src="modules/postprocessing.js"></script>
     <script src="modules/config.js"></script>
     <script src="modules/sounds-data.js"></script>
     <script src="modules/sound.js"></script>
