@@ -68,9 +68,16 @@ function initAtmosphericDustMotes() {
     if (dustMotePoints) return;
     for (let i = 0; i < DUST_MOTE_COUNT; i++) {
         const i3 = i * 3;
-        motePositions[i3] = (Math.random() - 0.5) * 80;
+        let mx = (Math.random() - 0.5) * 80;
+        let mz = (Math.random() - 0.5) * 80;
+        if (Math.hypot(mx, mz) < 4.5) {
+            const angle = Math.random() * Math.PI * 2;
+            mx = Math.cos(angle) * (4.5 + Math.random() * 5);
+            mz = Math.sin(angle) * (4.5 + Math.random() * 5);
+        }
+        motePositions[i3] = mx;
         motePositions[i3 + 1] = Math.random() * 20 + 0.5;
-        motePositions[i3 + 2] = (Math.random() - 0.5) * 80;
+        motePositions[i3 + 2] = mz;
         moteVelocities[i3] = (Math.random() - 0.5) * 0.3;
         moteVelocities[i3 + 1] = Math.random() * 0.15 - 0.05;
         moteVelocities[i3 + 2] = (Math.random() - 0.5) * 0.3;
