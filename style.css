@@ -618,8 +618,8 @@ h1, h2, h3, h4 {
 
 #buy-menu.hidden {
     display: none !important;
-    opacity: 0;
-    pointer-events: none;
+    opacity: 0 !important;
+    pointer-events: none !important;
     transform: scale(0.96) translateY(-12px);
 }
 
@@ -2062,6 +2062,12 @@ h1, h2, h3, h4 {
     transition-behavior: allow-discrete;
 }
 
+#scope-panel.active:not(.hidden),
+#scope-panel:not(.hidden) {
+    opacity: 1 !important;
+    pointer-events: auto;
+}
+
 @starting-style {
     #scope-panel:not(.hidden) {
         opacity: 0;
@@ -2071,7 +2077,8 @@ h1, h2, h3, h4 {
 
 #scope-panel.hidden {
     display: none !important;
-    opacity: 0;
+    opacity: 0 !important;
+    pointer-events: none !important;
     transform: translate(-50%, -48%) scale(0.96) !important;
 }
 
@@ -2233,7 +2240,6 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui,
 body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     pointer-events: none !important;
     opacity: 0 !important;
-    transition: opacity 0.2s ease-out;
 }
 
 #joystick-zone {

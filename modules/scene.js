@@ -176,6 +176,30 @@ function unstuckPlayer() {
     }
 }
 
+function cheatToggleInvincible() {
+    playerState.isInvincible = !playerState.isInvincible;
+    if (typeof showKillFeed === 'function') {
+        showKillFeed(playerState.isInvincible ? '你已开启无敌模式' : '你已关闭无敌模式');
+    }
+}
+
+function cheatAddCurrencyAndScore() {
+    playerCurrency += 1000;
+    playerScore += 1000;
+    if (typeof showKillFeed === 'function') {
+        showKillFeed('已增加 1000 金钱与积分');
+    }
+    const _hudCred = document.getElementById('hud-credits');
+    if (_hudCred) _hudCred.innerText = playerCurrency;
+    const _hudScore2 = document.getElementById('hud-score');
+    if (_hudScore2) _hudScore2.innerText = playerScore;
+    const _buyCred = document.getElementById('buy-credits');
+    if (_buyCred) _buyCred.innerText = playerCurrency;
+    const _buyScore = document.getElementById('buy-score');
+    if (_buyScore) _buyScore.innerText = playerScore;
+    if (typeof updateHUD === 'function') updateHUD();
+}
+
 document.addEventListener('keydown', (e) => {
     if (!controls || (!controls.isLocked && !isPlayerControlActive())) {
         if (e.code === 'Escape') {
@@ -197,6 +221,14 @@ document.addEventListener('keydown', (e) => {
             } else {
                 openBuyMenu();
             }
+        }
+        if (e.code === 'KeyL' && (roundActive || (typeof isShootingRange !== 'undefined' && isShootingRange)) && !playerState.isSpectating) {
+            cheatToggleInvincible();
+            return;
+        }
+        if (e.code === 'KeyK' && (roundActive || (typeof isShootingRange !== 'undefined' && isShootingRange)) && !playerState.isSpectating) {
+            cheatAddCurrencyAndScore();
+            return;
         }
         if (e.code === 'KeyT' && roundActive && !playerState.isSpectating && !playerState.isControllingDrone) {
             toggleScopePanel();
@@ -232,22 +264,10 @@ document.addEventListener('keydown', (e) => {
                 }
                 break;
             case 'KeyL':
-                playerState.isInvincible = !playerState.isInvincible;
-                showKillFeed(playerState.isInvincible ? '你已开启无敌模式' : '你已关闭无敌模式');
+                cheatToggleInvincible();
                 break;
             case 'KeyK':
-                playerCurrency += 1000;
-                playerScore += 1000;
-                showKillFeed('已增加 1000 金钱与积分');
-                const _hudCred = document.getElementById('hud-credits');
-                if (_hudCred) _hudCred.innerText = playerCurrency;
-                const _hudScore2 = document.getElementById('hud-score');
-                if (_hudScore2) _hudScore2.innerText = playerScore;
-                const _buyCred = document.getElementById('buy-credits');
-                if (_buyCred) _buyCred.innerText = playerCurrency;
-                const _buyScore = document.getElementById('buy-score');
-                if (_buyScore) _buyScore.innerText = playerScore;
-                if (typeof updateHUD === 'function') updateHUD();
+                cheatAddCurrencyAndScore();
                 break;
             case 'KeyR': handleReload(); break;
             case 'KeyF':
