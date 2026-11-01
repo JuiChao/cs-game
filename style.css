@@ -817,7 +817,89 @@ h1, h2, h3, h4 {
 }
 
 #buy-menu #bullet-type-category button {
+    position: relative;
     outline-offset: 2px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#buy-menu #bullet-type-category button.bullet-selected {
+    border: 2px solid #00ff88 !important;
+    outline: 3px solid #00ff88 !important;
+    box-shadow: 0 0 18px rgba(0, 255, 136, 0.85), inset 0 0 12px rgba(0, 255, 136, 0.35) !important;
+    background-color: rgba(0, 255, 136, 0.18) !important;
+    color: #ffffff !important;
+    z-index: 2;
+}
+
+#buy-menu #bullet-type-category button.bullet-stacked-selected {
+    border: 2px solid #00ffff !important;
+    outline: 3px solid #00ffff !important;
+    box-shadow: 0 0 22px rgba(0, 255, 255, 0.95), inset 0 0 14px rgba(0, 255, 255, 0.4) !important;
+    background-color: rgba(0, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+    z-index: 2;
+    animation: bullet-glow-pulse 1.8s infinite alternate ease-in-out;
+}
+
+#buy-menu #bullet-type-category button.bullet-selected::after,
+#buy-menu #bullet-type-category button.bullet-stacked-selected::after {
+    content: "✓ 已选择";
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    font-family: var(--font-display, monospace);
+    color: #00ffff;
+    background: rgba(0, 20, 25, 0.9);
+    border: 1px solid #00ffff;
+    border-radius: 3px;
+    padding: 1px 6px;
+    line-height: 1.2;
+    pointer-events: none;
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+}
+
+#buy-menu #bullet-type-category button.bullet-selected::after {
+    color: #00ff88;
+    border-color: #00ff88;
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+}
+
+#buy-menu #bullet-type-category #btn-bullet-stacking.stacking-active {
+    border: 2px solid #ff00ff !important;
+    outline: 3px solid #ff00ff !important;
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.9), inset 0 0 12px rgba(255, 0, 255, 0.35) !important;
+    background-color: rgba(255, 0, 255, 0.18) !important;
+}
+
+#buy-menu #bullet-type-category #btn-bullet-stacking.stacking-active::after {
+    content: "● 多选已激活";
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    font-family: var(--font-display, monospace);
+    color: #ff66ff;
+    background: rgba(30, 0, 30, 0.9);
+    border: 1px solid #ff00ff;
+    border-radius: 3px;
+    padding: 1px 6px;
+    line-height: 1.2;
+    pointer-events: none;
+    box-shadow: 0 0 8px rgba(255, 0, 255, 0.6);
+}
+
+@keyframes bullet-glow-pulse {
+    0% {
+        box-shadow: 0 0 14px rgba(0, 255, 255, 0.75), inset 0 0 10px rgba(0, 255, 255, 0.25);
+        border-color: #00ffff;
+    }
+    100% {
+        box-shadow: 0 0 26px rgba(0, 255, 255, 1.0), inset 0 0 18px rgba(0, 255, 255, 0.5);
+        border-color: #a0ffff;
+    }
 }
 
 #buy-menu .deploy-btn {

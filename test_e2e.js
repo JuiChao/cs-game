@@ -302,6 +302,52 @@ async function runE2ETests() {
         assert(bulletTypeResult.type === 'incendiary', "T1.3.13", "buyBulletType('incendiary') sets playerState.bulletType");
         assert(bulletTypeResult.displayText === '燃烧子弹', "T1.3.14", "HUD bullet type telemetry displays '燃烧子弹'");
 
+        // Multi-bullet stacking & conspicuous active border verification
+        const bulletBorderResult = await page.evaluate(() => {
+            playerCurrency = 5000;
+            buyBulletStacking();
+            buyBulletType('poison');
+            const incendiaryBtn = document.getElementById('btn-bullet-incendiary');
+            const poisonBtn = document.getElementById('btn-bullet-poison');
+            const stackBtn = document.getElementById('btn-bullet-stacking');
+            return {
+                isStacking: playerState.bulletStacking,
+                bulletCount: playerState.bulletTypes.length,
+                hasIncendiaryClass: incendiaryBtn && incendiaryBtn.classList.contains('bullet-stacked-selected'),
+                hasPoisonClass: poisonBtn && poisonBtn.classList.contains('bullet-stacked-selected'),
+                hasStackingClass: stackBtn && stackBtn.classList.contains('stacking-active'),
+                incendiaryBorderVisible: incendiaryBtn && (incendiaryBtn.style.outline.includes('solid') || incendiaryBtn.style.outline.includes('px')),
+                poisonBorderVisible: poisonBtn && (poisonBtn.style.outline.includes('solid') || poisonBtn.style.outline.includes('px'))
+            };
+        });
+        assert(bulletBorderResult.isStacking && bulletBorderResult.bulletCount >= 2, "T1.3.15", "Multi-bullet stacking allows selecting multiple bullet types");
+        assert(bulletBorderResult.hasIncendiaryClass && bulletBorderResult.hasPoisonClass && bulletBorderResult.hasStackingClass, "T1.3.16", "Selected bullets receive conspicuous glowing border classes and stacking active badge");
+
+        // Native KeyL (Invincibility toggle) & KeyK (+1000 credits & score) verification
+        await page.evaluate(() => {
+            if (!controls) controls = {};
+            controls.isLocked = true;
+            playerState.isInvincible = false;
+            playerCurrency = 2300;
+            playerScore = 0;
+        });
+        await page.keyboard.press('KeyL');
+        await page.keyboard.press('KeyK');
+        const cheatKeysResult = await page.evaluate(() => {
+            return {
+                invincible: playerState.isInvincible,
+                currency: playerCurrency,
+                score: playerScore
+            };
+        });
+        assert(cheatKeysResult.invincible === true, "T1.3.17", "Native KeyL toggles player invincibility to true");
+        assert(cheatKeysResult.currency === 3300 && cheatKeysResult.score === 1000, "T1.3.18", "Native KeyK directly grants +1000 credits and +1000 score");
+
+        // Toggle KeyL off to restore standard vulnerability
+        await page.keyboard.press('KeyL');
+        const invOffResult = await page.evaluate(() => playerState.isInvincible);
+        assert(invOffResult === false, "T1.3.19", "Native KeyL toggles player invincibility back to false");
+
         // -------------------------------------------------------------------------
         // Tier 1.4: Scope & Optics Panel
         // -------------------------------------------------------------------------
@@ -1101,6 +1147,7 @@ async function runE2ETests() {
             const exitBtnVisible = !document.getElementById('exit-range-btn').classList.contains('hidden');
             const rangeCurrency = playerCurrency;
             const rangeScore = playerScore;
+            const rangeSkyHex = scene.background ? scene.background.getHex() : 0;
 
             // 2. Practice purchases
             buyWeapon('sniper', 4750);
@@ -1117,6 +1164,7 @@ async function runE2ETests() {
                 exitBtnVisible,
                 rangeCurrency,
                 rangeScore,
+                rangeSkyHex,
                 sniperEquipped,
                 returnedToMenu,
                 exitBtnHidden,
@@ -1127,10 +1175,11 @@ async function runE2ETests() {
         assert(shootingRangeMatchFlow.isRange, "T4.3.1", "T4.3 Entry: startShootingRange() sets isShootingRange = true");
         assert(shootingRangeMatchFlow.exitBtnVisible, "T4.3.2", "T4.3 HUD: #exit-range-btn becomes visible in shooting range");
         assert(shootingRangeMatchFlow.rangeCurrency === 99999, "T4.3.3", "T4.3 Economy: Unlimited currency ($99999) granted in shooting range");
-        assert(shootingRangeMatchFlow.sniperEquipped, "T4.3.4", "T4.3 Arsenal: AWP sniper rifle purchased and tested in shooting range");
-        assert(shootingRangeMatchFlow.returnedToMenu, "T4.3.5", "T4.3 Exit: exitShootingRange() cleanly returns to #main-menu");
-        assert(shootingRangeMatchFlow.exitBtnHidden, "T4.3.6", "T4.3 Cleanup: #exit-range-btn is hidden upon range exit");
-        assert(shootingRangeMatchFlow.rangeCleaned, "T4.3.7", "T4.3 Teardown: isShootingRange flag cleared and targets cleaned up");
+        assert(shootingRangeMatchFlow.rangeSkyHex === 0x87CEEB, "T4.3.4", "T4.3 Atmosphere: Shooting range sky restored to classic bright sky blue (0x87CEEB)");
+        assert(shootingRangeMatchFlow.sniperEquipped, "T4.3.5", "T4.3 Arsenal: AWP sniper rifle purchased and tested in shooting range");
+        assert(shootingRangeMatchFlow.returnedToMenu, "T4.3.6", "T4.3 Exit: exitShootingRange() cleanly returns to #main-menu");
+        assert(shootingRangeMatchFlow.exitBtnHidden, "T4.3.7", "T4.3 Cleanup: #exit-range-btn is hidden upon range exit");
+        assert(shootingRangeMatchFlow.rangeCleaned, "T4.3.8", "T4.3 Teardown: isShootingRange flag cleared and targets cleaned up");
 
         // -------------------------------------------------------------------------
         // Final Diagnostic: Zero Page Runtime Exceptions

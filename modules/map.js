@@ -8,16 +8,16 @@ const MAP_LIGHTING_CONFIGS = {
     dust2: {
         sky: 0x87CEEB,
         fogNear: 120, fogFar: 500,
-        hemiSky: 0x90caf9, hemiGround: 0xd7b48c, hemiIntensity: 0.65,
-        dirColor: 0xfffaed, dirIntensity: 0.85, dirPos: [120, 220, 80],
-        dustColor: 0xf5d996, dustOpacity: 0.10
+        hemiSky: 0xb0e0ff, hemiGround: 0xd7b48c, hemiIntensity: 0.85,
+        dirColor: 0xfffaed, dirIntensity: 0.95, dirPos: [120, 220, 80],
+        dustColor: 0xf5d996, dustOpacity: 0.08
     },
     inferno: {
-        sky: 0xd4a76a,
+        sky: 0x87CEEB,
         fogNear: 120, fogFar: 520,
-        hemiSky: 0xf39c12, hemiGround: 0x6e4720, hemiIntensity: 0.70,
-        dirColor: 0xffaa66, dirIntensity: 0.90, dirPos: [160, 180, 110],
-        dustColor: 0xffb366, dustOpacity: 0.09
+        hemiSky: 0xb0e0ff, hemiGround: 0xd7b48c, hemiIntensity: 0.85,
+        dirColor: 0xfffaed, dirIntensity: 0.95, dirPos: [160, 180, 110],
+        dustColor: 0xffb366, dustOpacity: 0.08
     },
     biolab: {
         sky: 0x1a2621,
@@ -27,11 +27,11 @@ const MAP_LIGHTING_CONFIGS = {
         dustColor: 0x00ff88, dustOpacity: 0.11
     },
     shootingRange: {
-        sky: 0x4a5b6d,
-        fogNear: 100, fogFar: 480,
-        hemiSky: 0xd0e8ff, hemiGround: 0x333a40, hemiIntensity: 0.65,
-        dirColor: 0xffffff, dirIntensity: 0.80, dirPos: [0, 140, -50],
-        dustColor: 0x88ccff, dustOpacity: 0.08
+        sky: 0x87CEEB,
+        fogNear: 120, fogFar: 500,
+        hemiSky: 0xb0e0ff, hemiGround: 0xd7b48c, hemiIntensity: 0.85,
+        dirColor: 0xffffff, dirIntensity: 0.95, dirPos: [0, 140, -50],
+        dustColor: 0x88ccff, dustOpacity: 0.06
     }
 };
 
@@ -55,6 +55,11 @@ function updateSceneLighting(mapId) {
         dirLight.color.setHex(cfg.dirColor);
         dirLight.intensity = cfg.dirIntensity;
         dirLight.position.set(cfg.dirPos[0], cfg.dirPos[1], cfg.dirPos[2]);
+    }
+
+    // Base Ambient Light
+    if (baseAmbientLight) {
+        baseAmbientLight.intensity = (mapId === 'biolab' && !isSR) ? 0.25 : 0.45;
     }
     
     // Atmospheric Dust Motes
@@ -132,7 +137,7 @@ function init3DGame() {
         scene.add(hemiLight);
 
         // Base Gentle Ambient (fill in deepest crevices)
-        baseAmbientLight = new THREE.AmbientLight(0xffffff, 0.2);
+        baseAmbientLight = new THREE.AmbientLight(0xffffff, 0.45);
         baseAmbientLight.name = 'baseAmbientLight';
         scene.add(baseAmbientLight);
 

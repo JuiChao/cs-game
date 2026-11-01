@@ -263,8 +263,8 @@ async function runPhase2Tests() {
     assert(shopTestResult.stackingActive && shopTestResult.incendiaryAdded, "buyBulletStacking() and buyBulletType() enabled multi-bullet type customization");
     assert(shopTestResult.dropCompPurchased, "buyDropCompensation() updated dropCompensationPurchased state");
 
-    // Test 2.4: Gating Debug Cheat Backdoors (KeyL & KeyK)
-    console.log("\n--- Testing Debug Backdoor Key Gating (KeyL & KeyK) ---");
+    // Test 2.4: Native KeyL (Invincibility Toggle) & KeyK (+1000 Currency & Score)
+    console.log("\n--- Testing Native KeyL (Invincibility) & KeyK (+1000 Currency & Score) ---");
     // Ensure controls are mock locked for keydown switch
     await page.evaluate(() => {
         if (!controls) controls = {};
@@ -275,40 +275,33 @@ async function runPhase2Tests() {
         delete window.__DEV__;
     });
 
-    // In default production environment without dev flag, KeyL and KeyK must be ignored
+    // In default environment without any dev flag, KeyL toggles invincibility, KeyK adds +1000 currency & score
     await page.keyboard.press('KeyL');
     await page.keyboard.press('KeyK');
-    const prodResult = await page.evaluate(() => {
+    const result1 = await page.evaluate(() => {
         return {
             invincible: playerState.isInvincible,
             currency: playerCurrency,
-            score: playerScore,
-            isDev: isDevMode()
+            score: playerScore
         };
     });
-    assert(prodResult.isDev === false, "isDevMode() returns false in default production environment");
-    assert(prodResult.invincible === false, "KeyL (Invincibility) blocked in production environment");
-    assert(prodResult.currency === 5000, "KeyK (Free Money) blocked in production environment (currency unchanged at 5000)");
-    assert(prodResult.score === 100, "KeyK (Free Score) blocked in production environment (score unchanged at 100)");
+    assert(result1.invincible === true, "KeyL successfully toggled Invincibility to true");
+    assert(result1.currency === 6000, "KeyK successfully granted +1000 Currency (5000 -> 6000)");
+    assert(result1.score === 1100, "KeyK successfully granted +1000 Score (100 -> 1100)");
 
-    // In DEV environment (window.__DEV__ = true), KeyL and KeyK must work
-    await page.evaluate(() => {
-        window.__DEV__ = true;
-    });
+    // Press KeyL again to toggle invincibility off, and KeyK again for another +1000
     await page.keyboard.press('KeyL');
     await page.keyboard.press('KeyK');
-    const devResult = await page.evaluate(() => {
+    const result2 = await page.evaluate(() => {
         return {
             invincible: playerState.isInvincible,
             currency: playerCurrency,
-            score: playerScore,
-            isDev: isDevMode()
+            score: playerScore
         };
     });
-    assert(devResult.isDev === true, "isDevMode() returns true when window.__DEV__ = true");
-    assert(devResult.invincible === true, "KeyL successfully activated Invincibility in DEV mode");
-    assert(devResult.currency === 6000, "KeyK successfully granted +1000 Currency in DEV mode (5000 -> 6000)");
-    assert(devResult.score === 1100, "KeyK successfully granted +1000 Score in DEV mode (100 -> 1100)");
+    assert(result2.invincible === false, "KeyL successfully toggled Invincibility back to false");
+    assert(result2.currency === 7000, "KeyK successfully granted another +1000 Currency (6000 -> 7000)");
+    assert(result2.score === 2100, "KeyK successfully granted another +1000 Score (1100 -> 2100)");
 
     // Test 2.5: URL param ?debug=true authentication
     console.log("\n--- Testing URL Param ?debug=true Authentication ---");

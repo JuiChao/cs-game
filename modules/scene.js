@@ -232,21 +232,22 @@ document.addEventListener('keydown', (e) => {
                 }
                 break;
             case 'KeyL':
-                if (typeof isDevMode === 'function' && isDevMode()) {
-                    playerState.isInvincible = !playerState.isInvincible;
-                    showKillFeed(playerState.isInvincible ? '【调试】你已开启无敌模式' : '【调试】你已关闭无敌模式');
-                }
+                playerState.isInvincible = !playerState.isInvincible;
+                showKillFeed(playerState.isInvincible ? '你已开启无敌模式' : '你已关闭无敌模式');
                 break;
             case 'KeyK':
-                if (typeof isDevMode === 'function' && isDevMode()) {
-                    playerCurrency += 1000;
-                    playerScore += 1000;
-                    showKillFeed('【调试】已增加 1000 金钱与积分');
-                    document.getElementById('hud-credits').innerText = playerCurrency;
-                    const _hudScore2 = document.getElementById('hud-score');
-                    if (_hudScore2) _hudScore2.innerText = playerScore;
-                    updateHUD();
-                }
+                playerCurrency += 1000;
+                playerScore += 1000;
+                showKillFeed('已增加 1000 金钱与积分');
+                const _hudCred = document.getElementById('hud-credits');
+                if (_hudCred) _hudCred.innerText = playerCurrency;
+                const _hudScore2 = document.getElementById('hud-score');
+                if (_hudScore2) _hudScore2.innerText = playerScore;
+                const _buyCred = document.getElementById('buy-credits');
+                if (_buyCred) _buyCred.innerText = playerCurrency;
+                const _buyScore = document.getElementById('buy-score');
+                if (_buyScore) _buyScore.innerText = playerScore;
+                if (typeof updateHUD === 'function') updateHUD();
                 break;
             case 'KeyR': handleReload(); break;
             case 'KeyF':
