@@ -38,8 +38,13 @@ function closeMortarMap() {
     mortarMapOpen = false;
     mortarTargetPos = null;
     const overlay = document.getElementById('mortar-map-overlay');
-    if (overlay) overlay.classList.add('hidden');
-    if (roundActive && controls && !isTouchDevice) controls.lock();
+    const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+    if (roundActive && controls && canLock && typeof controls.lock === 'function') {
+        try { controls.lock(); } catch (e) {}
+    }
+    if (typeof updatePointerLockPrompt === 'function') {
+        updatePointerLockPrompt();
+    }
 }
 
 function drawMortarMap() {
@@ -392,8 +397,12 @@ function updateMortarCamera(delta) {
             if (cancelBtn) cancelBtn.classList.add('hidden');
 
             if (playerState.viewModel) playerState.viewModel.visible = true;
-            if (roundActive && controls && !isTouchDevice) {
+            const canLockLanding = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+            if (roundActive && controls && canLockLanding) {
                 try { controls.lock(); } catch (e) {}
+            }
+            if (typeof updatePointerLockPrompt === 'function') {
+                updatePointerLockPrompt();
             }
         }
     }
@@ -418,8 +427,12 @@ function cancelMortarCamera() {
     if (cancelBtn) cancelBtn.classList.add('hidden');
 
     if (playerState.viewModel) playerState.viewModel.visible = true;
-    if (roundActive && controls && !isTouchDevice) {
+    const canLockCancel = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+    if (roundActive && controls && canLockCancel) {
         try { controls.lock(); } catch (e) {}
+    }
+    if (typeof updatePointerLockPrompt === 'function') {
+        updatePointerLockPrompt();
     }
     if (typeof showKillFeed === 'function') showKillFeed('已中断迫击炮视角，返回角色本体');
 }

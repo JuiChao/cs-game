@@ -332,6 +332,10 @@ document.addEventListener('keyup', (e) => {
 });
 document.addEventListener('mousedown', (e) => { 
     if (e.button === 0) {
+        if (roundActive && controls && (!controls.isLocked || !document.pointerLockElement) && !playerState.isSpectating) {
+            const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+            if (canLock && typeof tryLockPointer === 'function') tryLockPointer();
+        }
         if (playerState.isSpectating) {
             cycleSpectator();
             return;
@@ -339,7 +343,7 @@ document.addEventListener('mousedown', (e) => {
         isShooting = true; 
         handleShooting(true); 
     }
-    if (e.button === 2 && controls && controls.isLocked) {
+    if (e.button === 2 && ((controls && controls.isLocked) || isPlayerControlActive())) {
         const w = getCurrentWeapon();
         if (w.id !== 'gatling' && w.id !== 'mortar' && w.id !== 'zombieClaw' && w.id !== 'flamethrower' && !playerState.isAds) {
             playerState.isAds = true;
@@ -355,6 +359,57 @@ document.addEventListener('mouseup', (e) => {
 });
 document.addEventListener('contextmenu', e => e.preventDefault());
 
+let _lastFallbackMouseX = null;
+let _lastFallbackMouseY = null;
+const _fallbackAimEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+document.addEventListener('mousemove', (e) => {
+    // If pointer is locked by PointerLockControls, Three.js already controls rotation
+    if (controls && controls.isLocked && document.pointerLockElement) {
+        _lastFallbackMouseX = e.clientX;
+        _lastFallbackMouseY = e.clientY;
+        return;
+    }
+
+    if (!roundActive || !camera || playerState.isSpectating || playerState.isControllingDrone || (typeof mortarCameraActive !== 'undefined' && mortarCameraActive) || (typeof mortarMapOpen !== 'undefined' && mortarMapOpen)) {
+        _lastFallbackMouseX = e.clientX;
+        _lastFallbackMouseY = e.clientY;
+        return;
+    }
+
+    const buyMenu = document.getElementById('buy-menu');
+    const scopePanel = document.getElementById('scope-panel');
+    const mainMenu = document.getElementById('main-menu');
+    const resultScreen = document.getElementById('result-screen');
+    if ((buyMenu && !buyMenu.classList.contains('hidden')) ||
+        (scopePanel && !scopePanel.classList.contains('hidden')) ||
+        (mainMenu && mainMenu.classList.contains('active')) ||
+        (resultScreen && !resultScreen.classList.contains('hidden'))) {
+        _lastFallbackMouseX = e.clientX;
+        _lastFallbackMouseY = e.clientY;
+        return;
+    }
+
+    // When pointer lock is unavailable, blocked or pending:
+    // Allow aiming if dragging (mouse buttons down) so user can always aim and adjust gun direction
+    if (e.buttons > 0) {
+        const movementX = (typeof e.movementX === 'number' && e.movementX !== 0) ? e.movementX : (_lastFallbackMouseX !== null ? e.clientX - _lastFallbackMouseX : 0);
+        const movementY = (typeof e.movementY === 'number' && e.movementY !== 0) ? e.movementY : (_lastFallbackMouseY !== null ? e.clientY - _lastFallbackMouseY : 0);
+
+        if (Math.abs(movementX) < 400 && Math.abs(movementY) < 400) {
+            _fallbackAimEuler.setFromQuaternion(camera.quaternion);
+            _fallbackAimEuler.y -= movementX * 0.002;
+            _fallbackAimEuler.x -= movementY * 0.002;
+            const _PI_2 = Math.PI / 2;
+            _fallbackAimEuler.x = Math.max(-_PI_2 + 0.01, Math.min(_PI_2 - 0.01, _fallbackAimEuler.x));
+            camera.quaternion.setFromEuler(_fallbackAimEuler);
+        }
+    }
+
+    _lastFallbackMouseX = e.clientX;
+    _lastFallbackMouseY = e.clientY;
+});
+
 function resetInputState() {
     moveForward = false;
     moveBackward = false;
@@ -364,6 +419,8 @@ function resetInputState() {
     moveDown = false;
     isShooting = false;
     isInteracting = false;
+    _lastFallbackMouseX = null;
+    _lastFallbackMouseY = null;
     if (typeof playerState !== 'undefined' && playerState) {
         playerState.isAds = false;
     }
@@ -396,7 +453,13 @@ function toggleScopePanel() {
     } else {
         panel.classList.add('hidden');
         panel.classList.remove('active');
-        if (roundActive && controls && !controls.isLocked && !isTouchDevice && !playerState.isSpectating) controls.lock();
+        const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+        if (roundActive && controls && !controls.isLocked && canLock && !playerState.isSpectating) {
+            try { controls.lock(); } catch (e) {}
+        }
+        if (typeof updatePointerLockPrompt === 'function') {
+            updatePointerLockPrompt();
+        }
     }
 }
 

@@ -39,6 +39,11 @@ function botTryStepUp(blockers, feetY) {
     return maxTop > feetY + 0.05 ? maxTop : -1;
 }
 
+const _staticBotBoxX = new THREE.Box3();
+const _staticBotBoxZ = new THREE.Box3();
+const _blockersX = [];
+const _blockersZ = [];
+
 function moveBotWithCollision(bot, moveVector) {
     const nextX = bot.mesh.position.x + moveVector.x;
     const nextZ = bot.mesh.position.z + moveVector.z;
@@ -47,18 +52,22 @@ function moveBotWithCollision(bot, moveVector) {
 
     const margin = 0.05;
 
-    const botBoxX = new THREE.Box3(
-        new THREE.Vector3(nextX - 0.4, feetY + 0.5, bot.mesh.position.z - 0.4 + margin),
-        new THREE.Vector3(nextX + 0.4, feetY + 3.5, bot.mesh.position.z + 0.4 - margin)
-    );
-    const blockersX = collidableMeshList.filter(wall => wall.worldBox && wall.worldBox.intersectsBox(botBoxX));
+    _staticBotBoxX.min.set(nextX - 0.4, feetY + 0.5, bot.mesh.position.z - 0.4 + margin);
+    _staticBotBoxX.max.set(nextX + 0.4, feetY + 3.5, bot.mesh.position.z + 0.4 - margin);
+    _blockersX.length = 0;
+    for (let i = 0; i < collidableMeshList.length; i++) {
+        const wall = collidableMeshList[i];
+        if (wall.worldBox && wall.worldBox.intersectsBox(_staticBotBoxX)) {
+            _blockersX.push(wall);
+        }
+    }
 
     let movedX = false;
-    if (blockersX.length === 0) {
+    if (_blockersX.length === 0) {
         bot.mesh.position.x = nextX;
         movedX = true;
     } else if (canClimb) {
-        const stepTop = botTryStepUp(blockersX, feetY);
+        const stepTop = botTryStepUp(_blockersX, feetY);
         if (stepTop >= 0) {
             bot.mesh.position.x = nextX;
             bot.mesh.position.y = stepTop;
@@ -67,18 +76,22 @@ function moveBotWithCollision(bot, moveVector) {
     }
 
     const curFeetY = bot.mesh.position.y;
-    const botBoxZ = new THREE.Box3(
-        new THREE.Vector3(bot.mesh.position.x - 0.4 + margin, curFeetY + 0.5, nextZ - 0.4),
-        new THREE.Vector3(bot.mesh.position.x + 0.4 - margin, curFeetY + 3.5, nextZ + 0.4)
-    );
-    const blockersZ = collidableMeshList.filter(wall => wall.worldBox && wall.worldBox.intersectsBox(botBoxZ));
+    _staticBotBoxZ.min.set(bot.mesh.position.x - 0.4 + margin, curFeetY + 0.5, nextZ - 0.4);
+    _staticBotBoxZ.max.set(bot.mesh.position.x + 0.4 - margin, curFeetY + 3.5, nextZ + 0.4);
+    _blockersZ.length = 0;
+    for (let i = 0; i < collidableMeshList.length; i++) {
+        const wall = collidableMeshList[i];
+        if (wall.worldBox && wall.worldBox.intersectsBox(_staticBotBoxZ)) {
+            _blockersZ.push(wall);
+        }
+    }
 
     let movedZ = false;
-    if (blockersZ.length === 0) {
+    if (_blockersZ.length === 0) {
         bot.mesh.position.z = nextZ;
         movedZ = true;
     } else if (canClimb) {
-        const stepTop = botTryStepUp(blockersZ, curFeetY);
+        const stepTop = botTryStepUp(_blockersZ, curFeetY);
         if (stepTop >= 0) {
             bot.mesh.position.z = nextZ;
             bot.mesh.position.y = stepTop;
@@ -338,7 +351,7 @@ function botAI(delta) {
         let absoluteClosestEnemy = null;
         let minAbsDist = Infinity;
         
-        const botEye = b.mesh.position.clone().add(new THREE.Vector3(0, 2.8, 0));
+        const botEye = new THREE.Vector3(b.mesh.position.x, b.mesh.position.y + 2.8, b.mesh.position.z);
         
         if (playerState.hp > 0 && playerState.team !== b.team && !playerState.isSpectating) {
             const playerEye = getPlayerPosition().clone();
@@ -346,28 +359,36 @@ function botAI(delta) {
             
             if (d < minAbsDist) { minAbsDist = d; absoluteClosestEnemy = playerEye; }
             
-            const dir = new THREE.Vector3().subVectors(playerEye, botEye).normalize();
-            raycaster.set(botEye, dir);
-            raycaster.far = d;
-            const intersects = raycaster.intersectObjects(collidableMeshList);
-            if (intersects.length === 0 && !isSegmentBlockedBySmoke(botEye, playerEye)) {
-                if (d < minDist) { minDist = d; nearestEnemy = playerEye; }
+            if (d < minDist && d < 350) {
+                const dir = new THREE.Vector3().subVectors(playerEye, botEye).normalize();
+                raycaster.set(botEye, dir);
+                raycaster.far = d;
+                const candidates = (typeof queryBulletSpatialTargets === 'function') ? queryBulletSpatialTargets(botEye, playerEye, 2.0).filter(m => m.name === 'wall' || m.name === 'box' || m.name === 'roof' || m.name === 'door') : collidableMeshList;
+                const intersects = raycaster.intersectObjects(candidates.length > 0 ? candidates : collidableMeshList);
+                if (intersects.length === 0 && !isSegmentBlockedBySmoke(botEye, playerEye)) {
+                    minDist = d;
+                    nearestEnemy = playerEye;
+                }
             }
         }
         
         bots.forEach(other => {
             if (other.team !== b.team && !other.isDead) {
-                const otherEye = other.mesh.position.clone().add(new THREE.Vector3(0, 2.8, 0));
+                const otherEye = new THREE.Vector3(other.mesh.position.x, other.mesh.position.y + 2.8, other.mesh.position.z);
                 const d = botEye.distanceTo(otherEye);
                 
                 if (d < minAbsDist) { minAbsDist = d; absoluteClosestEnemy = otherEye; }
                 
-                const dir = new THREE.Vector3().subVectors(otherEye, botEye).normalize();
-                raycaster.set(botEye, dir);
-                raycaster.far = d;
-                const intersects = raycaster.intersectObjects(collidableMeshList);
-                if (intersects.length === 0 && !isSegmentBlockedBySmoke(botEye, otherEye)) {
-                    if (d < minDist) { minDist = d; nearestEnemy = otherEye; }
+                if (d < minDist && d < 350) {
+                    const dir = new THREE.Vector3().subVectors(otherEye, botEye).normalize();
+                    raycaster.set(botEye, dir);
+                    raycaster.far = d;
+                    const candidates = (typeof queryBulletSpatialTargets === 'function') ? queryBulletSpatialTargets(botEye, otherEye, 2.0).filter(m => m.name === 'wall' || m.name === 'box' || m.name === 'roof' || m.name === 'door') : collidableMeshList;
+                    const intersects = raycaster.intersectObjects(candidates.length > 0 ? candidates : collidableMeshList);
+                    if (intersects.length === 0 && !isSegmentBlockedBySmoke(botEye, otherEye)) {
+                        minDist = d;
+                        nearestEnemy = otherEye;
+                    }
                 }
             }
         });

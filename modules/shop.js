@@ -95,8 +95,12 @@ function closeBuyMenu() {
         buyMenu.classList.add('hidden');
         buyMenu.classList.remove('active');
     }
-    if (roundActive && controls && !isTouchDevice && typeof controls.lock === 'function') {
-        controls.lock();
+    const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+    if (roundActive && controls && canLock && typeof controls.lock === 'function') {
+        try { controls.lock(); } catch (e) {}
+    }
+    if (typeof updatePointerLockPrompt === 'function') {
+        updatePointerLockPrompt();
     }
 }
 

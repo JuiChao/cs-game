@@ -1,4 +1,15 @@
 // #region 小地图与轨迹
+let minimapBgCanvas = null;
+let lastMinimapMapId = null;
+
+function resetMinimapStaticCache() {
+    minimapBgCanvas = null;
+    lastMinimapMapId = null;
+}
+if (typeof window !== 'undefined') {
+    window.resetMinimapStaticCache = resetMinimapStaticCache;
+}
+
 function updateMinimap() {
     const canvas = document.getElementById('minimap-canvas');
     if (!canvas) return;
@@ -12,17 +23,26 @@ function updateMinimap() {
     const cx = w / 2;
     const cy = h / 2;
     
-    // Draw obstacles (walls/terrain)
-    ctx.fillStyle = 'rgba(150, 150, 150, 0.5)';
-    collidableMeshList.forEach(mesh => {
-        if (mesh.worldBox) {
-            const minX = cx + mesh.worldBox.min.x * scale;
-            const minZ = cy + mesh.worldBox.min.z * scale;
-            const boxWidth = (mesh.worldBox.max.x - mesh.worldBox.min.x) * scale;
-            const boxHeight = (mesh.worldBox.max.z - mesh.worldBox.min.z) * scale;
-            ctx.fillRect(minX, minZ, boxWidth, boxHeight);
-        }
-    });
+    // Draw obstacles (walls/terrain) cached once on offscreen canvas
+    if (!minimapBgCanvas || lastMinimapMapId !== currentMap) {
+        if (!minimapBgCanvas) minimapBgCanvas = document.createElement('canvas');
+        minimapBgCanvas.width = w;
+        minimapBgCanvas.height = h;
+        const bgCtx = minimapBgCanvas.getContext('2d');
+        bgCtx.clearRect(0, 0, w, h);
+        bgCtx.fillStyle = 'rgba(150, 150, 150, 0.5)';
+        collidableMeshList.forEach(mesh => {
+            if (mesh.worldBox) {
+                const minX = cx + mesh.worldBox.min.x * scale;
+                const minZ = cy + mesh.worldBox.min.z * scale;
+                const boxWidth = (mesh.worldBox.max.x - mesh.worldBox.min.x) * scale;
+                const boxHeight = (mesh.worldBox.max.z - mesh.worldBox.min.z) * scale;
+                bgCtx.fillRect(minX, minZ, boxWidth, boxHeight);
+            }
+        });
+        lastMinimapMapId = currentMap;
+    }
+    ctx.drawImage(minimapBgCanvas, 0, 0);
     
     bombZones.forEach((zone, index) => {
         const x = cx + zone.mesh.position.x * scale;

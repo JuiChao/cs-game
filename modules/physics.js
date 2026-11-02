@@ -227,19 +227,23 @@ function animate() {
     bombZones.forEach((zone) => {
         const labelEl = document.getElementById(zone.labelId || 'zoneA-label');
         if (labelEl) {
-            if (gameMode === 'zombie') { labelEl.style.display = 'none'; return; }
+            if (gameMode === 'zombie') {
+                if (labelEl.style.display !== 'none') labelEl.style.display = 'none';
+                return;
+            }
             const pos = zone.mesh.position.clone();
             pos.y += 3; 
             pos.project(camera);
             if (pos.z > 1) { 
-                labelEl.style.display = 'none';
+                if (labelEl.style.display !== 'none') labelEl.style.display = 'none';
             } else {
-                labelEl.style.display = 'block';
-                const x = (pos.x * .5 + .5) * window.innerWidth;
-                const y = (pos.y * -.5 + .5) * window.innerHeight;
+                if (labelEl.style.display !== 'block') labelEl.style.display = 'block';
+                const x = Math.round((pos.x * .5 + .5) * window.innerWidth);
+                const y = Math.round((pos.y * -.5 + .5) * window.innerHeight);
                 labelEl.style.left = x + 'px';
                 labelEl.style.top = y + 'px';
-                labelEl.innerText = isT ? `${zone.name} 安放区` : `${zone.name} 拆除区`;
+                const labelText = isT ? `${zone.name} 安放区` : `${zone.name} 拆除区`;
+                if (labelEl.innerText !== labelText) labelEl.innerText = labelText;
             }
         }
     });
@@ -1110,8 +1114,8 @@ function animate() {
         if (botMuzzleTimer <= 0) botMuzzleLight.intensity = 0;
     }
 
-    // Atmospheric Dust Motes Simulation (F17)
-    if (dustMotePoints) {
+    // Atmospheric Dust Motes Simulation (F17 - updated every other frame to halve buffer transfers)
+    if (dustMotePoints && (frameCount % 2 === 0)) {
         const targetPos = (typeof camera !== 'undefined' && camera && camera.position) ? camera.position : (typeof getPlayerPosition === 'function' ? getPlayerPosition() : null);
         if (targetPos && !isNaN(targetPos.x) && !isNaN(targetPos.z)) {
             const posAttr = dustMotePoints.geometry && dustMotePoints.geometry.attributes ? dustMotePoints.geometry.attributes.position : null;
@@ -1120,13 +1124,14 @@ function animate() {
                 const px = targetPos.x, pz = targetPos.z;
                 const r = 45, diam = 90;
                 const elTime = clock ? clock.getElapsedTime() : 0;
+                const moteDelta = delta * 2.0;
                 
                 for (let i = 0; i < DUST_MOTE_COUNT; i++) {
                     const i3 = i * 3;
                     const phase = motePhases[i];
-                    pos[i3] += (Math.sin(elTime * 0.6 + phase) * 0.4 + moteVelocities[i3]) * delta;
-                    pos[i3 + 1] += (Math.cos(elTime * 0.4 + phase) * 0.2 + moteVelocities[i3 + 1]) * delta;
-                    pos[i3 + 2] += (Math.sin(elTime * 0.5 + phase * 1.3) * 0.4 + moteVelocities[i3 + 2]) * delta;
+                    pos[i3] += (Math.sin(elTime * 0.6 + phase) * 0.4 + moteVelocities[i3]) * moteDelta;
+                    pos[i3 + 1] += (Math.cos(elTime * 0.4 + phase) * 0.2 + moteVelocities[i3 + 1]) * moteDelta;
+                    pos[i3 + 2] += (Math.sin(elTime * 0.5 + phase * 1.3) * 0.4 + moteVelocities[i3 + 2]) * moteDelta;
                     
                     if (pos[i3] - px > r) pos[i3] -= diam;
                     else if (pos[i3] - px < -r) pos[i3] += diam;

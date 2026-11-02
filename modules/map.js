@@ -146,7 +146,7 @@ function init3DGame() {
         dirLight.position.set(120, 220, 80);
         dirLight.castShadow = true;
         const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
-        const shadowRes = isTouch ? 1024 : 2048;
+        const shadowRes = isTouch ? 512 : 1024;
         dirLight.shadow.mapSize.width = shadowRes;
         dirLight.shadow.mapSize.height = shadowRes;
         dirLight.shadow.camera.near = 10;
@@ -174,12 +174,12 @@ function init3DGame() {
         botMuzzleLight.castShadow = false;
         scene.add(botMuzzleLight);
 
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.0);
         renderer.setPixelRatio(dpr);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.type = THREE.PCFShadowMap;
         container.appendChild(renderer.domElement);
 
         // 5. Atmospheric Dust Motes (F17)
@@ -205,18 +205,173 @@ function init3DGame() {
         predictionMarker.renderOrder = 999;
         scene.add(predictionMarker);
 
+        if (typeof THREE.PointerLockControls === 'undefined') {
+            THREE.PointerLockControls = class extends THREE.EventDispatcher {
+                constructor(cam, domEl) {
+                    super();
+                    this.domElement = domEl || document.body;
+                    this.isLocked = false;
+                    this.minPolarAngle = 0;
+                    this.maxPolarAngle = Math.PI;
+                    const scope = this;
+                    const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
+                    const _PI_2 = Math.PI / 2;
+
+                    function onMouseMove(event) {
+                        if (!scope.isLocked) return;
+                        const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+                        const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+                        _euler.setFromQuaternion(cam.quaternion);
+                        _euler.y -= movementX * 0.002;
+                        _euler.x -= movementY * 0.002;
+                        _euler.x = Math.max(_PI_2 - scope.maxPolarAngle, Math.min(_PI_2 - scope.minPolarAngle, _euler.x));
+                        cam.quaternion.setFromEuler(_euler);
+                        scope.dispatchEvent({ type: 'change' });
+                    }
+
+                    function onPointerlockChange() {
+                        const ple = scope.domElement.ownerDocument.pointerLockElement;
+                        if (ple) {
+                            scope.isLocked = true;
+                            scope.dispatchEvent({ type: 'lock' });
+                        } else {
+                            scope.isLocked = false;
+                            scope.dispatchEvent({ type: 'unlock' });
+                        }
+                    }
+
+                    this.connect = function() {
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('pointerlockchange', onPointerlockChange);
+                    };
+                    this.disconnect = function() {
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('pointerlockchange', onPointerlockChange);
+                    };
+                    this.lock = function() {
+                        if (this.domElement && typeof this.domElement.requestPointerLock === 'function') {
+                            this.domElement.requestPointerLock();
+                        } else {
+                            document.body.requestPointerLock();
+                        }
+                    };
+                    this.unlock = function() {
+                        if (document.exitPointerLock) document.exitPointerLock();
+                    };
+                    this.connect();
+                }
+            };
+        }
+
         controls = new THREE.PointerLockControls(camera, document.body);
+
+        function shouldAutoLockPointer() {
+            const isSmallScreen = window.innerWidth <= 768;
+            const hasFinePointer = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+            if (isSmallScreen && !hasFinePointer && typeof isTouchDevice !== 'undefined' && isTouchDevice) {
+                return false;
+            }
+            return true;
+        }
+        window.shouldAutoLockPointer = shouldAutoLockPointer;
+        
+        function updatePointerLockPrompt() {
+            const prompt = document.getElementById('pointer-lock-prompt');
+            if (!prompt) return;
+            if (!roundActive || playerState.isSpectating || !shouldAutoLockPointer()) {
+                prompt.classList.add('hidden');
+                return;
+            }
+            const buyMenu = document.getElementById('buy-menu');
+            const scopePanel = document.getElementById('scope-panel');
+            const mainMenu = document.getElementById('main-menu');
+            const resultScreen = document.getElementById('result-screen');
+            const mortarMap = document.getElementById('mortar-map-overlay');
+            const isMenuOpen = (buyMenu && !buyMenu.classList.contains('hidden')) ||
+                               (scopePanel && !scopePanel.classList.contains('hidden')) ||
+                               (mainMenu && mainMenu.classList.contains('active')) ||
+                               (resultScreen && !resultScreen.classList.contains('hidden')) ||
+                               (mortarMap && !mortarMap.classList.contains('hidden'));
+            if (!isMenuOpen && controls && !controls.isLocked && !document.pointerLockElement) {
+                prompt.classList.remove('hidden');
+            } else {
+                prompt.classList.add('hidden');
+            }
+        }
+        window.updatePointerLockPrompt = updatePointerLockPrompt;
+
+        controls.addEventListener('lock', () => {
+            const prompt = document.getElementById('pointer-lock-prompt');
+            if (prompt) prompt.classList.add('hidden');
+        });
+
         controls.addEventListener('unlock', () => {
             if (typeof resetInputState === 'function') resetInputState();
+            updatePointerLockPrompt();
+        });
+        
+        document.addEventListener('pointerlockchange', () => {
+            const hasLock = Boolean(document.pointerLockElement);
+            if (controls) {
+                controls.isLocked = hasLock;
+            }
+            updatePointerLockPrompt();
+        });
+
+        document.addEventListener('pointerlockerror', () => {
+            updatePointerLockPrompt();
         });
         
         isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia("(pointer: coarse)").matches;
         
-        container.addEventListener('click', () => { 
-            if (!isTouchDevice && roundActive && !playerState.isSpectating && document.getElementById('buy-menu').classList.contains('hidden')) {
-                controls.lock(); 
+        function tryLockPointer() {
+            if (!roundActive || playerState.isSpectating) return;
+            const buyMenu = document.getElementById('buy-menu');
+            const scopePanel = document.getElementById('scope-panel');
+            const mainMenu = document.getElementById('main-menu');
+            const resultScreen = document.getElementById('result-screen');
+            const mortarMap = document.getElementById('mortar-map-overlay');
+            if (buyMenu && !buyMenu.classList.contains('hidden')) return;
+            if (scopePanel && !scopePanel.classList.contains('hidden')) return;
+            if (mainMenu && mainMenu.classList.contains('active')) return;
+            if (resultScreen && !resultScreen.classList.contains('hidden')) return;
+            if (mortarMap && !mortarMap.classList.contains('hidden')) return;
+            if (controls && (!controls.isLocked || !document.pointerLockElement) && typeof controls.lock === 'function') {
+                try {
+                    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                        document.activeElement.blur();
+                    }
+                    controls.lock();
+                } catch (e) {
+                    try { document.body.requestPointerLock(); } catch (e2) {}
+                }
             }
-        });
+        }
+        window.tryLockPointer = tryLockPointer;
+
+        container.addEventListener('click', tryLockPointer);
+        const gameScreenEl = document.getElementById('game-screen');
+        if (gameScreenEl) {
+            gameScreenEl.addEventListener('click', (e) => {
+                if (e.target && (e.target.closest('#buy-menu') || e.target.closest('#scope-panel') || e.target.closest('#result-screen') || e.target.closest('#mortar-map-overlay'))) {
+                    return;
+                }
+                tryLockPointer();
+            });
+            gameScreenEl.addEventListener('pointerdown', (e) => {
+                if (e.target && (e.target.closest('#buy-menu') || e.target.closest('#scope-panel') || e.target.closest('#result-screen') || e.target.closest('#mortar-map-overlay'))) {
+                    return;
+                }
+                if (e.pointerType === 'mouse' && controls && !controls.isLocked) {
+                    tryLockPointer();
+                }
+            });
+        }
+        const promptEl = document.getElementById('pointer-lock-prompt');
+        if (promptEl) {
+            promptEl.addEventListener('click', tryLockPointer);
+            promptEl.addEventListener('pointerdown', tryLockPointer);
+        }
         
         document.getElementById('buy-menu').addEventListener('mousedown', (e) => {
             e.stopPropagation();
@@ -609,6 +764,8 @@ function resetRound() {
     setTimeout(() => { document.getElementById('buy-prompt').classList.add('hidden'); }, 10000);
 
     updateHUD();
+    if (typeof updatePointerLockPrompt === 'function') updatePointerLockPrompt();
+    if (typeof resetMinimapStaticCache === 'function') resetMinimapStaticCache();
 }
 
 // Procedural texture generation (replaces external CDN dependencies)

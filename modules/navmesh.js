@@ -12,33 +12,51 @@ function buildNavGrid() {
     navGrid = [];
     navHeight = [];
     navZombieBlocked = [];
-    const expandedBoxes = collidableMeshList.map(m => m.worldBox ? m.worldBox.clone().expandByScalar(5.0) : null);
     for (let x = 0; x < NAV_CELL_COUNT; x++) {
-        navGrid[x] = [];
-        navHeight[x] = [];
-        navZombieBlocked[x] = [];
-        for (let z = 0; z < NAV_CELL_COUNT; z++) {
-            const cellMin = new THREE.Vector3(-NAV_MAP_EXTENT + x * NAV_GRID_SIZE, 0, -NAV_MAP_EXTENT + z * NAV_GRID_SIZE);
-            const cellMax = new THREE.Vector3(-NAV_MAP_EXTENT + (x + 1) * NAV_GRID_SIZE, 10, -NAV_MAP_EXTENT + (z + 1) * NAV_GRID_SIZE);
-            const cellBox = new THREE.Box3(cellMin, cellMax);
+        navGrid[x] = new Array(NAV_CELL_COUNT).fill(true);
+        navHeight[x] = new Float32Array(NAV_CELL_COUNT);
+        navZombieBlocked[x] = new Array(NAV_CELL_COUNT).fill(false);
+    }
 
-            let walkable = true;
-            let topHeight = 0;
-            let zombieBlocked = false;
-            for (let i = 0; i < collidableMeshList.length; i++) {
-                const mesh = collidableMeshList[i];
-                if (!expandedBoxes[i] || !expandedBoxes[i].intersectsBox(cellBox)) continue;
-                walkable = false;
-                if (mesh.userData && mesh.userData.noClimb) {
-                    zombieBlocked = true; // 护栏对寻路也是墙
-                } else if (mesh.worldBox.max.y > topHeight) {
-                    topHeight = mesh.worldBox.max.y;
+    const expandedBoxes = collidableMeshList.map(m => m.worldBox ? m.worldBox.clone().expandByScalar(5.0) : null);
+    for (let i = 0; i < collidableMeshList.length; i++) {
+        const mesh = collidableMeshList[i];
+        if (!mesh.worldBox || !expandedBoxes[i]) continue;
+        const eb = expandedBoxes[i];
+        const minGx = Math.max(0, Math.min(NAV_CELL_COUNT - 1, Math.floor((eb.min.x + NAV_MAP_EXTENT) / NAV_GRID_SIZE)));
+        const maxGx = Math.max(0, Math.min(NAV_CELL_COUNT - 1, Math.floor((eb.max.x + NAV_MAP_EXTENT) / NAV_GRID_SIZE)));
+        const minGz = Math.max(0, Math.min(NAV_CELL_COUNT - 1, Math.floor((eb.min.z + NAV_MAP_EXTENT) / NAV_GRID_SIZE)));
+        const maxGz = Math.max(0, Math.min(NAV_CELL_COUNT - 1, Math.floor((eb.max.z + NAV_MAP_EXTENT) / NAV_GRID_SIZE)));
+
+        const isNoClimb = mesh.userData && mesh.userData.noClimb;
+        const maxY = mesh.worldBox.max.y;
+
+        for (let gx = minGx; gx <= maxGx; gx++) {
+            const xMin = -NAV_MAP_EXTENT + gx * NAV_GRID_SIZE;
+            const xMax = xMin + NAV_GRID_SIZE;
+            if (xMax < eb.min.x || xMin > eb.max.x) continue;
+
+            for (let gz = minGz; gz <= maxGz; gz++) {
+                const zMin = -NAV_MAP_EXTENT + gz * NAV_GRID_SIZE;
+                const zMax = zMin + NAV_GRID_SIZE;
+                if (zMax < eb.min.z || zMin > eb.max.z) continue;
+
+                navGrid[gx][gz] = false;
+                if (isNoClimb) {
+                    navZombieBlocked[gx][gz] = true;
+                } else if (maxY > navHeight[gx][gz]) {
+                    navHeight[gx][gz] = maxY;
                 }
             }
-            if (topHeight > NAV_MAX_STANDABLE) zombieBlocked = true; // 高墙顶不可站立
-            navGrid[x][z] = walkable;
-            navHeight[x][z] = Math.min(topHeight, NAV_MAX_STANDABLE);
-            navZombieBlocked[x][z] = zombieBlocked;
+        }
+    }
+
+    for (let x = 0; x < NAV_CELL_COUNT; x++) {
+        for (let z = 0; z < NAV_CELL_COUNT; z++) {
+            if (navHeight[x][z] > NAV_MAX_STANDABLE) {
+                navZombieBlocked[x][z] = true;
+            }
+            navHeight[x][z] = Math.min(navHeight[x][z], NAV_MAX_STANDABLE);
         }
     }
 }

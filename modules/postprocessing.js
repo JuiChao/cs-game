@@ -68,13 +68,18 @@ const CinematicShader = {
         '    vec2 dir = uv - vec2(0.5);',
         '    float dist = length(dir);',
         '',
-        '    // 1. Dynamic Chromatic Aberration (Radial RGB Split with lens dispersion)',
-        '    float totalAberration = uHitAberration + 0.0015 * dist;',
-        '    vec2 offset = normalize(dir + 0.0001) * totalAberration;',
-        '    float r = texture2D(tDiffuse, clamp(uv + offset, 0.0, 1.0)).r;',
-        '    float g = texture2D(tDiffuse, uv).g;',
-        '    float b = texture2D(tDiffuse, clamp(uv - offset, 0.0, 1.0)).b;',
-        '    vec3 color = vec3(r, g, b);',
+        '    // 1. Dynamic Chromatic Aberration (Fast single sample when no hit aberration)',
+        '    vec3 color;',
+        '    if (uHitAberration > 0.0001) {',
+        '        float totalAberration = uHitAberration + 0.0015 * dist;',
+        '        vec2 offset = normalize(dir + 0.0001) * totalAberration;',
+        '        float r = texture2D(tDiffuse, clamp(uv + offset, 0.0, 1.0)).r;',
+        '        float g = texture2D(tDiffuse, uv).g;',
+        '        float b = texture2D(tDiffuse, clamp(uv - offset, 0.0, 1.0)).b;',
+        '        color = vec3(r, g, b);',
+        '    } else {',
+        '        color = texture2D(tDiffuse, uv).rgb;',
+        '    }',
         '',
         '    // 2. ACES Filmic Tone Mapping Curve (with sky luminance preservation)',
         '    vec3 toneColor = color * 1.12;',
@@ -118,7 +123,7 @@ function initPostprocessing(rendererInstance, sceneInstance, cameraInstance, wid
     }
 
     try {
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.0);
         const w = width || window.innerWidth;
         const h = height || window.innerHeight;
 
@@ -138,10 +143,9 @@ function initPostprocessing(rendererInstance, sceneInstance, cameraInstance, wid
         renderPass = new THREE.RenderPass(sceneInstance, cameraInstance);
         composer.addPass(renderPass);
 
-        // 2. Incandescent UnrealBloomPass (F14)
-        // High threshold (1.15) ensures selective glow on muzzle fire, lasers, and C4 LEDs
+        // 2. Incandescent UnrealBloomPass (F14) - half resolution for 4x performance boost
         bloomPass = new THREE.UnrealBloomPass(
-            new THREE.Vector2(w, h),
+            new THREE.Vector2(Math.floor(w * 0.5), Math.floor(h * 0.5)),
             0.45, // strength
             0.35, // radius
             1.15  // threshold
@@ -158,10 +162,6 @@ function initPostprocessing(rendererInstance, sceneInstance, cameraInstance, wid
             cinematicPass.uniforms.resolution.value.set(Math.floor(w * dpr), Math.floor(h * dpr));
         }
         composer.addPass(cinematicPass);
-
-        // Warm up composer ping-pong buffers to prevent lazy allocations during gameplay
-        composer.render(0.016);
-        composer.render(0.016);
 
         postprocessingActive = true;
         postprocessingInitialized = true;
@@ -223,14 +223,14 @@ function renderPostprocessing(deltaTime) {
 function onPostprocessingResize(width, height) {
     if (!postprocessingActive || !composer) return;
     try {
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.0);
         const w = width || window.innerWidth;
         const h = height || window.innerHeight;
         composer.setPixelRatio(dpr);
         composer.setSize(w, h);
 
         if (bloomPass && typeof bloomPass.setSize === 'function') {
-            bloomPass.setSize(w, h);
+            bloomPass.setSize(Math.floor(w * 0.5), Math.floor(h * 0.5));
         }
         if (cinematicPass && cinematicPass.uniforms) {
             if (cinematicPass.uniforms.uResolution) {

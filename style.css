@@ -2875,4 +2875,72 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     }
 }
 
+/* ==========================================================================
+   CENTER POINTER LOCK PROMPT & HUD PERFORMANCE OPTIMIZATIONS
+   ========================================================================== */
+
+.pointer-lock-prompt {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 49;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.2s ease;
+}
+
+.pointer-lock-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 24px 36px;
+    background: linear-gradient(135deg, rgba(8, 14, 22, 0.94) 0%, rgba(12, 20, 32, 0.88) 100%);
+    border: 1px solid var(--color-cyan, #00f0ff);
+    border-radius: 8px;
+    box-shadow: 0 0 24px rgba(0, 240, 255, 0.35), inset 0 0 16px rgba(0, 240, 255, 0.1);
+    color: #ffffff;
+    pointer-events: auto;
+    animation: pointerLockPulse 2s infinite ease-in-out;
+}
+
+.pointer-lock-icon {
+    font-size: 32px;
+    color: var(--color-cyan, #00f0ff);
+    line-height: 1;
+}
+
+.pointer-lock-title {
+    font-family: var(--font-display, 'Orbitron', sans-serif);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+}
+
+.pointer-lock-subtitle {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    letter-spacing: 0.5px;
+}
+
+@keyframes pointerLockPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 24px rgba(0, 240, 255, 0.35); }
+    50% { transform: scale(1.02); box-shadow: 0 0 32px rgba(0, 240, 255, 0.55); }
+}
+
+/* Optimize backdrop-filter on game-screen HUD to eliminate GPU compositor bottleneck */
+#game-screen .glass-panel,
+#game-screen .glass-panel-small,
+#game-screen .glass-bar,
+#game-screen #minimap-container {
+    backdrop-filter: blur(4px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(4px) saturate(140%) !important;
+}
+
+
 

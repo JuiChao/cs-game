@@ -284,6 +284,20 @@ function startGame() {
     document.getElementById('exit-range-btn').classList.add('hidden');
     initSoundSystem();
     init3DGame();
+    const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+    if (canLock && controls && typeof controls.lock === 'function') {
+        try {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+            controls.lock();
+        } catch (e) {
+            try { document.body.requestPointerLock(); } catch (e2) {}
+        }
+    }
+    if (typeof updatePointerLockPrompt === 'function') {
+        updatePointerLockPrompt();
+    }
 }
 
 function selectMap(mapId) {
@@ -316,6 +330,20 @@ function startShootingRange() {
         rebuildMap();
         resetRound();
     }
+    const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+    if (canLock && controls && typeof controls.lock === 'function') {
+        try {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+            controls.lock();
+        } catch (e) {
+            try { document.body.requestPointerLock(); } catch (e2) {}
+        }
+    }
+    if (typeof updatePointerLockPrompt === 'function') {
+        updatePointerLockPrompt();
+    }
 }
 
 function exitShootingRange() {
@@ -323,6 +351,9 @@ function exitShootingRange() {
     document.getElementById('main-menu').classList.add('active');
     document.getElementById('game-screen').classList.remove('active');
     document.getElementById('exit-range-btn').classList.add('hidden');
+    if (typeof updatePointerLockPrompt === 'function') {
+        updatePointerLockPrompt();
+    }
     
     roundActive = false;
     if (controls) document.exitPointerLock();
@@ -758,6 +789,20 @@ function nextRound() {
     }
     
     init3DGame();
+    const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+    if (canLock && controls && typeof controls.lock === 'function') {
+        try {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+            controls.lock();
+        } catch (e) {
+            try { document.body.requestPointerLock(); } catch (e2) {}
+        }
+    }
+    if (typeof updatePointerLockPrompt === 'function') {
+        updatePointerLockPrompt();
+    }
 }
 
 function showKillFeed(msg) {

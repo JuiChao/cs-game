@@ -184,6 +184,15 @@
         <!-- Mortar Camera Interrupt Button -->
         <button id="mortar-cancel-btn" class="hidden" onclick="cancelMortarCamera()" style="position: absolute; top: 70px; left: 50%; transform: translateX(-50%); padding: 10px 24px; font-size: 15px; font-weight: bold; font-family: 'Inter', sans-serif; background: rgba(231, 76, 60, 0.9); color: #fff; border: 2px solid #e74c3c; border-radius: 8px; cursor: pointer; z-index: 100; box-shadow: 0 0 12px rgba(231,76,60,0.6); pointer-events: auto;">返回角色本体视角 (Esc / F)</button>
 
+        <!-- Pointer Lock Center Click Prompt -->
+        <div id="pointer-lock-prompt" class="pointer-lock-prompt hidden">
+            <div class="pointer-lock-box">
+                <div class="pointer-lock-icon">✛</div>
+                <div class="pointer-lock-title">点击画面进入战斗</div>
+                <div class="pointer-lock-subtitle">锁定鼠标以控制准心视角 (按 Esc 释放)</div>
+            </div>
+        </div>
+
         <div id="hud">
             <!-- 生化模式: 僵尸视觉滤镜 -->
             <div id="zombie-filter" class="hidden" style="position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,90,0,0.12) 0%, rgba(0,60,0,0.45) 100%); pointer-events: none; z-index: 40;"></div>

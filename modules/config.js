@@ -11,6 +11,16 @@ function checkIsTouchDevice() {
 var isTouchDevice = checkIsTouchDevice();
 if (typeof window !== 'undefined') window.isTouchDevice = isTouchDevice;
 
+function shouldAutoLockPointer() {
+    const isSmallScreen = (typeof window !== 'undefined') ? (window.innerWidth <= 768) : false;
+    const hasFinePointer = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(pointer: fine)').matches : true;
+    if (isSmallScreen && !hasFinePointer && typeof isTouchDevice !== 'undefined' && isTouchDevice) {
+        return false;
+    }
+    return true;
+}
+if (typeof window !== 'undefined') window.shouldAutoLockPointer = shouldAutoLockPointer;
+
 function isPlayerControlActive() {
     if (typeof roundActive !== 'undefined' && !roundActive) return false;
     if (typeof playerState !== 'undefined' && (playerState.hp <= 0 || playerState.isSpectating)) return false;
