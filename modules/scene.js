@@ -332,9 +332,20 @@ document.addEventListener('keyup', (e) => {
 });
 document.addEventListener('mousedown', (e) => { 
     if (e.button === 0) {
+        const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
+        if (!canLock) {
+            if (playerState.isSpectating) {
+                cycleSpectator();
+                return;
+            }
+            if (!playerState.isControllingDrone) {
+                isShooting = true;
+                handleShooting(true);
+            }
+            return;
+        }
         if (roundActive && controls && (!controls.isLocked || !document.pointerLockElement) && !playerState.isSpectating) {
-            const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
-            if (canLock && typeof tryLockPointer === 'function') tryLockPointer();
+            if (typeof tryLockPointer === 'function') tryLockPointer();
         }
         if (playerState.isSpectating) {
             cycleSpectator();

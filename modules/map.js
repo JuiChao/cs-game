@@ -266,10 +266,15 @@ function init3DGame() {
         controls = new THREE.PointerLockControls(camera, document.body);
 
         function shouldAutoLockPointer() {
-            const isSmallScreen = window.innerWidth <= 768;
+            if (typeof window === 'undefined') return false;
+            const isSmallScreen = Math.min(window.innerWidth, window.innerHeight) <= 768 || window.innerWidth <= 768;
             const hasFinePointer = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-            if (isSmallScreen && !hasFinePointer && typeof isTouchDevice !== 'undefined' && isTouchDevice) {
-                return false;
+            const isMobileDevice = (typeof navigator !== 'undefined') && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+
+            if (typeof isTouchDevice !== 'undefined' && isTouchDevice) {
+                if ((isSmallScreen && !hasFinePointer) || isMobileDevice) {
+                    return false;
+                }
             }
             return true;
         }

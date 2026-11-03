@@ -9,13 +9,23 @@ function checkIsTouchDevice() {
     );
 }
 var isTouchDevice = checkIsTouchDevice();
-if (typeof window !== 'undefined') window.isTouchDevice = isTouchDevice;
+if (typeof window !== 'undefined') {
+    window.isTouchDevice = isTouchDevice;
+    if (isTouchDevice && typeof document !== 'undefined' && document.body) {
+        document.body.classList.add('touch-device');
+    }
+}
 
 function shouldAutoLockPointer() {
-    const isSmallScreen = (typeof window !== 'undefined') ? (window.innerWidth <= 768) : false;
-    const hasFinePointer = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(pointer: fine)').matches : true;
-    if (isSmallScreen && !hasFinePointer && typeof isTouchDevice !== 'undefined' && isTouchDevice) {
-        return false;
+    if (typeof window === 'undefined') return false;
+    const isSmallScreen = Math.min(window.innerWidth, window.innerHeight) <= 768 || window.innerWidth <= 768;
+    const hasFinePointer = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+    const isMobileDevice = (typeof navigator !== 'undefined') && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+
+    if (typeof isTouchDevice !== 'undefined' && isTouchDevice) {
+        if ((isSmallScreen && !hasFinePointer) || isMobileDevice) {
+            return false;
+        }
     }
     return true;
 }
