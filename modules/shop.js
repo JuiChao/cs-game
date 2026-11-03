@@ -97,7 +97,11 @@ function closeBuyMenu() {
     }
     const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
     if (roundActive && controls && canLock && typeof controls.lock === 'function') {
-        try { controls.lock(); } catch (e) {}
+        if (!document.pointerLockElement) {
+            try { const res = controls.lock(); if (res && res.catch) res.catch(() => {}); } catch (e) {}
+        } else {
+            controls.isLocked = true;
+        }
     }
     if (typeof updatePointerLockPrompt === 'function') {
         updatePointerLockPrompt();

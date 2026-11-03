@@ -466,7 +466,11 @@ function toggleScopePanel() {
         panel.classList.remove('active');
         const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
         if (roundActive && controls && !controls.isLocked && canLock && !playerState.isSpectating) {
-            try { controls.lock(); } catch (e) {}
+            if (!document.pointerLockElement) {
+                try { const res = controls.lock(); if (res && res.catch) res.catch(() => {}); } catch (e) {}
+            } else {
+                controls.isLocked = true;
+            }
         }
         if (typeof updatePointerLockPrompt === 'function') {
             updatePointerLockPrompt();

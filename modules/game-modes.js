@@ -286,13 +286,21 @@ function startGame() {
     init3DGame();
     const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
     if (canLock && controls && typeof controls.lock === 'function') {
-        try {
-            if (document.activeElement && typeof document.activeElement.blur === 'function') {
-                document.activeElement.blur();
+        if (!document.pointerLockElement) {
+            try {
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    document.activeElement.blur();
+                }
+                const res = controls.lock();
+                if (res && typeof res.catch === 'function') res.catch(() => {});
+            } catch (e) {
+                try { 
+                    const res2 = document.body.requestPointerLock(); 
+                    if (res2 && typeof res2.catch === 'function') res2.catch(() => {});
+                } catch (e2) {}
             }
-            controls.lock();
-        } catch (e) {
-            try { document.body.requestPointerLock(); } catch (e2) {}
+        } else {
+            controls.isLocked = true;
         }
     }
     if (typeof updatePointerLockPrompt === 'function') {
@@ -332,13 +340,21 @@ function startShootingRange() {
     }
     const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
     if (canLock && controls && typeof controls.lock === 'function') {
-        try {
-            if (document.activeElement && typeof document.activeElement.blur === 'function') {
-                document.activeElement.blur();
+        if (!document.pointerLockElement) {
+            try {
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    document.activeElement.blur();
+                }
+                const res = controls.lock();
+                if (res && typeof res.catch === 'function') res.catch(() => {});
+            } catch (e) {
+                try { 
+                    const res2 = document.body.requestPointerLock(); 
+                    if (res2 && typeof res2.catch === 'function') res2.catch(() => {});
+                } catch (e2) {}
             }
-            controls.lock();
-        } catch (e) {
-            try { document.body.requestPointerLock(); } catch (e2) {}
+        } else {
+            controls.isLocked = true;
         }
     }
     if (typeof updatePointerLockPrompt === 'function') {
@@ -791,13 +807,21 @@ function nextRound() {
     init3DGame();
     const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
     if (canLock && controls && typeof controls.lock === 'function') {
-        try {
-            if (document.activeElement && typeof document.activeElement.blur === 'function') {
-                document.activeElement.blur();
+        if (!document.pointerLockElement) {
+            try {
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    document.activeElement.blur();
+                }
+                const res = controls.lock();
+                if (res && typeof res.catch === 'function') res.catch(() => {});
+            } catch (e) {
+                try { 
+                    const res2 = document.body.requestPointerLock(); 
+                    if (res2 && typeof res2.catch === 'function') res2.catch(() => {});
+                } catch (e2) {}
             }
-            controls.lock();
-        } catch (e) {
-            try { document.body.requestPointerLock(); } catch (e2) {}
+        } else {
+            controls.isLocked = true;
         }
     }
     if (typeof updatePointerLockPrompt === 'function') {

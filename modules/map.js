@@ -331,6 +331,10 @@ function init3DGame() {
         
         function tryLockPointer() {
             if (!roundActive || playerState.isSpectating) return;
+            if (document.pointerLockElement) {
+                if (controls) controls.isLocked = true;
+                return;
+            }
             const buyMenu = document.getElementById('buy-menu');
             const scopePanel = document.getElementById('scope-panel');
             const mainMenu = document.getElementById('main-menu');
@@ -341,14 +345,18 @@ function init3DGame() {
             if (mainMenu && mainMenu.classList.contains('active')) return;
             if (resultScreen && !resultScreen.classList.contains('hidden')) return;
             if (mortarMap && !mortarMap.classList.contains('hidden')) return;
-            if (controls && (!controls.isLocked || !document.pointerLockElement) && typeof controls.lock === 'function') {
+            if (controls && typeof controls.lock === 'function') {
                 try {
                     if (document.activeElement && typeof document.activeElement.blur === 'function') {
                         document.activeElement.blur();
                     }
-                    controls.lock();
+                    const res = controls.lock();
+                    if (res && typeof res.catch === 'function') res.catch(() => {});
                 } catch (e) {
-                    try { document.body.requestPointerLock(); } catch (e2) {}
+                    try { 
+                        const res2 = document.body.requestPointerLock(); 
+                        if (res2 && typeof res2.catch === 'function') res2.catch(() => {});
+                    } catch (e2) {}
                 }
             }
         }

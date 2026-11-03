@@ -97,11 +97,12 @@ function setupTouchControls() {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 const rect = joystickZone.getBoundingClientRect();
+                const minEdgeSafeX = 28; // Safe bezel margin from OS back-gesture zone
                 const insideZone = (
-                    touch.clientX >= rect.left - 40 &&
-                    touch.clientX <= rect.right + 40 &&
-                    touch.clientY >= rect.top - 40 &&
-                    touch.clientY <= rect.bottom + 40
+                    touch.clientX >= Math.max(minEdgeSafeX, rect.left - 20) &&
+                    touch.clientX <= rect.right + 25 &&
+                    touch.clientY >= rect.top - 25 &&
+                    touch.clientY <= rect.bottom + 25
                 );
                 if (insideZone) {
                     e.preventDefault();
