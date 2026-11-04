@@ -435,39 +435,58 @@ function setupTouchControls() {
 
 // --- FULLSCREEN & RESIZE HANDLING ---
 function toggleFullScreen() {
-    if (!document.fullscreenElement) {
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+    if (!isFs) {
         if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen();
+            document.documentElement.requestFullscreen().catch(() => {});
         } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
             document.documentElement.webkitRequestFullscreen();
         } else if (document.documentElement.msRequestFullscreen) { /* IE11 */
             document.documentElement.msRequestFullscreen();
         }
-        const fsBtn = document.getElementById('touch-fullscreen');
-        if (fsBtn) fsBtn.innerText = "退出";
     } else {
         if (document.exitFullscreen) {
-            document.exitFullscreen();
+            document.exitFullscreen().catch(() => {});
         } else if (document.webkitExitFullscreen) { /* Safari */
             document.webkitExitFullscreen();
         } else if (document.msExitFullscreen) { /* IE11 */
             document.msExitFullscreen();
         }
-        const fsBtn = document.getElementById('touch-fullscreen');
-        if (fsBtn) fsBtn.innerText = "全屏";
     }
 }
 
+function handleFullscreenChange() {
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+    if (document.body) {
+        document.body.classList.toggle('is-fullscreen', isFs);
+    }
+    const fsBtn = document.getElementById('touch-fullscreen');
+    if (fsBtn) {
+        fsBtn.innerText = isFs ? "退出" : "全屏";
+    }
+    onWindowResize();
+}
+
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
 window.addEventListener('resize', onWindowResize, false);
+if (typeof window !== 'undefined' && window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onWindowResize, { passive: true });
+}
+
 function onWindowResize() {
     if (camera && renderer) {
-        camera.aspect = window.innerWidth / window.innerHeight;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera.aspect = w / h;
         camera.updateProjectionMatrix();
         const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
         renderer.setPixelRatio(dpr);
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setSize(w, h);
         if (typeof onPostprocessingResize === 'function') {
-            onPostprocessingResize(window.innerWidth, window.innerHeight);
+            onPostprocessingResize(w, h);
         }
     }
 }
