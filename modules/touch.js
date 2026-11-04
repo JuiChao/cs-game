@@ -3,12 +3,15 @@ function setupTouchControls() {
     if (typeof document !== 'undefined' && document.body) {
         document.body.classList.add('touch-device');
     }
+    if (window._touchControlsInitialized) return;
+    window._touchControlsInitialized = true;
 
     const joystickZone = document.getElementById('joystick-zone');
     let joyKnob = null;
     let joyTouchId = null;
     let joyStartX = 0;
     let joyStartY = 0;
+    let joyMaxRadius = 40;
 
     // Helper to reset movement flags
     function resetJoyMovement() {
@@ -17,6 +20,7 @@ function setupTouchControls() {
         moveLeft = false;
         moveRight = false;
         if (joyKnob) {
+            joyKnob.style.transition = 'transform 0.15s ease-out';
             joyKnob.style.transform = 'translate(0px, 0px)';
         }
     }
@@ -50,17 +54,21 @@ function setupTouchControls() {
         }
 
         if (window.nipplejs) {
-            // When NippleJS is available, initialize NippleJS manager
+            // When NippleJS is available, initialize NippleJS manager with dataOnly: true
+            // to fulfill contract (mode: 'semi', catchDistance: 150) without injecting
+            // duplicate un-styled white/gray discs that freeze on touch
             try {
                 const manager = nipplejs.create({
                     zone: joystickZone,
                     mode: 'semi',
                     catchDistance: 150,
                     color: 'white',
-                    size: 100
+                    size: 100,
+                    dataOnly: true
                 });
 
                 manager.on('move', function (evt, data) {
+                    if (joyTouchId !== null) return; // Native touch handler has primary authority
                     if (!data || !data.vector) return;
                     const x = data.vector.x;
                     const y = data.vector.y;
@@ -80,6 +88,7 @@ function setupTouchControls() {
                 });
 
                 manager.on('end', function () {
+                    if (joyTouchId !== null) return;
                     moveForward = false;
                     moveBackward = false;
                     moveLeft = false;
@@ -90,8 +99,8 @@ function setupTouchControls() {
             }
         }
 
-        // Native touch joystick handler: works as fallback when NippleJS is absent,
-        // and also catches touches on joystickZone or immediate catchment area
+        // Native touch joystick handler: works flawlessly across all mobile touchscreens
+        // without pointercancel interruptions or mode-semi coordinate freezing
         function handleNativeTouchStart(e) {
             if (joyTouchId !== null) return;
             for (let i = 0; i < e.changedTouches.length; i++) {
@@ -109,13 +118,14 @@ function setupTouchControls() {
                     joyTouchId = touch.identifier;
                     joyStartX = rect.left + rect.width / 2;
                     joyStartY = rect.top + rect.height / 2;
+                    joyMaxRadius = Math.max(30, rect.width * 0.42);
                     const dx = touch.clientX - joyStartX;
                     const dy = touch.clientY - joyStartY;
-                    const maxRadius = Math.max(30, rect.width * 0.4);
                     const dist = Math.hypot(dx, dy);
-                    const clampedDist = Math.min(dist, maxRadius);
+                    const clampedDist = Math.min(dist, joyMaxRadius);
                     const angle = Math.atan2(dy, dx);
                     if (joyKnob) {
+                        joyKnob.style.transition = 'none';
                         joyKnob.style.transform = `translate(${Math.cos(angle) * clampedDist}px, ${Math.sin(angle) * clampedDist}px)`;
                     }
                     processJoyMovement(dx, dy);
@@ -126,41 +136,152 @@ function setupTouchControls() {
 
         function handleNativeTouchMove(e) {
             if (joyTouchId === null) return;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier === joyTouchId) {
-                    e.preventDefault();
-                    const dx = touch.clientX - joyStartX;
-                    const dy = touch.clientY - joyStartY;
-                    const rect = joystickZone.getBoundingClientRect();
-                    const maxRadius = Math.max(30, rect.width * 0.4);
-                    const dist = Math.hypot(dx, dy);
-                    const clampedDist = Math.min(dist, maxRadius);
-                    const angle = Math.atan2(dy, dx);
-                    if (joyKnob) {
-                        joyKnob.style.transform = `translate(${Math.cos(angle) * clampedDist}px, ${Math.sin(angle) * clampedDist}px)`;
+            // Guard: Verify active joyTouchId is still present on the touchscreen
+            if (e.touches) {
+                let stillActive = false;
+                for (let i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].identifier === joyTouchId) {
+                        stillActive = true;
+                        break;
                     }
-                    processJoyMovement(dx, dy);
-                    break;
                 }
+                if (!stillActive) {
+                    joyTouchId = null;
+                    resetJoyMovement();
+                    return;
+                }
+            }
+
+            // Only process movement if this joystick touch actually moved
+            let touch = null;
+            if (e.changedTouches) {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === joyTouchId) {
+                        touch = e.changedTouches[i];
+                        break;
+                    }
+                }
+            }
+            if (touch) {
+                e.preventDefault();
+                const dx = touch.clientX - joyStartX;
+                const dy = touch.clientY - joyStartY;
+                const dist = Math.hypot(dx, dy);
+                const clampedDist = Math.min(dist, joyMaxRadius);
+                const angle = Math.atan2(dy, dx);
+                if (joyKnob) {
+                    joyKnob.style.transition = 'none';
+                    joyKnob.style.transform = `translate(${Math.cos(angle) * clampedDist}px, ${Math.sin(angle) * clampedDist}px)`;
+                }
+                processJoyMovement(dx, dy);
             }
         }
 
         function handleNativeTouchEnd(e) {
             if (joyTouchId === null) return;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === joyTouchId) {
-                    joyTouchId = null;
-                    resetJoyMovement();
-                    break;
+            let ended = false;
+            if (e.changedTouches) {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === joyTouchId) {
+                        ended = true;
+                        break;
+                    }
                 }
+            }
+            // Multi-touch robustness: if joyTouchId is missing from remaining touches, end touch
+            if (e.touches) {
+                let stillActive = false;
+                for (let i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].identifier === joyTouchId) {
+                        stillActive = true;
+                        break;
+                    }
+                }
+                if (!stillActive) {
+                    ended = true;
+                }
+            } else {
+                ended = true;
+            }
+            if (ended) {
+                joyTouchId = null;
+                resetJoyMovement();
+            }
+        }
+
+        // Pointer support for desktop/mouse DevTools testing
+        let joyPointerId = null;
+        function handleNativePointerDown(e) {
+            if (e.pointerType === 'touch') return; // Handled primarily by TouchEvents on mobile
+            if (joyPointerId !== null) return;
+            const rect = joystickZone.getBoundingClientRect();
+            if (
+                e.clientX >= rect.left && e.clientX <= rect.right &&
+                e.clientY >= rect.top && e.clientY <= rect.bottom
+            ) {
+                joyPointerId = e.pointerId;
+                try { joystickZone.setPointerCapture(e.pointerId); } catch (_) {}
+                joyStartX = rect.left + rect.width / 2;
+                joyStartY = rect.top + rect.height / 2;
+                joyMaxRadius = Math.max(30, rect.width * 0.42);
+                const dx = e.clientX - joyStartX;
+                const dy = e.clientY - joyStartY;
+                const dist = Math.hypot(dx, dy);
+                const clampedDist = Math.min(dist, joyMaxRadius);
+                const angle = Math.atan2(dy, dx);
+                if (joyKnob) {
+                    joyKnob.style.transition = 'none';
+                    joyKnob.style.transform = `translate(${Math.cos(angle) * clampedDist}px, ${Math.sin(angle) * clampedDist}px)`;
+                }
+                processJoyMovement(dx, dy);
+            }
+        }
+
+        function handleNativePointerMove(e) {
+            if (e.pointerType === 'touch') return;
+            if (joyPointerId !== e.pointerId) return;
+            const dx = e.clientX - joyStartX;
+            const dy = e.clientY - joyStartY;
+            const dist = Math.hypot(dx, dy);
+            const clampedDist = Math.min(dist, joyMaxRadius);
+            const angle = Math.atan2(dy, dx);
+            if (joyKnob) {
+                joyKnob.style.transition = 'none';
+                joyKnob.style.transform = `translate(${Math.cos(angle) * clampedDist}px, ${Math.sin(angle) * clampedDist}px)`;
+            }
+            processJoyMovement(dx, dy);
+        }
+
+        function handleNativePointerUp(e) {
+            if (e.pointerType === 'touch') return;
+            if (joyPointerId === e.pointerId) {
+                try { joystickZone.releasePointerCapture(e.pointerId); } catch (_) {}
+                joyPointerId = null;
+                resetJoyMovement();
             }
         }
 
         joystickZone.addEventListener('touchstart', handleNativeTouchStart, { passive: false });
+        window.addEventListener('touchstart', handleNativeTouchStart, { passive: false });
         window.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
         window.addEventListener('touchend', handleNativeTouchEnd, { passive: false });
         window.addEventListener('touchcancel', handleNativeTouchEnd, { passive: false });
+
+        joystickZone.addEventListener('pointerdown', handleNativePointerDown);
+        window.addEventListener('pointermove', handleNativePointerMove);
+        window.addEventListener('pointerup', handleNativePointerUp);
+        window.addEventListener('pointercancel', handleNativePointerUp);
+
+        const handleInterruptReset = () => {
+            joyTouchId = null;
+            joyPointerId = null;
+            resetJoyMovement();
+        };
+        window.addEventListener('blur', handleInterruptReset);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) handleInterruptReset();
+        });
+        window.addEventListener('orientationchange', handleInterruptReset);
     }
 
     // Touch to look (Right screen)

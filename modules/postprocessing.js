@@ -123,7 +123,7 @@ function initPostprocessing(rendererInstance, sceneInstance, cameraInstance, wid
     }
 
     try {
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.0);
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
         const w = width || window.innerWidth;
         const h = height || window.innerHeight;
 
@@ -223,7 +223,7 @@ function renderPostprocessing(deltaTime) {
 function onPostprocessingResize(width, height) {
     if (!postprocessingActive || !composer) return;
     try {
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.0);
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
         const w = width || window.innerWidth;
         const h = height || window.innerHeight;
         composer.setPixelRatio(dpr);
