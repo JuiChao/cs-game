@@ -230,9 +230,24 @@ function updateAdrenalineHud() {
         return;
     }
     el.style.display = '';
+    const isTouch = (typeof window !== 'undefined' && (
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+        document.body.classList.contains('touch-device')
+    ));
+    const hint = isTouch ? '' : ' (按Q)';
     el.innerText = adrenalineFrames > 0
         ? ('⚡ 肾上腺素 ' + Math.ceil(adrenalineFrames / 60) + 's')
-        : ('⚡ 肾上腺素 ×' + adrenalineCount + ' (按Q)');
+        : ('⚡ 肾上腺素 ×' + adrenalineCount + hint);
+    if (!el._touchBound) {
+        el._touchBound = true;
+        el.style.cursor = 'pointer';
+        el.style.pointerEvents = 'auto';
+        el.addEventListener('click', () => { if (typeof useAdrenaline === 'function') useAdrenaline(); });
+        el.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (typeof useAdrenaline === 'function') useAdrenaline();
+        }, { passive: false });
+    }
 }
 
 // ── 主循环入口（physics.js 每帧调用） ────────────────────

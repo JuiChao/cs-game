@@ -2485,7 +2485,7 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     .round-timer::after {
         display: none !important;
     }
-    .team-score { font-size: 0.8rem !important; gap: 4px !important; white-space: nowrap !important; }
+    .team-score { font-size: 0 !important; gap: 4px !important; display: flex !important; align-items: center !important; white-space: nowrap !important; }
     .team-score small { display: none !important; }
     .team-score br { display: none !important; }
     #score-t, #score-ct { font-size: 1.05rem !important; margin-left: 2px !important; }
@@ -2645,6 +2645,80 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
    TABLET TOUCH ERGONOMICS (Zero-Overlap 0 px² Layout)
    ========================================================================== */
 @media (pointer: coarse) and (min-width: 481px) and (max-width: 1200px) {
+    #controls-hint { display: none !important; }
+    #buy-prompt { display: none !important; }
+    .hud-top {
+        position: absolute !important;
+        top: max(6px, var(--safe-top, 0px)) !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: min(340px, 45vw) !important;
+        padding: 3px 12px !important;
+        gap: 8px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 16px !important;
+        background: rgba(4, 8, 14, 0.45) !important;
+        backdrop-filter: blur(8px) saturate(140%) !important;
+        -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+    }
+    .round-timer {
+        font-size: 0.95rem !important;
+        min-width: 52px !important;
+        padding: 2px 8px !important;
+        border-radius: 10px !important;
+        background: rgba(0, 0, 0, 0.35) !important;
+        border: 1px solid rgba(0, 240, 255, 0.28) !important;
+        box-shadow: none !important;
+    }
+    .round-timer::before,
+    .round-timer::after { display: none !important; }
+    .team-score {
+        font-size: 0 !important;
+        gap: 4px !important;
+        display: flex !important;
+        align-items: center !important;
+        white-space: nowrap !important;
+    }
+    .team-score small, .team-score br, .match-point { display: none !important; }
+    #score-t, #score-ct { font-size: 1.05rem !important; font-weight: 700 !important; margin: 0 2px !important; }
+    #label-t, #label-ct { padding: 2px 6px !important; font-size: 0.72rem !important; font-weight: 800 !important; border-radius: 4px !important; }
+    #minimap-container {
+        width: 110px !important;
+        height: 110px !important;
+        top: max(6px, var(--safe-top, 0px)) !important;
+        left: max(8px, var(--safe-left, 0px)) !important;
+        background: rgba(4, 8, 14, 0.35) !important;
+        border: 1.5px solid rgba(0, 240, 255, 0.28) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+    }
+    #minimap-container::before { display: none !important; }
+    #minimap-canvas { width: 110px !important; height: 110px !important; }
+    #touch-buy {
+        top: max(6px, var(--safe-top, 0px)) !important;
+        right: max(64px, calc(var(--safe-right, 0px) + 56px)) !important;
+        left: auto !important;
+        padding: 4px 10px !important;
+        font-size: 0.68rem !important;
+        background: rgba(6, 12, 22, 0.52) !important;
+        border: 1px solid rgba(0, 240, 255, 0.28) !important;
+        border-radius: 12px !important;
+    }
+    #touch-fullscreen {
+        top: max(6px, var(--safe-top, 0px)) !important;
+        right: max(8px, var(--safe-right, 0px)) !important;
+        padding: 4px 10px !important;
+        font-size: 0.68rem !important;
+        background: rgba(6, 12, 22, 0.52) !important;
+        border: 1px solid rgba(0, 240, 255, 0.28) !important;
+        border-radius: 12px !important;
+    }
     .hud-bottom {
         position: absolute !important;
         bottom: 215px !important;
@@ -2654,8 +2728,19 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         z-index: 42 !important;
         pointer-events: none !important;
     }
-    .hud-left { min-width: 0 !important; max-width: 38vw !important; }
+    .hud-left {
+        min-width: 0 !important;
+        max-width: 38vw !important;
+        background: rgba(4, 8, 14, 0.38) !important;
+        border: 1px solid rgba(0, 240, 255, 0.20) !important;
+        border-radius: 8px !important;
+    }
     .hud-right-wrapper { min-width: 0 !important; max-width: 38vw !important; }
+    .hud-right {
+        background: rgba(4, 8, 14, 0.38) !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
+        border-radius: 8px !important;
+    }
     .weapon-inventory {
         position: fixed !important;
         bottom: max(16px, var(--safe-bottom, 0px)) !important;
@@ -2663,6 +2748,9 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         transform: translateX(-50%) scale(0.65) !important;
         z-index: 42 !important;
         pointer-events: auto !important;
+        background: rgba(4, 8, 14, 0.35) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 8px !important;
     }
     #touch-actions {
         bottom: max(16px, var(--safe-bottom, 0px)) !important;
@@ -2687,32 +2775,48 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     .touch-btn { width: 44px !important; height: 44px !important; }
     .touch-btn-large { width: 44px !important; height: 44px !important; grid-column: auto !important; }
     #joystick-zone { width: 100px !important; height: 100px !important; }
-    #minimap-container { width: 150px !important; height: 150px !important; }
-    #minimap-canvas { width: 150px !important; height: 150px !important; }
-    .hud-top { min-width: 0 !important; width: auto !important; max-width: calc(100vw - 360px) !important; padding: 6px 16px !important; gap: 12px !important; }
+    #minimap-container { width: 110px !important; height: 110px !important; }
+    #minimap-canvas { width: 110px !important; height: 110px !important; }
+    .hud-top { min-width: 0 !important; width: auto !important; max-width: min(340px, 45vw) !important; padding: 3px 12px !important; gap: 8px !important; }
+    #mortar-map-overlay {
+        padding: 14px !important;
+        box-sizing: border-box !important;
+    }
+    #mortar-map-canvas {
+        max-width: min(85vw, 75vh, 650px) !important;
+        max-height: min(85vw, 75vh, 650px) !important;
+        width: auto !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1;
+    }
+    #mortar-cancel-btn {
+        top: max(14px, var(--safe-top, 0px)) !important;
+        padding: 8px 18px !important;
+        font-size: 0.88rem !important;
+    }
 }
 
 /* === Mobile HUD: Phone (≤480px) === */
 @media (max-width: 480px) {
     /* Minimap - Sleek translucent mobile radar */
     #minimap-container {
-        width: 90px !important;
-        height: 90px !important;
+        width: 86px !important;
+        height: 86px !important;
         left: max(4px, var(--safe-left, 0px)) !important;
         top: max(4px, var(--safe-top, 0px)) !important;
-        background: rgba(6, 12, 20, 0.42) !important;
-        border: 1.5px solid rgba(0, 240, 255, 0.3) !important;
-        border-radius: 10px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+        background: rgba(4, 8, 14, 0.30) !important;
+        border: 1.5px solid rgba(0, 240, 255, 0.25) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
     }
     #minimap-container::before {
         display: none !important;
     }
     #minimap-canvas {
-        width: 90px !important;
-        height: 90px !important;
+        width: 86px !important;
+        height: 86px !important;
     }
-    /* Top bar - Centered compact frosted capsule pill */
+    /* Top bar - Centered compact frosted capsule pill with no collision */
     .hud-top {
         position: absolute !important;
         top: max(4px, var(--safe-top, 0px)) !important;
@@ -2720,27 +2824,31 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         transform: translateX(-50%) !important;
         min-width: 0 !important;
         width: auto !important;
-        max-width: 170px !important;
+        max-width: min(220px, calc(100vw - 180px)) !important;
         height: auto !important;
         min-height: 0 !important;
-        padding: 2px 6px !important;
-        gap: 4px !important;
-        background: rgba(6, 12, 20, 0.45) !important;
-        backdrop-filter: blur(8px) !important;
+        padding: 2px 8px !important;
+        gap: 6px !important;
+        background: rgba(4, 8, 14, 0.38) !important;
+        backdrop-filter: blur(8px) saturate(140%) !important;
+        -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
         border: 1px solid rgba(255, 255, 255, 0.12) !important;
         border-radius: 14px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
         flex-direction: row !important;
         align-items: center !important;
+        justify-content: center !important;
     }
     .round-timer {
-        font-size: 0.8rem !important;
+        font-size: 0.82rem !important;
         font-weight: 700 !important;
-        min-width: 40px !important;
-        padding: 1px 4px !important;
+        min-width: 44px !important;
+        padding: 1px 5px !important;
         margin: 0 2px !important;
         border-radius: 8px !important;
         text-align: center !important;
+        background: rgba(0, 0, 0, 0.35) !important;
+        border: 1px solid rgba(0, 240, 255, 0.25) !important;
         box-shadow: none !important;
     }
     .round-timer::before,
@@ -2755,37 +2863,26 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         align-items: center !important;
         white-space: nowrap !important;
     }
-    .team-score small { display: none !important; }
-    .team-score br { display: none !important; }
-    .match-point { display: none !important; }
+    .team-score small,
+    .team-score br,
+    .match-point {
+        display: none !important;
+    }
     #score-t, #score-ct {
         font-size: 0.95rem !important;
         font-weight: 700 !important;
+        margin: 0 1px !important;
     }
-    #label-t {
-        font-size: 0 !important;
-        padding: 1px 4px !important;
-        border-radius: 3px !important;
-    }
-    #label-t::after {
-        content: 'T' !important;
+    #label-t, #label-ct {
         font-size: 0.65rem !important;
         font-weight: 800 !important;
-    }
-    #label-ct {
-        font-size: 0 !important;
         padding: 1px 4px !important;
         border-radius: 3px !important;
-    }
-    #label-ct::after {
-        content: 'CT' !important;
-        font-size: 0.65rem !important;
-        font-weight: 800 !important;
     }
     /* Bottom HUD - Slim translucent glass cards */
     .hud-bottom {
         position: absolute !important;
-        bottom: 210px !important;
+        bottom: 185px !important;
         left: 0 !important;
         width: 100% !important;
         padding: 0 8px !important;
@@ -2798,21 +2895,24 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     }
     .hud-left {
         min-width: 0 !important;
-        max-width: 45vw !important;
+        max-width: 44vw !important;
         padding: 3px 6px !important;
-        background: rgba(6, 12, 20, 0.48) !important;
-        border: 1px solid rgba(0, 240, 255, 0.25) !important;
+        background: rgba(4, 8, 14, 0.38) !important;
+        border: 1px solid rgba(0, 240, 255, 0.20) !important;
         border-radius: 6px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
     }
     .hud-right, .hud-right-wrapper {
         min-width: 0 !important;
-        max-width: 45vw !important;
+        max-width: 44vw !important;
+        gap: 2px !important;
+    }
+    .hud-right {
         padding: 3px 6px !important;
-        background: rgba(6, 12, 20, 0.48) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        background: rgba(4, 8, 14, 0.38) !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
         border-radius: 6px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
     }
     .glass-panel-small { padding: 3px 6px; border-radius: 6px; }
     .health-bar { width: 68px; height: 5px; min-width: 0 !important; }
@@ -2825,15 +2925,23 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     .weapon-name { font-size: 0.6rem; }
     #bullet-type-display { font-size: 0.55rem !important; }
     .currency-hud {
-        font-size: 0.62rem;
-        padding: 1px 4px;
-        background: rgba(6, 16, 14, 0.45) !important;
-        border: 1px solid rgba(16, 185, 129, 0.25) !important;
+        font-size: 0.60rem !important;
+        padding: 1px 4px !important;
+        background: rgba(4, 12, 10, 0.35) !important;
+        border: 1px solid rgba(16, 185, 129, 0.20) !important;
         border-radius: 4px !important;
         box-shadow: none !important;
     }
     #hud-armor { font-size: 0.58rem; padding: 1px 4px; }
-    #adrenaline-hud { bottom: 105px !important; right: 4px !important; font-size: 0.65rem !important; padding: 3px 6px !important; }
+    #adrenaline-hud {
+        bottom: 95px !important;
+        right: 4px !important;
+        font-size: 0.62rem !important;
+        padding: 2px 6px !important;
+        background: rgba(30, 20, 0, 0.40) !important;
+        border: 1px solid rgba(255, 215, 0, 0.25) !important;
+        border-radius: 6px !important;
+    }
     .weapon-inventory {
         position: fixed !important;
         bottom: max(8px, var(--safe-bottom, 0px)) !important;
@@ -2843,8 +2951,8 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         transform-origin: bottom center !important;
         z-index: 42 !important;
         pointer-events: auto !important;
-        background: rgba(6, 12, 20, 0.45) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: rgba(4, 8, 14, 0.35) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
         border-radius: 8px !important;
     }
     .inv-slot { padding: 4px 6px; }
@@ -2852,12 +2960,12 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     .inv-slot.active::before, .inv-slot.active::after { display: none !important; }
     /* Kill feed */
     .kill-feed {
-        top: 35px;
+        top: 32px;
         right: 4px;
         transform: scale(0.6);
         transform-origin: top right;
     }
-    .kill-entry { font-size: 0.6rem; padding: 3px 6px; background: rgba(0, 0, 0, 0.45) !important; }
+    .kill-entry { font-size: 0.6rem; padding: 3px 6px; background: rgba(0, 0, 0, 0.35) !important; border-radius: 4px !important; }
     /* Buy menu */
     #buy-menu {
         width: 100%;
@@ -2980,6 +3088,22 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         font-size: 0.95rem !important;
         top: 7% !important;
     }
+        #mortar-map-overlay {
+        padding: 10px !important;
+        box-sizing: border-box !important;
+    }
+    #mortar-map-canvas {
+        max-width: min(85vw, 65vh, 500px) !important;
+        max-height: min(85vw, 65vh, 500px) !important;
+        width: auto !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1;
+    }
+    #mortar-cancel-btn {
+        top: max(10px, var(--safe-top, 0px)) !important;
+        padding: 6px 14px !important;
+        font-size: 0.80rem !important;
+    }
     /* Scope overlay mil dots */
     #scope-overlay { background: radial-gradient(circle at center, transparent 30%, black 55%); }
 }
@@ -3002,21 +3126,21 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
 /* === Landscape phone adjustments (Mainstream Mobile Shooter Ergonomics) === */
 @media (max-height: 500px) and (orientation: landscape) {
     #minimap-container {
-        width: 84px !important;
-        height: 84px !important;
+        width: 80px !important;
+        height: 80px !important;
         top: max(4px, var(--safe-top, 0px)) !important;
         left: max(8px, var(--safe-left, 0px)) !important;
-        background: rgba(6, 12, 20, 0.42) !important;
-        border: 1.5px solid rgba(0, 240, 255, 0.3) !important;
-        border-radius: 10px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+        background: rgba(4, 8, 14, 0.30) !important;
+        border: 1.5px solid rgba(0, 240, 255, 0.25) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
     }
     #minimap-container::before {
         display: none !important;
     }
     #minimap-canvas {
-        width: 84px !important;
-        height: 84px !important;
+        width: 80px !important;
+        height: 80px !important;
     }
     .hud-top {
         position: absolute !important;
@@ -3025,16 +3149,16 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         transform: translateX(-50%) !important;
         min-width: 0 !important;
         width: auto !important;
-        max-width: min(300px, 46vw) !important;
+        max-width: min(290px, 46vw) !important;
         height: auto !important;
         min-height: 0 !important;
         padding: 2px 10px !important;
-        gap: 8px !important;
-        background: rgba(6, 12, 20, 0.45) !important;
+        gap: 6px !important;
+        background: rgba(4, 8, 14, 0.38) !important;
         backdrop-filter: blur(8px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
         border-radius: 14px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
         align-items: center !important;
         flex-direction: row !important;
     }
@@ -3064,29 +3188,15 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     .team-score br { display: none !important; }
     .match-point { display: none !important; }
     #score-t, #score-ct { font-size: 1rem !important; font-weight: 700 !important; }
-    #label-t {
-        font-size: 0 !important;
-        padding: 1px 4px !important;
-        border-radius: 3px !important;
-    }
-    #label-t::after {
-        content: 'T' !important;
+    #label-t, #label-ct {
         font-size: 0.65rem !important;
         font-weight: 800 !important;
-    }
-    #label-ct {
-        font-size: 0 !important;
         padding: 1px 4px !important;
         border-radius: 3px !important;
-    }
-    #label-ct::after {
-        content: 'CT' !important;
-        font-size: 0.65rem !important;
-        font-weight: 800 !important;
     }
     .hud-bottom {
         position: absolute !important;
-        bottom: 110px !important;
+        bottom: 96px !important;
         left: 0 !important;
         width: 100% !important;
         padding: 0 max(16px, calc(var(--safe-left, 0px) + 8px)) !important;
@@ -3099,14 +3209,14 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     }
     .hud-left {
         min-width: 0 !important;
-        max-width: 160px !important;
+        max-width: 155px !important;
         left: 0 !important;
-        padding: 3px 8px !important;
-        gap: 3px !important;
-        background: rgba(6, 12, 20, 0.48) !important;
-        border: 1px solid rgba(0, 240, 255, 0.25) !important;
+        padding: 2px 7px !important;
+        gap: 2px !important;
+        background: rgba(4, 8, 14, 0.36) !important;
+        border: 1px solid rgba(0, 240, 255, 0.20) !important;
         border-radius: 6px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
     }
     .vitality-header {
         gap: 4px !important;
@@ -3136,11 +3246,11 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     .hud-right {
         min-width: 0 !important;
         max-width: 100% !important;
-        padding: 3px 8px !important;
-        background: rgba(6, 12, 20, 0.48) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        padding: 2px 7px !important;
+        background: rgba(4, 8, 14, 0.36) !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
         border-radius: 6px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
     }
     .ammo-text { font-size: 0.95rem !important; }
     #ammo-clip { font-size: 1.3rem !important; }
@@ -3149,18 +3259,31 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     .weapon-name { font-size: 0.62rem !important; }
     #bullet-type-display { font-size: 0.52rem !important; }
     .currency-hud {
-        font-size: 0.62rem !important;
+        font-size: 0.58rem !important;
         padding: 1px 4px !important;
-        background: rgba(6, 16, 14, 0.45) !important;
+        background: rgba(4, 12, 10, 0.35) !important;
         border: 1px solid rgba(16, 185, 129, 0.25) !important;
         border-radius: 4px !important;
         box-shadow: none !important;
     }
     #adrenaline-hud {
-        bottom: 95px !important;
+        bottom: 80px !important;
         right: 6px !important;
-        font-size: 0.65rem !important;
+        font-size: 0.62rem !important;
         padding: 2px 5px !important;
+        background: rgba(30, 20, 0, 0.40) !important;
+    }
+    .kill-feed {
+        top: 32px !important;
+        right: max(8px, var(--safe-right, 0px)) !important;
+        transform: scale(0.65) !important;
+        transform-origin: top right !important;
+    }
+    .kill-entry {
+        font-size: 0.60rem !important;
+        padding: 2px 6px !important;
+        background: rgba(0, 0, 0, 0.35) !important;
+        border-radius: 4px !important;
     }
     .weapon-inventory {
         position: absolute !important;
@@ -3170,37 +3293,37 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         bottom: max(4px, var(--safe-bottom, 0px)) !important;
         z-index: 42 !important;
         pointer-events: auto !important;
-        background: rgba(6, 12, 20, 0.42) !important;
+        background: rgba(4, 8, 14, 0.35) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         border-radius: 8px !important;
     }
     .inv-slot .key { display: none !important; }
     .inv-slot.active::before, .inv-slot.active::after { display: none !important; }
     #touch-actions {
-        bottom: max(12px, calc(var(--safe-bottom, 0px) + 6px)) !important;
+        bottom: max(10px, calc(var(--safe-bottom, 0px) + 4px)) !important;
         right: max(6px, var(--safe-right, 0px)) !important;
-        grid-template-columns: 40px 40px 40px !important;
-        gap: 5px !important;
+        grid-template-columns: 38px 38px 38px !important;
+        gap: 4px !important;
     }
     .touch-btn {
-        width: 40px !important;
-        height: 40px !important;
-        font-size: 0.5rem !important;
+        width: 38px !important;
+        height: 38px !important;
+        font-size: 0.50rem !important;
         box-sizing: border-box !important;
-        background: radial-gradient(circle at 35% 35%, rgba(14, 28, 48, 0.42) 0%, rgba(6, 12, 22, 0.58) 100%) !important;
-        border: 1.5px solid rgba(0, 240, 255, 0.3) !important;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+        background: radial-gradient(circle at 35% 35%, rgba(14, 28, 48, 0.38) 0%, rgba(6, 12, 22, 0.52) 100%) !important;
+        border: 1.5px solid rgba(0, 240, 255, 0.28) !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.30), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
     }
-    .touch-btn-large { width: 40px !important; height: 40px !important; grid-column: auto !important; }
+    .touch-btn-large { width: 38px !important; height: 38px !important; grid-column: auto !important; }
     #touch-shoot.touch-btn {
-        background: radial-gradient(circle at 35% 35%, rgba(48, 16, 24, 0.48) 0%, rgba(24, 8, 12, 0.62) 100%) !important;
-        border-color: rgba(255, 42, 75, 0.5) !important;
+        background: radial-gradient(circle at 35% 35%, rgba(48, 16, 24, 0.42) 0%, rgba(24, 8, 12, 0.55) 100%) !important;
+        border-color: rgba(255, 42, 75, 0.45) !important;
     }
     #joystick-zone {
-        width: 88px !important;
-        height: 88px !important;
-        bottom: max(16px, calc(var(--safe-bottom, 0px) + 8px)) !important;
-        left: max(44px, calc(var(--safe-left, 0px) + 24px)) !important;
+        width: 82px !important;
+        height: 82px !important;
+        bottom: max(14px, calc(var(--safe-bottom, 0px) + 6px)) !important;
+        left: max(40px, calc(var(--safe-left, 0px) + 20px)) !important;
         transform: none !important;
         background: radial-gradient(circle, rgba(0, 240, 255, 0.04) 0%, rgba(6, 12, 22, 0.15) 70%, transparent 100%) !important;
     }
@@ -3210,7 +3333,7 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         left: auto !important;
         padding: 3px 8px !important;
         font-size: 0.55rem !important;
-        background: rgba(6, 12, 22, 0.5) !important;
+        background: rgba(4, 8, 14, 0.45) !important;
         border: 1px solid rgba(0, 240, 255, 0.25) !important;
         border-radius: 12px !important;
     }
@@ -3219,7 +3342,7 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
         right: max(6px, var(--safe-right, 0px)) !important;
         padding: 3px 8px !important;
         font-size: 0.55rem !important;
-        background: rgba(6, 12, 22, 0.5) !important;
+        background: rgba(4, 8, 14, 0.45) !important;
         border: 1px solid rgba(0, 240, 255, 0.25) !important;
         border-radius: 12px !important;
     }
@@ -3228,7 +3351,7 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     #bomb-status {
         top: 20% !important;
         padding: 6px 12px !important;
-        background: rgba(6, 12, 20, 0.6) !important;
+        background: rgba(4, 8, 14, 0.55) !important;
         border-radius: 6px !important;
         max-width: 160px !important;
     }
@@ -3237,13 +3360,13 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     #interact-prompt, #pickup-prompt {
         padding: 4px 10px !important;
         font-size: 0.72rem !important;
-        background: rgba(6, 12, 20, 0.6) !important;
+        background: rgba(4, 8, 14, 0.55) !important;
         border-radius: 6px !important;
     }
     #spectator-prompt {
         top: 4% !important;
         padding: 4px 10px !important;
-        background: rgba(6, 12, 20, 0.6) !important;
+        background: rgba(4, 8, 14, 0.55) !important;
         border-radius: 6px !important;
     }
     #bomb-announcement, #general-announcement {
@@ -3253,6 +3376,22 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     #zombie-countdown {
         font-size: 0.9rem !important;
         top: 6% !important;
+    }
+    #mortar-map-overlay {
+        padding: 10px !important;
+        box-sizing: border-box !important;
+    }
+    #mortar-map-canvas {
+        max-width: min(80vw, 75vh, 600px) !important;
+        max-height: min(80vw, 75vh, 600px) !important;
+        width: auto !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1;
+    }
+    #mortar-cancel-btn {
+        top: max(8px, var(--safe-top, 0px)) !important;
+        padding: 6px 14px !important;
+        font-size: 0.80rem !important;
     }
 }
 
