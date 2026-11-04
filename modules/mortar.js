@@ -38,6 +38,7 @@ function closeMortarMap() {
     mortarMapOpen = false;
     mortarTargetPos = null;
     const overlay = document.getElementById('mortar-map-overlay');
+    if (overlay) overlay.classList.add('hidden');
     const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
     if (roundActive && controls && canLock && typeof controls.lock === 'function') {
         try { controls.lock(); } catch (e) {}
@@ -45,6 +46,14 @@ function closeMortarMap() {
     if (typeof updatePointerLockPrompt === 'function') {
         updatePointerLockPrompt();
     }
+}
+
+function zoomMortarMap(delta) {
+    mortarZoom = Math.max(0.5, Math.min(3.0, mortarZoom + delta));
+    drawMortarMap();
+}
+if (typeof window !== 'undefined') {
+    window.zoomMortarMap = zoomMortarMap;
 }
 
 function drawMortarMap() {
@@ -178,8 +187,10 @@ function drawMortarMap() {
 
     const infoEl = document.getElementById('mortar-map-info');
     if (infoEl) {
+        const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+        const fireHint = isTouch ? '点击下方发射' : '按 F 发射';
         if (mortarTargetPos) {
-            infoEl.textContent = `目标坐标: (${Math.round(mortarTargetPos.x)}, ${Math.round(mortarTargetPos.z)})  |  缩放: ${mortarZoom.toFixed(1)}x  |  弹药: ${ammoState.primary.clip}/${ammoState.primary.reserve}  |  按 F 发射`;
+            infoEl.textContent = `目标坐标: (${Math.round(mortarTargetPos.x)}, ${Math.round(mortarTargetPos.z)})  |  缩放: ${mortarZoom.toFixed(1)}x  |  弹药: ${ammoState.primary.clip}/${ammoState.primary.reserve}  |  ${fireHint}`;
         } else {
             infoEl.textContent = `缩放: ${mortarZoom.toFixed(1)}x  |  弹药: ${ammoState.primary.clip}/${ammoState.primary.reserve}  |  点击地图选择目标`;
         }
@@ -270,7 +281,8 @@ function fireMortar() {
     const overlay = document.getElementById('mortar-map-overlay');
     if (overlay) overlay.classList.add('hidden');
 
-    showKillFeed('迫击炮已发射！按 [Esc] 或 [F] 立即返回本体视角');
+    const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+    showKillFeed(isTouch ? '迫击炮已发射！点击上方按钮返回本体视角' : '迫击炮已发射！按 [Esc] 或 [F] 立即返回本体视角');
     const cancelBtn = document.getElementById('mortar-cancel-btn');
     if (cancelBtn) cancelBtn.classList.remove('hidden');
 
@@ -467,6 +479,21 @@ function initMortarEvents() {
     canvas.addEventListener('mousemove', handleMortarMapMouseMove);
     canvas.addEventListener('click', handleMortarMapClick);
     canvas.addEventListener('wheel', handleMortarMapWheel, { passive: false });
+    canvas.addEventListener('touchstart', (e) => {
+        if (!mortarMapOpen) return;
+        e.preventDefault();
+        if (e.touches && e.touches.length > 0) {
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const cx = ((touch.clientX - rect.left) / rect.width) * canvas.width;
+            const cy = ((touch.clientY - rect.top) / rect.height) * canvas.height;
+            const world = mortarCanvasToWorld(cx, cy, canvas);
+            world.x = Math.max(-399, Math.min(399, world.x));
+            world.z = Math.max(-399, Math.min(399, world.z));
+            mortarTargetPos = new THREE.Vector3(world.x, 0, world.z);
+            drawMortarMap();
+        }
+    }, { passive: false });
 
     document.addEventListener('keydown', (e) => {
         if (!mortarMapOpen && !mortarCameraActive) return;

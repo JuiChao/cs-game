@@ -20,7 +20,10 @@ function shouldAutoLockPointer() {
     if (typeof window === 'undefined') return false;
     const isSmallScreen = Math.min(window.innerWidth, window.innerHeight) <= 768 || window.innerWidth <= 768;
     const hasFinePointer = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-    const isMobileDevice = (typeof navigator !== 'undefined') && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    const ua = (typeof navigator !== 'undefined') ? (navigator.userAgent || '') : '';
+    const maxTouch = (typeof navigator !== 'undefined') ? (navigator.maxTouchPoints || 0) : 0;
+    const isIPadOS = ua.includes('Macintosh') && (maxTouch > 0 || ('ontouchstart' in window));
+    const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(ua) || isIPadOS;
 
     if (typeof isTouchDevice !== 'undefined' && isTouchDevice) {
         if ((isSmallScreen && !hasFinePointer) || isMobileDevice) {
@@ -30,6 +33,126 @@ function shouldAutoLockPointer() {
     return true;
 }
 if (typeof window !== 'undefined') window.shouldAutoLockPointer = shouldAutoLockPointer;
+
+function updateAdaptivePrompts() {
+    if (typeof document === 'undefined') return;
+    var isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice))
+        || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+
+    // 1. Spectator Prompt
+    var sp = document.getElementById('spectator-prompt');
+    if (sp) {
+        var p = sp.querySelector('p');
+        if (p) {
+            var targetEl = document.getElementById('spectator-target');
+            var target = targetEl ? targetEl.innerText : '无';
+            var specHint = isTouch ? '点击屏幕或开火键切换观战视角' : '点击鼠标左键切换观战视角';
+            p.innerHTML = specHint + '<br>(当前观战: <span id="spectator-target" style="color:#e67e22;">' + target + '</span>)';
+        }
+    }
+
+    // 2. Pointer Lock Subtitle
+    var plSub = document.querySelector('.pointer-lock-subtitle');
+    if (plSub) {
+        plSub.innerText = isTouch ? '轻触屏幕进入战斗' : '锁定鼠标以控制准心视角 (按 Esc 释放)';
+    }
+
+    // 3. Mortar Map Instruction & Cancel Button
+    var mortarInst = document.getElementById('mortar-map-instruction');
+    if (mortarInst) {
+        mortarInst.innerText = isTouch ? '点击地图选择目标 · 点击下方按钮发射或关闭' : '滚轮缩放 · 点击选择目标 · 按 F 发射 · 按 Esc 取消';
+    }
+    var mortarCancelBtn = document.getElementById('mortar-cancel-btn');
+    if (mortarCancelBtn) {
+        mortarCancelBtn.innerText = isTouch ? '返回角色本体视角' : '返回角色本体视角 (Esc / F)';
+    }
+
+    // 4. Pickup & Interact Prompts
+    var pickupPrompt = document.getElementById('pickup-prompt');
+    if (pickupPrompt) {
+        pickupPrompt.innerText = isTouch ? '点击拾取武器' : '按 [E] 拾取武器';
+    }
+    var interactPrompt = document.getElementById('interact-prompt');
+    if (interactPrompt) {
+        interactPrompt.innerText = isTouch ? '点击或按住 [互动]' : '长按 [E] 互动';
+    }
+
+    // 5. Close Buttons
+    var buyCloseBtn = document.querySelector('#buy-menu .deploy-btn');
+    if (buyCloseBtn) {
+        buyCloseBtn.innerText = isTouch ? '关闭菜单' : '关闭菜单 (按 B)';
+    }
+    var scopeCloseBtn = document.querySelector('#scope-panel .tactical-deploy-btn');
+    if (scopeCloseBtn) {
+        scopeCloseBtn.innerText = isTouch ? '关闭' : '关闭 (按 T)';
+    }
+
+    // 6. Shop item descriptions
+    var mortarShopBtn = document.querySelector("button[onclick*='mortar']");
+    if (mortarShopBtn) {
+        var small1 = mortarShopBtn.querySelector('small');
+        if (small1) {
+            small1.innerText = isTouch
+                ? '打开战术地图选择目标发射，炮弹从天而降造成大范围爆炸伤害'
+                : '左键打开战术地图选择目标，按F键发射，炮弹从天而降造成大范围爆炸伤害';
+        }
+    }
+    var dropCompBtn = document.getElementById('btn-drop-comp');
+    if (dropCompBtn && (typeof dropCompensationPurchased === 'undefined' || !dropCompensationPurchased)) {
+        var small2 = dropCompBtn.querySelector('small');
+        if (small2) {
+            small2.innerText = isTouch
+                ? '购买后开镜自动测距补偿：准心下移补偿弹道下坠，对准敌人即可命中'
+                : '购买后开镜瞄准敌人按 V 键：准心一次性下移补偿弹道下坠，往上抬准心对准头部即可命中';
+        }
+    }
+    var adrenalineBtn = document.getElementById('btn-adrenaline');
+    if (adrenalineBtn) {
+        var small3 = adrenalineBtn.querySelector('small');
+        if (small3) {
+            small3.innerText = isTouch
+                ? '购买后注射：8秒移速+50%，最多携带3支。点击右侧图标使用，逃命神器'
+                : '购买后按 Q 注射：8秒移速+50%，最多携带3支。感染爆发后随时可用，逃命/抢空投神器';
+        }
+    }
+
+    // 7. Scope Shortcut Pill
+    var scopePill = document.querySelector('.scope-shortcut-pill');
+    if (scopePill) {
+        scopePill.innerHTML = isTouch
+            ? '<span class="mobile-prompt-hint">免费</span>'
+            : '<span class="desktop-prompt-hint"><span class="key-tag">T</span> 关闭 · 免费</span>';
+    }
+
+    // 8. Buy Prompt
+    var buyPrompt = document.getElementById('buy-prompt');
+    if (buyPrompt) {
+        buyPrompt.innerHTML = isTouch
+            ? '<span class="mobile-prompt-hint">点击 [购买] 打开菜单</span>'
+            : '<span class="desktop-prompt-hint">按 [B] 打开购买菜单</span>';
+    }
+
+    // 9. Controls Hint
+    var controlsHint = document.getElementById('controls-hint');
+    if (controlsHint) {
+        if (isTouch) {
+            controlsHint.style.display = 'none';
+        } else {
+            controlsHint.style.display = '';
+        }
+    }
+}
+if (typeof window !== 'undefined') {
+    window.updateAdaptivePrompts = updateAdaptivePrompts;
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateAdaptivePrompts);
+        } else {
+            updateAdaptivePrompts();
+        }
+    }
+    window.addEventListener('resize', updateAdaptivePrompts);
+}
 
 function isPlayerControlActive() {
     if (typeof roundActive !== 'undefined' && !roundActive) return false;

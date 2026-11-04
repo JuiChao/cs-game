@@ -222,10 +222,14 @@ function buyDropCompensation() {
     const hCred = document.getElementById('hud-credits');
     if (hCred) hCred.innerText = playerCurrency;
     dropCompensationPurchased = true;
-    if (typeof showKillFeed === 'function') showKillFeed('弹道下坠补偿已购买！按 V 键开关');
+    const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+    if (typeof showKillFeed === 'function') {
+        showKillFeed(isTouch ? '弹道下坠补偿已购买！开镜自动测距补偿' : '弹道下坠补偿已购买！按 V 键开关');
+    }
     const btn = document.getElementById('btn-drop-comp');
     if (btn) {
-        btn.innerHTML = '弹道下坠补偿 <span class="price">已购买</span> <br><small>按 V 键开关：准星自动下移补偿子弹下坠</small>';
+        const desc = isTouch ? '开镜自动补偿子弹下坠' : '按 V 键开关：准星自动下移补偿子弹下坠';
+        btn.innerHTML = `弹道下坠补偿 <span class="price">已购买</span> <br><small>${desc}</small>`;
         btn.disabled = true;
         btn.style.opacity = '0.5';
     }

@@ -555,7 +555,7 @@ function playerDie(killerTeam = null, weaponId = 'rifle') {
             playerState.isSpectating = true;
             playerState.zombieRespawnTimer = ZOMBIE.respawnFrames;
             document.exitPointerLock();
-            document.getElementById('spectator-prompt').classList.remove('hidden');
+            showSpectatorPrompt();
             if (playerState.isControllingDrone) {
                 const pd = activeDrones.find(d => d.isPlayer);
                 if (pd) destroyDrone(pd, false);
@@ -577,13 +577,27 @@ function playerDie(killerTeam = null, weaponId = 'rifle') {
 
     playerState.isSpectating = true;
     document.exitPointerLock();
-    document.getElementById('spectator-prompt').classList.remove('hidden');
+    showSpectatorPrompt();
     if (playerState.isControllingDrone) {
         const pd = activeDrones.find(d => d.isPlayer);
         if (pd) destroyDrone(pd, false);
     }
     cycleSpectator();
     checkWinCondition();
+}
+
+function showSpectatorPrompt() {
+    const sp = document.getElementById('spectator-prompt');
+    if (!sp) return;
+    sp.classList.remove('hidden');
+    const p = sp.querySelector('p');
+    if (p) {
+        const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+        const specHint = isTouch ? '点击屏幕或开火键切换观战视角' : '点击鼠标左键切换观战视角';
+        const targetEl = document.getElementById('spectator-target');
+        const targetText = targetEl ? targetEl.innerText : '无';
+        p.innerHTML = `${specHint}<br>(当前观战: <span id="spectator-target" style="color:#e67e22;">${targetText}</span>)`;
+    }
 }
 
 // ── G键快速投掷高爆手雷（无需切换到4号槽位）──
@@ -922,8 +936,20 @@ function handleWeaponPickup() {
     }
     const drop = weaponDrops[nearest];
     const wInfo = WEAPONS[drop.weaponId];
-    promptEl.innerText = `按 [E] 拾取 ${wInfo.name}`;
+    const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+    promptEl.innerText = isTouch ? `点击拾取 ${wInfo.name}` : `按 [E] 拾取 ${wInfo.name}`;
     promptEl.classList.remove('hidden');
+    if (!promptEl._touchPickupInit) {
+        promptEl._touchPickupInit = true;
+        promptEl.style.cursor = 'pointer';
+        const triggerPickup = (e) => {
+            if (e && e.preventDefault) e.preventDefault();
+            isInteracting = true;
+            setTimeout(() => { isInteracting = false; }, 200);
+        };
+        promptEl.addEventListener('click', triggerPickup);
+        promptEl.addEventListener('touchstart', triggerPickup, { passive: false });
+    }
     if (isInteracting && frameCount - (playerState.lastPickupFrame || -999) > 30) {
         playerState.lastPickupFrame = frameCount;
         const isSecondary = drop.weaponId === 'pistol' || drop.weaponId === 'deagle';

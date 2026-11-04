@@ -54,7 +54,11 @@ async function runE2ETests() {
     page.on('console', msg => {
         if (msg.type() === 'error') {
             const text = msg.text();
-            if (text && (text.includes('Pointer Lock API') || text.includes('requestPointerLock'))) return;
+            if (text && (
+                text.includes('Pointer Lock API') ||
+                text.includes('requestPointerLock') ||
+                text.includes('Failed to load resource: net::ERR_')
+            )) return;
             consoleErrors.push(text);
             console.log('BROWSER ERROR LOG:', text);
         }

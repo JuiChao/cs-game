@@ -6,6 +6,21 @@
     <title>反恐行动：3D 爆破</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script>
+        (function() {
+            var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+            if (isTouch) {
+                document.documentElement.classList.add('touch-device');
+                if (document.body) {
+                    document.body.classList.add('touch-device');
+                } else {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        if (document.body) document.body.classList.add('touch-device');
+                    });
+                }
+            }
+        })();
+    </script>
 </head>
 <body>
 
@@ -105,7 +120,7 @@
                     <button onclick="buyWeapon('gatling', 7500)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #2a2a3a, #1a1a2a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Gatling</div>加特林 (Gatling) <span class="price">7500$</span> <br><small>200发弹匣，伤害12.5，初始射速-50%每秒+30%最高475%，手持移速-25%开火移速-75%</small></button>
                     <button onclick="buyWeapon('ash12', 5000)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #1a1a2e, #0d0d1a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">ASH-12</div>ASH-12 (突击步枪) <span class="price">5000$</span> <br><small>超高伤害65，射速慢，后坐力大</small></button>
                     <button onclick="buyWeapon('flamethrower', 4200)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #8B0000, #4a0000); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">FT</div>喷火器 (Flamethrower) <span class="price">4200$</span> <br><small>持续喷射火焰，每帧3点伤害，攻击间隔0秒，超远射程700，命中叠加灼烧(最多12层)，开火时减伤与尼泊尔刀相同</small></button>
-                    <button onclick="buyWeapon('mortar', 6000)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #4a5a2a, #2a3a1a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Mortar</div>迫击炮 (Mortar) <span class="price">6000$</span> <br><small>左键打开战术地图选择目标，按F键发射，炮弹从天而降造成大范围爆炸伤害</small></button>
+                    <button onclick="buyWeapon('mortar', 6000)"><div style="height:40px; width:60px; float:right; border-radius: 4px; background: linear-gradient(135deg, #4a5a2a, #2a3a1a); display:flex; align-items:center; justify-content:center; color:#ddd; font-size:10px;">Mortar</div>迫击炮 (Mortar) <span class="price">6000$</span> <br><small><span class="desktop-prompt-hint">左键打开战术地图选择目标，按F键发射，炮弹从天而降造成大范围爆炸伤害</span><span class="mobile-prompt-hint">打开战术地图选择目标发射，炮弹从天而降造成大范围爆炸伤害</span></small></button>
                 </div>
                 <h3>副武器 (Secondary)</h3>
                 <div class="mod-category">
@@ -137,14 +152,14 @@
                 </div>
                 <h3>辅助功能 (Utility)</h3>
                 <div class="mod-category">
-                    <button id="btn-drop-comp" onclick="buyDropCompensation()" style="grid-column: span 4; background-color: #002244;">弹道下坠补偿 <span class="price">300$</span> <br><small>购买后开镜瞄准敌人按 V 键：准心一次性下移补偿弹道下坠，往上抬准心对准头部即可命中</small></button>
+                    <button id="btn-drop-comp" onclick="buyDropCompensation()" style="grid-column: span 4; background-color: #002244;">弹道下坠补偿 <span class="price">300$</span> <br><small><span class="desktop-prompt-hint">购买后开镜瞄准敌人按 V 键：准心一次性下移补偿弹道下坠，往上抬准心对准头部即可命中</span><span class="mobile-prompt-hint">购买后开镜自动测距补偿：准心下移补偿弹道下坠，对准敌人即可命中</span></small></button>
                     <button id="btn-medkit" onclick="buyMedkit()" style="grid-column: span 2; background-color: #3a1a1a;">医疗包 <span class="price">500$</span> <br><small>立即恢复生命值至100（满血时无法购买）</small></button>
                     <button id="btn-quick-grenade-hint" disabled style="grid-column: span 4; background-color: #333; opacity: 0.7; cursor: default;">快捷键提示 <br><small>G 键：快速投掷高爆手雷（无需切换武器，需先购买手雷）<br>地雷：切4号槽抛出，落地或撞墙即贴附，范围圈始终平铺地面显示，1.5秒后武装——队友踩上不触发不受伤，只炸敌人；携带上限5枚，场上上限10枚</small></button>
                 </div>
                 <h3 id="biohazard-title" style="display: none; color: #2ecc71;">生化模式 (Biohazard)</h3>
                 <div class="mod-category" id="biohazard-category" style="display: none;">
                     <button id="btn-zombie-serum" onclick="buyZombieSerum()" style="grid-column: span 4; background-color: #1a3a1a;">变异血清 <span class="price">8000$</span> <br><small>感染爆发后可购买：立即变异为母体僵尸（3000血量），变异初期30秒移速减半。背叛人类，加入尸潮！</small></button>
-                    <button id="btn-adrenaline" onclick="buyAdrenaline()" style="grid-column: span 4; background-color: #3a2a1a;">肾上腺素 <span class="price">300$</span> <br><small>购买后按 Q 注射：8秒移速+50%，最多携带3支。感染爆发后随时可用，逃命/抢空投神器</small></button>
+                    <button id="btn-adrenaline" onclick="buyAdrenaline()" style="grid-column: span 4; background-color: #3a2a1a;">肾上腺素 <span class="price">300$</span> <br><small><span class="desktop-prompt-hint">购买后按 Q 注射：8秒移速+50%，最多携带3支。感染爆发后随时可用，逃命/抢空投神器</span><span class="mobile-prompt-hint">购买后注射：8秒移速+50%，最多携带3支。点击右侧图标使用，逃命神器</span></small></button>
                 </div>
                 <h3>护甲 (Armor)</h3>
                 <div class="mod-category">
@@ -157,7 +172,7 @@
             </div>
         </div>
 
-        <button class="deploy-btn glass-btn" onclick="closeBuyMenu()">关闭菜单 (按 B)</button>
+        <button class="deploy-btn glass-btn" onclick="closeBuyMenu()">关闭菜单<span class="key-hint"> (按 B)</span></button>
     </div>
 
     <!-- Game UI & 3D Canvas Container -->
@@ -176,20 +191,32 @@
         <!-- Mortar Targeting Map -->
         <div id="mortar-map-overlay" class="hidden" style="position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center;">
             <div style="margin-bottom: 10px; color: #f39c12; font-family: 'Orbitron', sans-serif; font-size: 18px; text-transform: uppercase; letter-spacing: 2px;">迫击炮战术地图</div>
-            <div style="margin-bottom: 8px; color: #aaa; font-size: 13px;">滚轮缩放 · 点击选择目标 · 按 F 发射 · 按 Esc 取消</div>
-            <canvas id="mortar-map-canvas" width="700" height="700" style="border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; cursor: crosshair; background: #0a0a0c;"></canvas>
+            <div id="mortar-map-instruction" style="margin-bottom: 8px; color: #aaa; font-size: 13px;">
+                <span class="desktop-prompt-hint">滚轮缩放 · 点击选择目标 · 按 F 发射 · 按 Esc 取消</span>
+                <span class="mobile-prompt-hint">点击地图选择目标 · 点击下方按钮发射或关闭</span>
+            </div>
+            <canvas id="mortar-map-canvas" width="700" height="700" style="border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; cursor: crosshair; background: #0a0a0c; max-width: 90vw; max-height: 60vh;"></canvas>
             <div id="mortar-map-info" style="margin-top: 8px; color: #2ecc71; font-size: 14px; font-family: monospace;"></div>
+            <div id="mortar-touch-controls" class="hidden-on-desktop" style="margin-top: 10px; display: flex; gap: 15px; align-items: center;">
+                <button id="mortar-fire-btn" onclick="fireMortar()" style="padding: 10px 24px; font-size: 15px; font-weight: bold; background: #27ae60; color: #fff; border: 1px solid #2ecc71; border-radius: 6px; cursor: pointer;">发射迫击炮</button>
+                <button id="mortar-zoom-in-btn" onclick="zoomMortarMap(0.2)" style="padding: 10px 16px; font-size: 15px; background: #2c3e50; color: #fff; border: 1px solid #34495e; border-radius: 6px; cursor: pointer;">放大 +</button>
+                <button id="mortar-zoom-out-btn" onclick="zoomMortarMap(-0.2)" style="padding: 10px 16px; font-size: 15px; background: #2c3e50; color: #fff; border: 1px solid #34495e; border-radius: 6px; cursor: pointer;">缩小 -</button>
+                <button id="mortar-close-btn" onclick="closeMortarMap()" style="padding: 10px 20px; font-size: 15px; background: #c0392b; color: #fff; border: 1px solid #e74c3c; border-radius: 6px; cursor: pointer;">关闭地图</button>
+            </div>
         </div>
         
         <!-- Mortar Camera Interrupt Button -->
-        <button id="mortar-cancel-btn" class="hidden" onclick="cancelMortarCamera()" style="position: absolute; top: 70px; left: 50%; transform: translateX(-50%); padding: 10px 24px; font-size: 15px; font-weight: bold; font-family: 'Inter', sans-serif; background: rgba(231, 76, 60, 0.9); color: #fff; border: 2px solid #e74c3c; border-radius: 8px; cursor: pointer; z-index: 100; box-shadow: 0 0 12px rgba(231,76,60,0.6); pointer-events: auto;">返回角色本体视角 (Esc / F)</button>
+        <button id="mortar-cancel-btn" class="hidden" onclick="cancelMortarCamera()" style="position: absolute; top: 70px; left: 50%; transform: translateX(-50%); padding: 10px 24px; font-size: 15px; font-weight: bold; font-family: 'Inter', sans-serif; background: rgba(231, 76, 60, 0.9); color: #fff; border: 2px solid #e74c3c; border-radius: 8px; cursor: pointer; z-index: 100; box-shadow: 0 0 12px rgba(231,76,60,0.6); pointer-events: auto;">返回角色本体视角<span class="key-hint"> (Esc / F)</span></button>
 
         <!-- Pointer Lock Center Click Prompt -->
         <div id="pointer-lock-prompt" class="pointer-lock-prompt hidden">
             <div class="pointer-lock-box">
                 <div class="pointer-lock-icon">✛</div>
                 <div class="pointer-lock-title">点击画面进入战斗</div>
-                <div class="pointer-lock-subtitle">锁定鼠标以控制准心视角 (按 Esc 释放)</div>
+                <div class="pointer-lock-subtitle">
+                    <span class="desktop-prompt-hint">锁定鼠标以控制准心视角 (按 Esc 释放)</span>
+                    <span class="mobile-prompt-hint">轻触屏幕进入战斗</span>
+                </div>
             </div>
         </div>
 
@@ -323,23 +350,26 @@
 
             <!-- Interation Prompt -->
             <div id="interact-prompt" class="hidden">
-                长按 [E] 互动
+                <span class="desktop-prompt-hint">长按 [E] 互动</span>
+                <span class="mobile-prompt-hint">点击或按住 [互动]</span>
             </div>
 
             <!-- Weapon Pickup Prompt -->
             <div id="pickup-prompt" class="hidden">
-                按 [E] 拾取武器
+                <span class="desktop-prompt-hint">按 [E] 拾取武器</span>
+                <span class="mobile-prompt-hint">点击拾取武器</span>
             </div>
             
             <!-- Buy Prompt -->
             <div id="buy-prompt" class="hidden">
-                按 [B] 打开购买菜单
+                <span class="desktop-prompt-hint">按 [B] 打开购买菜单</span>
+                <span class="mobile-prompt-hint">点击 [购买] 打开菜单</span>
             </div>
 
             <!-- Spectator Prompt -->
             <div id="spectator-prompt" class="hidden" style="position: absolute; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); padding: 10px 20px; color: white; border-radius: 4px; font-family: 'Inter', sans-serif; text-align: center; border: 1px solid #ff3c3c; pointer-events: none; z-index: 50;">
                 <h2 style="font-size: 1.2rem; margin: 0 0 5px 0;">你已阵亡 (Spectating)</h2>
-                <p style="color:#ccc; margin: 0; font-size: 0.9rem;">点击鼠标左键切换观战视角<br>(当前观战: <span id="spectator-target" style="color:#e67e22;">无</span>)</p>
+                <p style="color:#ccc; margin: 0; font-size: 0.9rem;"><span class="desktop-prompt-hint">点击鼠标左键切换观战视角</span><span class="mobile-prompt-hint">点击屏幕或开火键切换观战视角</span><br>(当前观战: <span id="spectator-target" style="color:#e67e22;">无</span>)</p>
             </div>
         </div>
     </div>
@@ -385,7 +415,7 @@
                 <span class="scope-telemetry-badge">OPTICS MATRIX // MK-IV</span>
                 <h2><span class="highlight">瞄准镜选择</span> SCOPE SELECT</h2>
             </div>
-            <div class="scope-shortcut-pill"><span class="key-tag">T</span> 关闭 · 免费</div>
+            <div class="scope-shortcut-pill"><span class="desktop-prompt-hint"><span class="key-tag">T</span> 关闭 · </span>免费</div>
         </div>
         
         <div id="scope-grid" class="scope-grid-container">
@@ -402,7 +432,7 @@
             </div>
         </div>
 
-        <button class="deploy-btn glass-btn tactical-deploy-btn" onclick="toggleScopePanel()">关闭 (按 T)</button>
+        <button class="deploy-btn glass-btn tactical-deploy-btn" onclick="toggleScopePanel()">关闭<span class="key-hint"> (按 T)</span></button>
     </div>
 
     <!-- Three.js and Libraries -->

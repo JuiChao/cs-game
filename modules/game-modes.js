@@ -210,7 +210,9 @@ function infectPlayer(source, isSource) {
     if (isSource) {
         showAnnouncement('你变异为母体僵尸！(血量' + ZOMBIE.sourceHp + ') 前30秒移速减半', '#00ff88');
     } else {
-        showAnnouncement('你被感染了！前30秒移速减半，用利爪 [左键] 感染人类！', '#00ff88');
+        const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+        const attackAction = isTouch ? '[开火]' : '[左键]';
+        showAnnouncement(`你被感染了！前30秒移速减半，用利爪 ${attackAction} 感染人类！`, '#00ff88');
     }
     updateHUD();
 }
@@ -261,7 +263,9 @@ function respawnPlayerZombie() {
         const h2 = sp.querySelector('h2');
         if (h2) h2.innerText = '你已阵亡 (Spectating)';
         const p = sp.querySelector('p');
-        if (p) p.innerHTML = '点击鼠标左键切换观战视角<br>(当前观战: <span id="spectator-target" style="color:#e67e22;">无</span>)';
+        const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+        const specHint = isTouch ? '点击屏幕或开火键切换观战视角' : '点击鼠标左键切换观战视角';
+        if (p) p.innerHTML = `${specHint}<br>(当前观战: <span id="spectator-target" style="color:#e67e22;">无</span>)`;
     }
 
     const pos = getValidSpawnPoint([], 0);

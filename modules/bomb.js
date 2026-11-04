@@ -4,9 +4,19 @@ function handleBomb() {
     const bombUI = document.getElementById('bomb-status');
     const bombProgUI = document.getElementById('bomb-progress');
 
+    if (promptUI && !promptUI._touchInit) {
+        promptUI._touchInit = true;
+        promptUI.style.cursor = 'pointer';
+        promptUI.addEventListener('touchstart', (e) => { e.preventDefault(); isInteracting = true; }, { passive: false });
+        promptUI.addEventListener('touchend', (e) => { e.preventDefault(); isInteracting = false; }, { passive: false });
+        promptUI.addEventListener('touchcancel', (e) => { e.preventDefault(); isInteracting = false; }, { passive: false });
+    }
+
     if (playerState.isSpectating) {
         promptUI.classList.add('hidden');
         bombUI.classList.add('hidden');
+        const ti = document.getElementById('touch-interact');
+        if (ti) ti.classList.add('hidden');
         return;
     }
 
@@ -21,8 +31,15 @@ function handleBomb() {
 
         const distToBomb = playerPos.distanceTo(bombState.mesh.position);
         if (distToBomb < 15.0 && playerState.team === 'CT') {
-            if (!isInteracting) promptUI.classList.remove('hidden');
-            else promptUI.classList.add('hidden');
+            const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+            const ti = document.getElementById('touch-interact');
+            if (!isInteracting) {
+                promptUI.classList.remove('hidden');
+                promptUI.innerText = isTouch ? "点击或按住 [互动] 拆除 C4" : "长按 [E] 拆除 C4";
+                if (ti && isTouch) ti.classList.remove('hidden');
+            } else {
+                promptUI.classList.add('hidden');
+            }
 
             if (isInteracting && !moveForward && !moveBackward && !moveLeft && !moveRight && playerState.isOnGround) {
                 document.getElementById('bomb-text').innerText = "正在拆除 C4...";
@@ -62,11 +79,15 @@ function handleBomb() {
             promptUI.classList.add('hidden');
             bombUI.classList.add('hidden');
             bombState.plantProgress = 0;
+            const ti = document.getElementById('touch-interact');
+            if (ti) ti.classList.add('hidden');
         }
     } else {
         if (playerState.team !== 'T') {
             promptUI.classList.add('hidden');
             bombUI.classList.add('hidden');
+            const ti = document.getElementById('touch-interact');
+            if (ti) ti.classList.add('hidden');
             return;
         }
 
@@ -80,8 +101,15 @@ function handleBomb() {
         });
 
         if (inZone) {
-            if (!isInteracting) promptUI.classList.remove('hidden');
-            else promptUI.classList.add('hidden');
+            const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+            const ti = document.getElementById('touch-interact');
+            if (!isInteracting) {
+                promptUI.classList.remove('hidden');
+                promptUI.innerText = isTouch ? "点击或按住 [互动] 安装 C4" : "长按 [E] 互动";
+                if (ti && isTouch) ti.classList.remove('hidden');
+            } else {
+                promptUI.classList.add('hidden');
+            }
 
             if (isInteracting && !moveForward && !moveBackward && !moveLeft && !moveRight && playerState.isOnGround) {
                 document.getElementById('bomb-text').innerText = "正在安装 C4...";
@@ -120,6 +148,8 @@ function handleBomb() {
             promptUI.classList.add('hidden');
             bombUI.classList.add('hidden');
             bombState.plantProgress = 0;
+            const ti = document.getElementById('touch-interact');
+            if (ti) ti.classList.add('hidden');
         }
     }
 }

@@ -139,7 +139,8 @@ function claimAirdrop(a, claimer) {
                 ammoState.secondary.reserve = WEAPONS[inventory.secondary].reserve;
             }
             adrenalineCount = Math.min(ADRENALINE_MAX, adrenalineCount + 1);
-            showKillFeed('📦 空投补给：弹药全满 + 肾上腺素×1（按 Q 使用）！');
+            const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+            showKillFeed(isTouch ? '📦 空投补给：弹药全满 + 肾上腺素×1（点击右侧图标使用）！' : '📦 空投补给：弹药全满 + 肾上腺素×1（按 Q 使用）！');
         } else {
             playerState.hp = 100;
             inventory.grenades.sandbag = (inventory.grenades.sandbag || 0) + 2;
@@ -189,7 +190,8 @@ function buyAdrenaline() {
     document.getElementById('buy-credits').innerText = playerCurrency;
     document.getElementById('hud-credits').innerText = playerCurrency;
     updateAdrenalineHud();
-    showKillFeed('⚡ 购买肾上腺素×1（按 Q 使用：8秒移速+50%）');
+    const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+    showKillFeed(isTouch ? '⚡ 购买肾上腺素×1（点击右侧图标使用：8秒移速+50%）' : '⚡ 购买肾上腺素×1（按 Q 使用：8秒移速+50%）');
 }
 
 function useAdrenaline() {

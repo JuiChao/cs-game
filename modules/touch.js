@@ -300,6 +300,10 @@ function setupTouchControls() {
                 if (typeof cancelMortarCamera === 'function') cancelMortarCamera();
                 return;
             }
+            if (playerState && playerState.isSpectating) {
+                if (typeof cycleSpectator === 'function') cycleSpectator();
+                return;
+            }
             if (lookTouchId === null && e.changedTouches.length > 0) {
                 const touch = e.changedTouches[0];
                 lookTouchId = touch.identifier;
@@ -384,6 +388,9 @@ function setupTouchControls() {
             if (w.id === 'gatling' || w.id === 'mortar' || w.id === 'zombieClaw' || w.id === 'flamethrower') return;
             playerState.isAds = !playerState.isAds;
             if (playerState.isAds && (w.id === 'sniper' || w.id === 'marksman')) playScopeZoom();
+            if (playerState.isAds && typeof dropCompensationPurchased !== 'undefined' && dropCompensationPurchased && typeof toggleDropCompensation === 'function') {
+                toggleDropCompensation();
+            }
         });
     }
     
@@ -430,6 +437,19 @@ function setupTouchControls() {
                 if (pd) pd.selfDestructing = true;
             }
         });
+    }
+
+    const spectatorPromptEl = document.getElementById('spectator-prompt');
+    if (spectatorPromptEl && !spectatorPromptEl._touchSpectateInit) {
+        spectatorPromptEl._touchSpectateInit = true;
+        const handleSpecTap = (e) => {
+            if (playerState && playerState.isSpectating && typeof cycleSpectator === 'function') {
+                if (e && e.preventDefault) e.preventDefault();
+                cycleSpectator();
+            }
+        };
+        spectatorPromptEl.addEventListener('click', handleSpecTap);
+        spectatorPromptEl.addEventListener('touchstart', handleSpecTap, { passive: false });
     }
 }
 

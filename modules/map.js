@@ -269,7 +269,10 @@ function init3DGame() {
             if (typeof window === 'undefined') return false;
             const isSmallScreen = Math.min(window.innerWidth, window.innerHeight) <= 768 || window.innerWidth <= 768;
             const hasFinePointer = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-            const isMobileDevice = (typeof navigator !== 'undefined') && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+            const ua = (typeof navigator !== 'undefined') ? (navigator.userAgent || '') : '';
+            const maxTouch = (typeof navigator !== 'undefined') ? (navigator.maxTouchPoints || 0) : 0;
+            const isIPadOS = ua.includes('Macintosh') && (maxTouch > 0 || ('ontouchstart' in window));
+            const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(ua) || isIPadOS;
 
             if (typeof isTouchDevice !== 'undefined' && isTouchDevice) {
                 if ((isSmallScreen && !hasFinePointer) || isMobileDevice) {
