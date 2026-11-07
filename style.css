@@ -1637,6 +1637,43 @@ h1, h2, h3, h4 {
     transition: all 0.2s ease;
 }
 
+/* Fire Mode Badge */
+.fire-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 7px;
+    font-family: var(--font-display, "Orbitron", sans-serif);
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    user-select: none;
+    cursor: pointer;
+    pointer-events: auto;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.fire-mode-badge.multi-mode {
+    color: #00f0ff;
+    background: rgba(0, 240, 255, 0.12);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+}
+
+.fire-mode-badge.single-mode {
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.5);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.25);
+}
+
+.fire-mode-badge:hover {
+    transform: scale(1.05);
+    filter: brightness(1.2);
+}
+
 /* Economy Metrics (.currency-hud) */
 .currency-hud {
     position: static;
@@ -2614,6 +2651,7 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     .ammo-text { font-size: 1.25rem; }
     #ammo-clip { font-size: 1.4rem; }
     .weapon-name { font-size: 0.72rem; }
+    .fire-mode-badge { font-size: 0.65rem !important; padding: 1px 4px !important; }
     .currency-hud {
         font-size: 0.72rem;
         padding: 2px 6px;

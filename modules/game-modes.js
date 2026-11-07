@@ -6,6 +6,63 @@ function getCurrentWeapon() {
     return WEAPONS[inventory.melee || 'knife'];
 }
 
+const NON_FIREARM_IDS = ['knife', 'kukri', 'switchblade', 'zombieClaw', 'hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'mortar', 'c4', 'flamethrower'];
+
+function getWeaponFireMode(weapon = null) {
+    if (!weapon && typeof getCurrentWeapon === 'function') weapon = getCurrentWeapon();
+    if (typeof weapon === 'string' && typeof WEAPONS !== 'undefined') weapon = WEAPONS[weapon];
+    if (!weapon) return 'multi';
+    if (typeof playerState !== 'undefined' && playerState) {
+        if (!playerState.weaponFireModes) playerState.weaponFireModes = {};
+        return playerState.weaponFireModes[weapon.id] || 'multi';
+    }
+    return 'multi';
+}
+
+function setWeaponFireMode(weapon, mode) {
+    if (!weapon && typeof getCurrentWeapon === 'function') weapon = getCurrentWeapon();
+    if (typeof weapon === 'string' && typeof WEAPONS !== 'undefined') weapon = WEAPONS[weapon];
+    if (!weapon || NON_FIREARM_IDS.includes(weapon.id)) return;
+    if (typeof playerState !== 'undefined' && playerState) {
+        if (!playerState.weaponFireModes) playerState.weaponFireModes = {};
+        playerState.weaponFireModes[weapon.id] = (mode === 'single') ? 'single' : 'multi';
+        if (mode === 'single') playerState.burstQueue = 0;
+    }
+    if (typeof updateHUD === 'function') updateHUD();
+}
+
+function toggleFireMode(weapon = null) {
+    if (typeof playerState !== 'undefined' && (playerState.isSpectating || playerState.isControllingDrone || playerState.isZombie)) return;
+    if (!weapon) {
+        if (typeof inventory !== 'undefined' && inventory && inventory.currentSlot !== 1 && inventory.currentSlot !== 2) return;
+        if (typeof getCurrentWeapon === 'function') weapon = getCurrentWeapon();
+    }
+    if (typeof weapon === 'string' && typeof WEAPONS !== 'undefined') weapon = WEAPONS[weapon];
+    if (!weapon || NON_FIREARM_IDS.includes(weapon.id)) return;
+
+    if (typeof playerState !== 'undefined') {
+        playerState.burstQueue = 0;
+        playerState.recoilPatternIndex = 0;
+    }
+    const cur = getWeaponFireMode(weapon);
+    const next = (cur === 'single') ? 'multi' : 'single';
+    setWeaponFireMode(weapon, next);
+
+    if (typeof playEmptyClick === 'function') playEmptyClick();
+
+    if (typeof showKillFeed === 'function') {
+        const modeDesc = (next === 'single') ? '单发模式 (后坐力 80%)' : '多发模式';
+        showKillFeed(`${weapon.name} 切换为: ${modeDesc}`);
+    }
+    return next;
+}
+
+if (typeof window !== 'undefined') {
+    window.getWeaponFireMode = getWeaponFireMode;
+    window.setWeaponFireMode = setWeaponFireMode;
+    window.toggleFireMode = toggleFireMode;
+}
+
 // ── 生化模式运行时状态 ──
 let zombieState = {
     pending: false,       // 感染是否尚未爆发（爆发前为购买窗口）

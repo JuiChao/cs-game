@@ -72,8 +72,24 @@ let playerState = {
     zombieSlowTimer: 0,
     killStreak: 0,
     lastFlameDamageTick: 0,
-    cameraShake: 0
+    cameraShake: 0,
+    weaponFireModes: {}
 };
+
+try {
+    Object.defineProperty(playerState, 'fireMode', {
+        get() {
+            const w = (typeof getCurrentWeapon === 'function') ? getCurrentWeapon() : null;
+            return (typeof getWeaponFireMode === 'function') ? getWeaponFireMode(w) : 'multi';
+        },
+        set(val) {
+            const w = (typeof getCurrentWeapon === 'function') ? getCurrentWeapon() : null;
+            if (w && typeof setWeaponFireMode === 'function') setWeaponFireMode(w, val);
+        },
+        configurable: true
+    });
+} catch (e) {}
+if (typeof window !== 'undefined') window.playerState = playerState;
 
 function getPlayerPosition() {
     if (playerState.isControllingDrone) {
@@ -236,6 +252,10 @@ document.addEventListener('keydown', (e) => {
         if (e.code === 'KeyU' && roundActive && !playerState.isSpectating) {
             unstuckPlayer();
         }
+        if ((e.code === 'KeyX' || e.code === 'KeyZ') && (roundActive || (typeof isShootingRange !== 'undefined' && isShootingRange)) && !playerState.isSpectating && !playerState.isControllingDrone) {
+            toggleFireMode();
+            return;
+        }
         return;
     }
     
@@ -306,6 +326,12 @@ document.addEventListener('keydown', (e) => {
                 break;
             case 'KeyG':
                 quickThrowGrenade();
+                break;
+            case 'KeyX':
+            case 'KeyZ':
+                if ((roundActive || (typeof isShootingRange !== 'undefined' && isShootingRange)) && !playerState.isSpectating && !playerState.isControllingDrone) {
+                    toggleFireMode();
+                }
                 break;
             case 'Escape': {
                 const _buyMenuEl = document.getElementById('buy-menu');

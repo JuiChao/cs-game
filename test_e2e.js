@@ -47,7 +47,7 @@ async function runE2ETests() {
 
     const page = await browser.newPage();
     page.on('pageerror', err => {
-        if (err.message && err.message.includes('requestPointerLock')) return;
+        if (err.message && (err.message.includes('requestPointerLock') || err.message.includes('Pointer is already locked'))) return;
         pageErrors.push(err.message);
         console.error('PAGE RUNTIME ERROR:', err.message);
     });

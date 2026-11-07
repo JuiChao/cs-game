@@ -136,6 +136,30 @@ function updateHUD() {
                                 (playerState.bulletType === 'poison') ? '#44ff00' :
                                 (playerState.bulletType === 'proximity') ? '#ffaa00' : '#aaa';
     }
+
+    const fmDisplay = document.getElementById('fire-mode-badge');
+    if (fmDisplay) {
+        const nonFirearms = ['knife', 'kukri', 'switchblade', 'zombieClaw', 'hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'mortar', 'c4', 'flamethrower'];
+        const isGun = w && inventory && (inventory.currentSlot === 1 || inventory.currentSlot === 2) &&
+                      !nonFirearms.includes(w.id);
+        if (!isGun) {
+            fmDisplay.style.display = 'none';
+        } else {
+            fmDisplay.style.display = 'inline-flex';
+            const mode = (typeof getWeaponFireMode === 'function') ? getWeaponFireMode(w) : 'multi';
+            if (mode === 'single') {
+                fmDisplay.innerText = '单发';
+                fmDisplay.title = '当前单发模式 (后坐力 80%)，点击或按 X 切换';
+                fmDisplay.classList.add('single-mode');
+                fmDisplay.classList.remove('multi-mode');
+            } else {
+                fmDisplay.innerText = '多发';
+                fmDisplay.title = '当前多发模式，点击或按 X 切换';
+                fmDisplay.classList.add('multi-mode');
+                fmDisplay.classList.remove('single-mode');
+            }
+        }
+    }
     
     const ammoClip = document.getElementById('ammo-clip');
     const ammoReserve = document.getElementById('ammo-reserve');

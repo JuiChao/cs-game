@@ -8,7 +8,7 @@
   "description": "",
   "main": "index.html",
   "scripts": {
-    "test": "node test.js && node test_phase1.js && node test_phase2.js && node test_phase3.js && node test_phase4.js"
+    "test": "node test.js && node test_phase1.js && node test_phase2.js && node test_phase3.js && node test_phase4.js && node test_fire_mode.js"
   },
   "keywords": [],
   "author": "",

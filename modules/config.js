@@ -336,6 +336,13 @@ let ammoState = {
     grenade: { clip: 0, reserve: 0 }
 };
 
+if (typeof window !== 'undefined') {
+    window.inventory = inventory;
+    window.ammoState = ammoState;
+    window.WEAPONS = WEAPONS;
+    window.RECOIL_PATTERNS = RECOIL_PATTERNS;
+}
+
 let activeDrones = [];
 let knifeRangeIndicator;
 let predictionMarker;

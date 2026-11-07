@@ -439,6 +439,16 @@ function setupTouchControls() {
         });
     }
 
+    const fmBadge = document.getElementById('fire-mode-badge');
+    if (fmBadge && !fmBadge._touchFmInit) {
+        fmBadge._touchFmInit = true;
+        fmBadge.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof toggleFireMode === 'function') toggleFireMode();
+        });
+    }
+
     const spectatorPromptEl = document.getElementById('spectator-prompt');
     if (spectatorPromptEl && !spectatorPromptEl._touchSpectateInit) {
         spectatorPromptEl._touchSpectateInit = true;

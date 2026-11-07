@@ -43,9 +43,15 @@ function handleShooting(initialClick = false) {
     const hasLightBullet = playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes.includes('light'));
     const awpLightAuto = weapon.id === 'sniper' && hasLightBullet; // AWP+轻型子弹: 全自动速射形态
 
-    // MK4 三连发: 队列推进后续弹（松开扳机也会打完整组）
+    const currentFireMode = (typeof getWeaponFireMode === 'function') ? getWeaponFireMode(weapon) : 'multi';
+    const isSingleMode = (currentFireMode === 'single');
+    if (isSingleMode) {
+        playerState.burstQueue = 0;
+    }
+
+    // MK4 三连发: 队列推进后续弹（松开扳机也会打完整组, 单发模式下不进行三连发）
     let burstShotDue = false;
-    if (weapon.burst && playerState.burstQueue > 0 && playerState.burstWeapon === weapon.id) {
+    if (weapon.burst && !isSingleMode && playerState.burstQueue > 0 && playerState.burstWeapon === weapon.id) {
         if (frameCount > playerState.burstNextShot + 10) {
             playerState.burstQueue = 0; // 队列超时(解锁/断帧)作废, 防止补射残留弹
         } else if (frameCount >= playerState.burstNextShot) {
@@ -55,7 +61,8 @@ function handleShooting(initialClick = false) {
         }
     }
 
-    if (!weapon.auto && !awpLightAuto && !initialClick && !burstShotDue) return;
+    const canAutoFire = !isSingleMode && (weapon.auto || awpLightAuto);
+    if (!canAutoFire && !initialClick && !burstShotDue) return;
     if (!isShooting && !burstShotDue) {
         playerState.gatlingFireStartFrame = 0;
         return;
@@ -133,8 +140,8 @@ function handleShooting(initialClick = false) {
     }
 
     playerState.lastShot = frameCount;
-    // 三连发: 首发入队后续弹, 队列弹推进后重新排队
-    if (weapon.burst) {
+    // 三连发: 首发入队后续弹, 队列弹推进后重新排队 (单发模式下不进行连发入队)
+    if (weapon.burst && !isSingleMode) {
         if (burstShotDue) {
             playerState.burstQueue--;
             if (playerState.burstQueue > 0) playerState.burstNextShot = frameCount + weapon.burstDelay;
@@ -154,7 +161,7 @@ function handleShooting(initialClick = false) {
         if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade' || weapon.id === 'zombieClaw') {
             playerState.knifeAnimStart = performance.now();
         } else if (weapon.id !== 'flamethrower') {
-            const kickback = playerState.isAds ? 0.002 : 0.1;
+            const kickback = (playerState.isAds ? 0.002 : 0.1) * (isSingleMode ? 0.8 : 1.0);
             playerState.viewModel.position.z += kickback; // Kickback
             setTimeout(() => {
                 if(playerState.viewModel) {
@@ -468,7 +475,8 @@ function handleShooting(initialClick = false) {
 
     // Camera recoil (deterministic pattern-based, CS-style) & Camera Shake
     if (weapon.id !== 'knife' && weapon.id !== 'kukri' && weapon.id !== 'switchblade' && weapon.id !== 'zombieClaw') {
-        const shakeAmt = (weapon.id === 'shotgun' || weapon.id === 'ash12' || weapon.id === 'sniper') ? 0.010 : 0.004;
+        let shakeAmt = (weapon.id === 'shotgun' || weapon.id === 'ash12' || weapon.id === 'sniper') ? 0.010 : 0.004;
+        if (isSingleMode) shakeAmt *= 0.8;
         playerState.cameraShake = Math.min(0.025, (playerState.cameraShake || 0) + shakeAmt);
 
         // Reset pattern index if enough time has passed since last shot (0.4s)
@@ -522,6 +530,12 @@ function handleShooting(initialClick = false) {
             let gRecoilMult = Math.min(2.5, 1.0 + gIntervals * (1.0 / 20));
             recoilPitch *= gRecoilMult;
             recoilYaw *= gRecoilMult;
+        }
+
+        // 单发模式下后坐力会变为原来的 80%
+        if (isSingleMode) {
+            recoilPitch *= 0.8;
+            recoilYaw *= 0.8;
         }
 
         const euler = new THREE.Euler(0, 0, 0, 'YXZ');

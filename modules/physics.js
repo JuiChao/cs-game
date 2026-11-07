@@ -68,7 +68,9 @@ function updatePhysics(delta) {
     }
     else if (w.id === 'gatling') {
         speedMult = 0.75;
-        if (isShooting) speedMult = 0.25;
+        const isSingle = (typeof getWeaponFireMode === 'function') && getWeaponFireMode(w) === 'single';
+        const isGatlingShooting = isShooting && (!isSingle || (frameCount - (playerState.lastShot || -999) <= 6));
+        if (isGatlingShooting) speedMult = 0.25;
     }
     else if (w.id === 'flamethrower') {
         speedMult = 0.8;
@@ -185,11 +187,12 @@ function animate() {
     
     // Recoil recovery only for sniper and marksman rifles (every frame)
     const _recoilW = getCurrentWeapon();
-    if (_recoilW && _recoilW.id === 'marksman' && !isShooting) {
+    const _isSingle = (typeof getWeaponFireMode === 'function') && getWeaponFireMode(_recoilW) === 'single';
+    if (_recoilW && _recoilW.id === 'marksman' && !isShooting && !_isSingle) {
         playerState.recoilRecovery = 0;
         playerState.recoilRecoveryYaw = 0;
     }
-    const _hasRecoilRecovery = _recoilW && (_recoilW.id === 'sniper' || (_recoilW.id === 'marksman' && isShooting));
+    const _hasRecoilRecovery = _recoilW && (_recoilW.id === 'sniper' || (_recoilW.id === 'marksman' && (isShooting || _isSingle)));
     if (_hasRecoilRecovery && playerState.recoilRecovery && playerState.recoilRecovery > 0) {
         const rate = playerState.recoilRecoveryRate || 0.15;
         const recoverAmount = Math.min(playerState.recoilRecovery, delta * rate);
@@ -824,10 +827,14 @@ function animate() {
             }
         }
         if (isShooting && !isReloading && controls && (controls.isLocked || isPlayerControlActive())) {
-            if (weapon.id === 'gatling') {
-                baseSpread += 8 * 0.25;
-            } else {
-                baseSpread += 8;
+            const isSingle = (typeof getWeaponFireMode === 'function') && getWeaponFireMode(weapon) === 'single';
+            const canContShoot = !isSingle && (weapon.auto || (weapon.id === 'sniper' && (playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('light')))));
+            if (canContShoot || (frameCount - (playerState.lastShot || -999) <= 2)) {
+                if (weapon.id === 'gatling') {
+                    baseSpread += 8 * 0.25;
+                } else {
+                    baseSpread += 8;
+                }
             }
         }
     }
@@ -964,7 +971,9 @@ function animate() {
         if (w.id === 'gatling' && playerState.viewModel) {
             const barrelGroup = playerState.viewModel.getObjectByName('gatlingBarrels');
             if (barrelGroup) {
-                if (isShooting && !isReloading) {
+                const isSingle = (typeof getWeaponFireMode === 'function') && getWeaponFireMode(w) === 'single';
+                const isGatlingFiring = isShooting && !isReloading && (!isSingle || (frameCount - (playerState.lastShot || -999) <= 4));
+                if (isGatlingFiring) {
                     playerState.gatlingBarrelSpin = Math.min(30, (playerState.gatlingBarrelSpin || 0) + delta * 80);
                 } else {
                     playerState.gatlingBarrelSpin = (playerState.gatlingBarrelSpin || 0) * 0.92;
