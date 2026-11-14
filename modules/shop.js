@@ -58,6 +58,8 @@ function openBuyMenu() {
         if (bSandbag) bSandbag.innerHTML = "购买 沙包 (Sandbag) - $25 (半价)";
         const bMine = document.getElementById('btn-throwable-mine');
         if (bMine) bMine.innerHTML = "购买 地雷 (Mine) - $150 (半价)";
+        const bCryo = document.getElementById('btn-throwable-cryo');
+        if (bCryo) bCryo.innerHTML = "购买 液氮冷罐 (Cryo) - $200 (半价)";
     } else {
         menu.querySelectorAll('h3').forEach(h => {
             if (h.id === 'biohazard-title') {
@@ -79,6 +81,24 @@ function openBuyMenu() {
         if (bSandbag) bSandbag.innerHTML = "购买 沙包 (Sandbag) - $50";
         const bMine = document.getElementById('btn-throwable-mine');
         if (bMine) bMine.innerHTML = "购买 地雷 (Mine) - $300";
+        const bCryo = document.getElementById('btn-throwable-cryo');
+        if (bCryo) bCryo.innerHTML = "购买 液氮冷罐 (Cryo) - $400";
+    }
+    
+    const hasBT = Boolean(playerState.hasBinaryTrigger || (typeof binaryTriggerPurchased !== 'undefined' && binaryTriggerPurchased));
+    const btnBT = document.getElementById('btn-binary-trigger');
+    if (btnBT && hasBT) {
+        const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+        const desc = isTouch ? '单发模式专用：按下攻击一次，松开再攻击一次' : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次';
+        btnBT.innerHTML = `双发扳机 <span class="price">已购买</span> <br><small>${desc}</small>`;
+        btnBT.disabled = true;
+        btnBT.style.opacity = '0.5';
+    } else if (btnBT) {
+        const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+        const desc = isTouch ? '单发模式专用：按下攻击一次，松开再攻击一次' : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次';
+        btnBT.innerHTML = `双发扳机 <span class="price">700$</span> <br><small>${desc}</small>`;
+        btnBT.disabled = false;
+        btnBT.style.opacity = '1';
     }
     
     const buyCreditsEl = document.getElementById('buy-credits');
@@ -123,7 +143,7 @@ function buyWeapon(type, cost) {
         }
     }
     if (playerState.isControllingDrone) {
-        if (!['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine'].includes(type)) return;
+        if (!['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'cryo'].includes(type)) return;
         cost = Math.floor(cost / 2);
     }
     if (playerCurrency >= cost) {
@@ -141,7 +161,7 @@ function buyWeapon(type, cost) {
             ammoState.secondary.clip = effMag;
             ammoState.secondary.reserve = WEAPONS[type].reserve;
             if (typeof switchWeapon === 'function') switchWeapon(2);
-        } else if (type === 'hegrenade' || type === 'flashbang' || type === 'molotov' || type === 'smoke' || type === 'sandbag' || type === 'mine' || type === 'drone') {
+        } else if (type === 'hegrenade' || type === 'flashbang' || type === 'molotov' || type === 'smoke' || type === 'sandbag' || type === 'mine' || type === 'drone' || type === 'cryo') {
             if (type === 'mine' && (inventory.grenades.mine || 0) >= 5) {
                 if (typeof showKillFeed === 'function') showKillFeed('地雷携带已达上限（5枚）');
                 return;
@@ -235,6 +255,45 @@ function buyDropCompensation() {
     }
 }
 
+function buyBinaryTrigger() {
+    if (playerState.isControllingDrone) return;
+    if (gameMode === 'zombie' && (playerState.isZombie || playerState.team === 'ZOMBIE')) {
+        if (typeof showKillFeed === 'function') showKillFeed('僵尸无法购买双发扳机');
+        return;
+    }
+    const hasBT = Boolean(playerState.hasBinaryTrigger || (typeof binaryTriggerPurchased !== 'undefined' && binaryTriggerPurchased));
+    if (hasBT) {
+        if (typeof showKillFeed === 'function') showKillFeed('双发扳机已购买');
+        return;
+    }
+    if (playerCurrency < 700) {
+        if (typeof showKillFeed === 'function') showKillFeed('金币不足，无法购买双发扳机 (需要 700$)');
+        return;
+    }
+    playerCurrency -= 700;
+    const bCred = document.getElementById('buy-credits');
+    if (bCred) bCred.innerText = playerCurrency;
+    const hCred = document.getElementById('hud-credits');
+    if (hCred) hCred.innerText = playerCurrency;
+    playerState.hasBinaryTrigger = true;
+    binaryTriggerPurchased = true;
+    const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+    if (typeof showKillFeed === 'function') {
+        showKillFeed('双发扳机已购买！单发模式下按下与松开均可攻击');
+    }
+    const btn = document.getElementById('btn-binary-trigger');
+    if (btn) {
+        const desc = isTouch ? '单发模式专用：按下攻击一次，松开再攻击一次' : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次';
+        btn.innerHTML = `双发扳机 <span class="price">已购买</span> <br><small>${desc}</small>`;
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.buyBinaryTrigger = buyBinaryTrigger;
+}
+
 function toggleDropCompensation() {
     if (!dropCompensationPurchased) return;
     // Every press recalculates: always re-measure distance and re-apply offset
@@ -295,7 +354,7 @@ function buyAmmo() {
         if (typeof showKillFeed === 'function') showKillFeed('近战武器无需购买子弹');
         return;
     }
-    if (['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'].includes(w.id)) {
+    if (['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'cryo'].includes(w.id)) {
         if (typeof showKillFeed === 'function') showKillFeed('投掷物请在装备栏直接购买');
         return;
     }

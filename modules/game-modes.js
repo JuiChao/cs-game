@@ -6,7 +6,7 @@ function getCurrentWeapon() {
     return WEAPONS[inventory.melee || 'knife'];
 }
 
-const NON_FIREARM_IDS = ['knife', 'kukri', 'switchblade', 'zombieClaw', 'hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'mortar', 'c4', 'flamethrower'];
+const NON_FIREARM_IDS = ['knife', 'kukri', 'switchblade', 'zombieClaw', 'hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'mortar', 'c4', 'flamethrower', 'cryo'];
 
 function getWeaponFireMode(weapon = null) {
     if (!weapon && typeof getCurrentWeapon === 'function') weapon = getCurrentWeapon();
@@ -43,6 +43,8 @@ function toggleFireMode(weapon = null) {
     if (typeof playerState !== 'undefined') {
         playerState.burstQueue = 0;
         playerState.recoilPatternIndex = 0;
+        playerState.binaryReleaseDueFrame = 0;
+        playerState.binaryTriggerPressed = false;
     }
     const cur = getWeaponFireMode(weapon);
     const next = (cur === 'single') ? 'multi' : 'single';
@@ -549,7 +551,7 @@ function getEffectiveMag(weapon) {
 function adjustClipForLightBullet() {
     const w = getCurrentWeapon();
     if (!w || typeof w.mag !== 'number') return;
-    if (['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'].includes(w.id)) return;
+    if (['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'cryo'].includes(w.id)) return;
     let currentAmmo = inventory.currentSlot === 1 ? ammoState.primary : ammoState.secondary;
     if (!currentAmmo) return;
     let baseMag = w.mag;
@@ -569,6 +571,7 @@ function adjustClipForLightBullet() {
 
 
 function switchWeapon(slot) {
+    if (playerState && playerState.isFrozen) return;
     if (playerState.isControllingDrone && slot !== 4) return;
     if (slot === 1 && !inventory.primary) return;
     if (slot === 2 && !inventory.secondary) return;
@@ -582,7 +585,7 @@ function switchWeapon(slot) {
     }
     
     if (slot === 4) {
-        const types = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'];
+        const types = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'cryo'];
         const available = types.filter(t => inventory.grenades[t] > 0);
         if (available.length === 0) return;
         
@@ -604,6 +607,8 @@ function switchWeapon(slot) {
         reloadTimer = null;
     }
     playerState.burstQueue = 0; // 切枪中断三连发
+    playerState.binaryReleaseDueFrame = 0;
+    playerState.binaryTriggerPressed = false;
 
     if (playerState.isAds && camera) {
         camera.fov = 75;
@@ -632,7 +637,7 @@ function switchWeapon(slot) {
 }
 
 function handleReload() {
-    if (isReloading || playerState.isSpectating) return;
+    if (isReloading || playerState.isSpectating || playerState.isFrozen) return;
     const weapon = getCurrentWeapon();
     if (weapon.id === 'knife' || weapon.id === 'kukri' || weapon.id === 'switchblade' || weapon.id === 'zombieClaw' || weapon.type === 'grenade') return;
     
@@ -642,6 +647,8 @@ function handleReload() {
     playerState.isInspecting = false;
     isReloading = true;
     playerState.burstQueue = 0; // 换弹中断三连发
+    playerState.binaryReleaseDueFrame = 0;
+    playerState.binaryTriggerPressed = false;
     showKillFeed(`正在换弹...`); // Reusing kill feed for HUD message
 
     // CS换弹音效序列: 退弹匣 -> 插弹匣 -> 拉栓

@@ -376,8 +376,16 @@ function setupTouchControls() {
                 handleShooting(true);
             }
         });
-        btnShoot.addEventListener('touchend', (e) => { e.preventDefault(); isShooting = false; });
-        btnShoot.addEventListener('touchcancel', (e) => { e.preventDefault(); isShooting = false; });
+        btnShoot.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            isShooting = false;
+            if (typeof handleTriggerRelease === 'function') handleTriggerRelease();
+        });
+        btnShoot.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            isShooting = false;
+            if (typeof handleTriggerRelease === 'function') handleTriggerRelease();
+        });
     }
     
     const btnAim = document.getElementById('touch-aim');
@@ -400,7 +408,7 @@ function setupTouchControls() {
             e.preventDefault();
             if (playerState.isControllingDrone) {
                 moveUp = true;
-            } else if (playerState.isOnGround && !playerState.isSpectating) {
+            } else if (playerState.isOnGround && !playerState.isSpectating && !playerState.isFrozen) {
                 playerState.velocity.y = 15;
                 playerState.isOnGround = false;
             }

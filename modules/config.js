@@ -106,6 +106,15 @@ function updateAdaptivePrompts() {
                 : '购买后开镜瞄准敌人按 V 键：准心一次性下移补偿弹道下坠，往上抬准心对准头部即可命中';
         }
     }
+    var binaryTriggerBtn = document.getElementById('btn-binary-trigger');
+    if (binaryTriggerBtn && (typeof binaryTriggerPurchased === 'undefined' || !binaryTriggerPurchased)) {
+        var smallBt = binaryTriggerBtn.querySelector('small');
+        if (smallBt) {
+            smallBt.innerText = isTouch
+                ? '单发模式专用：按下开火键攻击一次，松开再攻击一次'
+                : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次';
+        }
+    }
     var adrenalineBtn = document.getElementById('btn-adrenaline');
     if (adrenalineBtn) {
         var small3 = adrenalineBtn.querySelector('small');
@@ -280,6 +289,7 @@ const WEAPONS = {
     smoke: { id: 'smoke', name: '烟雾弹 (Smoke)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x9aa0a6, length: 0.2, killReward: 300 },
     sandbag: { id: 'sandbag', name: '沙包 (Sandbag)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xc2b280, length: 0.25, killReward: 0 },
     mine: { id: 'mine', name: '地雷 (Mine)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x2a3a2a, length: 0.2, killReward: 300 },
+    cryo: { id: 'cryo', name: '液氮冷罐 (Cryo)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x00d4ff, length: 0.2, killReward: 300 },
     drone: { id: 'drone', name: '战术无人机 (Drone)', damage: 150, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x2c3e50, length: 0.3, killReward: 300 },
     mortar: { id: 'mortar', name: '迫击炮 (Mortar)', damage: 150, fireRate: 120, spread: 0, mag: 1, reserve: 5, auto: false, range: 0, color: 0x4a5a2a, length: 0.6, killReward: 300, explosionRadius: 50 },
     c4: { id: 'c4', name: 'C4 炸弹', damage: 500, fireRate: 0, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x333333, length: 0.3, killReward: 300 }
@@ -325,7 +335,7 @@ let inventory = {
     secondary: 'pistol',
     melee: 'knife',
     melees: ['knife', 'kukri', 'switchblade'],
-    grenades: { hegrenade: 0, flashbang: 0, molotov: 0, smoke: 0, sandbag: 0, mine: 0, drone: 0 },
+    grenades: { hegrenade: 0, flashbang: 0, molotov: 0, smoke: 0, sandbag: 0, mine: 0, drone: 0, cryo: 0 },
     currentGrenade: null,
     currentSlot: 2 // 1: Primary, 2: Secondary, 3: Melee, 4: Grenade
 };
@@ -336,13 +346,6 @@ let ammoState = {
     grenade: { clip: 0, reserve: 0 }
 };
 
-if (typeof window !== 'undefined') {
-    window.inventory = inventory;
-    window.ammoState = ammoState;
-    window.WEAPONS = WEAPONS;
-    window.RECOIL_PATTERNS = RECOIL_PATTERNS;
-}
-
 let activeDrones = [];
 let knifeRangeIndicator;
 let predictionMarker;
@@ -351,6 +354,21 @@ let predictionGraceTimer = 0;
 let dropCompensationPurchased = false;
 let dropCompensationActive = false;
 let dropCompensationOffset = 0;
+let binaryTriggerPurchased = false;
+let activeCryoZones = [];
+
+if (typeof window !== 'undefined') {
+    window.inventory = inventory;
+    window.ammoState = ammoState;
+    window.WEAPONS = WEAPONS;
+    window.RECOIL_PATTERNS = RECOIL_PATTERNS;
+    window.activeCryoZones = activeCryoZones;
+    Object.defineProperty(window, 'binaryTriggerPurchased', {
+        get() { return binaryTriggerPurchased; },
+        set(val) { return binaryTriggerPurchased = val; },
+        configurable: true
+    });
+}
 
 let roundTime = 240;
 let roundTimerInterval = null;

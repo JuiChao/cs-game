@@ -252,9 +252,10 @@ function botAI(delta) {
 
         if (b.isControllingDrone) return;
 
-        // 电击麻痹: 停止一切行动（移动/开火/下包拆包）
-        if (b.stunTimer > 0) {
-            b.stunTimer--;
+        // 电击麻痹 或 液氮冰冻: 停止一切行动（移动/开火/下包拆包）
+        if (b.stunTimer > 0 || b.isFrozen) {
+            if (b.stunTimer > 0) b.stunTimer--;
+            if (b.isFrozen) b.actionProgress = 0;
             return;
         }
 
@@ -320,6 +321,20 @@ function botAI(delta) {
                 avoiding = true;
             }
         });
+
+        if (typeof activeCryoZones !== 'undefined' && Array.isArray(activeCryoZones)) {
+            activeCryoZones.forEach(z => {
+                const zPos = new THREE.Vector3(z.x, b.mesh.position.y, z.z);
+                const dist = b.mesh.position.distanceTo(zPos);
+                if (dist < 40) {
+                    const dir = new THREE.Vector3().subVectors(b.mesh.position, zPos);
+                    dir.y = 0;
+                    if (dir.lengthSq() > 0.001) dir.normalize(); else dir.set(1, 0, 0);
+                    avoidanceVec.add(dir.multiplyScalar(20 * delta));
+                    avoiding = true;
+                }
+            });
+        }
         
         grenades.forEach(g => {
             if (g.team !== b.team) {

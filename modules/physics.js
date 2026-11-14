@@ -83,6 +83,12 @@ function updatePhysics(delta) {
     // 生化模式: 肾上腺素期间移速提升
     if (gameMode === 'zombie' && adrenalineFrames > 0) speedMult *= ZOMBIE.adrenalineMult;
 
+    if (playerState.isFrozen) {
+        speedMult = 0;
+        playerState.velocity.x = 0;
+        playerState.velocity.z = 0;
+    }
+
     if (moveForward || moveBackward) playerState.velocity.z -= playerState.direction.z * 400.0 * speedMult * delta;
     if (moveLeft || moveRight) playerState.velocity.x -= playerState.direction.x * 400.0 * speedMult * delta;
 
@@ -284,6 +290,16 @@ function animate() {
         if ((controls && controls.isLocked) || isPlayerControlActive()) {
             if (!playerState.isControllingDrone) {
                 updatePhysics(delta);
+                if (playerState.binaryReleaseDueFrame && frameCount >= playerState.binaryReleaseDueFrame) {
+                    playerState.binaryReleaseDueFrame = 0;
+                    playerState.binaryTriggerPressed = false;
+                    const w = (typeof getCurrentWeapon === 'function') ? getCurrentWeapon() : null;
+                    const curMode = (typeof getWeaponFireMode === 'function') ? getWeaponFireMode(w) : 'multi';
+                    const hasBT = Boolean(playerState.hasBinaryTrigger || (typeof binaryTriggerPurchased !== 'undefined' && binaryTriggerPurchased));
+                    if (hasBT && curMode === 'single' && !isReloading && !playerState.isSpectating && !playerState.isFrozen) {
+                        handleShooting(true, true);
+                    }
+                }
                 handleShooting();
                 handleBomb();
             }
@@ -305,6 +321,7 @@ function animate() {
     if (typeof updateZombieGear === 'function') updateZombieGear(delta);
     updateFires(delta);
     updateSmokes(delta);
+    if (typeof updateCryoZones === 'function') updateCryoZones(delta);
     updateWeaponDrops(delta);
     
     // Global Bomb Timer Tick & Progressive Beep
@@ -826,7 +843,7 @@ function animate() {
                 baseSpread *= 0.6;
             }
         }
-        if (isShooting && !isReloading && controls && (controls.isLocked || isPlayerControlActive())) {
+        if (isShooting && !isReloading && !playerState.isFrozen && controls && (controls.isLocked || isPlayerControlActive())) {
             const isSingle = (typeof getWeaponFireMode === 'function') && getWeaponFireMode(weapon) === 'single';
             const canContShoot = !isSingle && (weapon.auto || (weapon.id === 'sniper' && (playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('light')))));
             if (canContShoot || (frameCount - (playerState.lastShot || -999) <= 2)) {

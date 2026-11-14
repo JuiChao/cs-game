@@ -73,7 +73,16 @@ let playerState = {
     killStreak: 0,
     lastFlameDamageTick: 0,
     cameraShake: 0,
-    weaponFireModes: {}
+    weaponFireModes: {},
+    hasBinaryTrigger: false,
+    binaryTriggerPressed: false,
+    binaryReleaseDueFrame: 0,
+    isFrozen: false,
+    freezeTimer: 0,
+    freezeImmuneTimer: 0,
+    cryoHits: 0,
+    cryoDamageTimer: 0,
+    cryoDecayTimer: 0
 };
 
 try {
@@ -278,7 +287,7 @@ document.addEventListener('keydown', (e) => {
             case 'Space': 
                 if (playerState.isControllingDrone) {
                     moveUp = true;
-                } else if (playerState.isOnGround && !playerState.isSpectating) {
+                } else if (playerState.isOnGround && !playerState.isSpectating && !playerState.isFrozen) {
                     playerState.velocity.y = 15; // Jump velocity
                     playerState.isOnGround = false;
                 }
@@ -292,7 +301,7 @@ document.addEventListener('keydown', (e) => {
             case 'KeyR': handleReload(); break;
             case 'KeyF':
                 if (mortarMapOpen) { fireMortar(); break; }
-                if (roundActive && !playerState.isSpectating && !playerState.isControllingDrone && playerState.viewModel) {
+                if (roundActive && !playerState.isSpectating && !playerState.isControllingDrone && !playerState.isFrozen && playerState.viewModel) {
                     if (!playerState.isInspecting) {
                         playerState.isInspecting = true;
                         playerState.inspectStartTime = performance.now();
@@ -380,7 +389,7 @@ document.addEventListener('mousedown', (e) => {
         isShooting = true; 
         handleShooting(true); 
     }
-    if (e.button === 2 && ((controls && controls.isLocked) || isPlayerControlActive())) {
+    if (e.button === 2 && !playerState.isFrozen && ((controls && controls.isLocked) || isPlayerControlActive())) {
         const w = getCurrentWeapon();
         if (w.id !== 'gatling' && w.id !== 'mortar' && w.id !== 'zombieClaw' && w.id !== 'flamethrower' && !playerState.isAds) {
             playerState.isAds = true;
@@ -389,7 +398,13 @@ document.addEventListener('mousedown', (e) => {
     }
 });
 document.addEventListener('mouseup', (e) => { 
-    if (e.button === 0) isShooting = false; 
+    if (e.button === 0) {
+        const wasShooting = isShooting;
+        isShooting = false;
+        if (typeof handleTriggerRelease === 'function') {
+            handleTriggerRelease(wasShooting);
+        }
+    }
     if (e.button === 2 && camera) {
         playerState.isAds = false;
     }

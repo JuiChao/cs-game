@@ -133,6 +133,7 @@
                     <button id="btn-throwable-smoke" onclick="buyWeapon('smoke', 300)" style="grid-column: span 2;">购买 烟雾弹 (Smoke) - $300</button>
                     <button id="btn-throwable-sandbag" onclick="buyWeapon('sandbag', 50)" style="grid-column: span 2;">购买 沙包 (Sandbag) - $50</button>
                     <button id="btn-throwable-mine" onclick="buyWeapon('mine', 300)" style="grid-column: span 2;">购买 地雷 (Mine) - $300</button>
+                    <button id="btn-throwable-cryo" onclick="buyWeapon('cryo', 400)" style="grid-column: span 2; background-color: #003a55;">购买 液氮冷罐 (Cryo) - $400</button>
                     <button id="btn-drone" onclick="buyWeapon('drone', 800)" style="grid-column: span 2; background-color: #2c3e50;">购买 战术无人机 (Drone) - $800</button>
                 </div>
                 <h3>特殊子弹 (Ammo Type)</h3>
@@ -152,6 +153,7 @@
                 </div>
                 <h3>辅助功能 (Utility)</h3>
                 <div class="mod-category">
+                    <button id="btn-binary-trigger" onclick="buyBinaryTrigger()" style="grid-column: span 4; background-color: #1a2a44;">双发扳机 <span class="price">700$</span> <br><small><span class="desktop-prompt-hint">单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次</span><span class="mobile-prompt-hint">单发模式专用：按下开火键攻击一次，松开再攻击一次</span></small></button>
                     <button id="btn-drop-comp" onclick="buyDropCompensation()" style="grid-column: span 4; background-color: #002244;">弹道下坠补偿 <span class="price">300$</span> <br><small><span class="desktop-prompt-hint">购买后开镜瞄准敌人按 V 键：准心一次性下移补偿弹道下坠，往上抬准心对准头部即可命中</span><span class="mobile-prompt-hint">购买后开镜自动测距补偿：准心下移补偿弹道下坠，对准敌人即可命中</span></small></button>
                     <button id="btn-medkit" onclick="buyMedkit()" style="grid-column: span 2; background-color: #3a1a1a;">医疗包 <span class="price">500$</span> <br><small>立即恢复生命值至100（满血时无法购买）</small></button>
                     <button id="btn-quick-grenade-hint" disabled style="grid-column: span 4; background-color: #333; opacity: 0.7; cursor: default;">快捷键提示 <br><small>G 键：快速投掷高爆手雷（无需切换武器，需先购买手雷）<br>地雷：切4号槽抛出，落地或撞墙即贴附，范围圈始终平铺地面显示，1.5秒后武装——队友踩上不触发不受伤，只炸敌人；携带上限5枚，场上上限10枚</small></button>
@@ -348,6 +350,12 @@
             <div id="bomb-status" class="hidden">
                 <h2 id="bomb-text">正在安装 C4...</h2>
                 <div class="progress-bar"><div id="bomb-progress"></div></div>
+            </div>
+
+            <!-- Freeze Status Overlay -->
+            <div id="freeze-status" class="hidden">
+                <h2 id="freeze-text">冰冻累积: 0%</h2>
+                <div class="progress-bar"><div id="freeze-progress"></div></div>
             </div>
 
             <!-- Interation Prompt -->

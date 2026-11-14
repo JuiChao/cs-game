@@ -165,7 +165,7 @@ if (typeof window !== 'undefined') {
 
 function updateTrajectory() {
     const weapon = getCurrentWeapon();
-    if (!weapon || !['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine'].includes(weapon.id) || !controls || (!controls.isLocked && !isPlayerControlActive()) || playerState.hp <= 0 || playerState.isSpectating) {
+    if (!weapon || !['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'cryo'].includes(weapon.id) || !controls || (!controls.isLocked && !isPlayerControlActive()) || playerState.hp <= 0 || playerState.isSpectating) {
         if (trajectoryLine) trajectoryLine.visible = false;
         if (trajectoryAreaPlane) trajectoryAreaPlane.visible = false;
         if (trajectoryAreaCircle) trajectoryAreaCircle.visible = false;
@@ -196,7 +196,7 @@ function updateTrajectory() {
     const dt = 0.05;
     
     const isFromDrone = playerState.isControllingDrone;
-    const lifeTime = weapon.id === 'molotov' ? Infinity : (weapon.id === 'hegrenade' && isFromDrone ? 1.5 : 2.0);
+    const lifeTime = (weapon.id === 'molotov' || weapon.id === 'cryo') ? Infinity : (weapon.id === 'hegrenade' && isFromDrone ? 1.5 : 2.0);
     const maxIters = lifeTime === Infinity ? 40 : Math.min(MAX_TRAJECTORY_POINTS - 2, Math.floor(lifeTime / dt));
     
     let count = 0;
@@ -244,7 +244,7 @@ function updateTrajectory() {
         posY = nextY;
         
         if (hitFloor) {
-            if (weapon.id === 'molotov') {
+            if (weapon.id === 'molotov' || weapon.id === 'cryo') {
                 trajectoryPositions[count * 3 + 0] = posX;
                 trajectoryPositions[count * 3 + 1] = posY;
                 trajectoryPositions[count * 3 + 2] = posZ;
@@ -260,14 +260,14 @@ function updateTrajectory() {
     trajectoryGeo.attributes.position.needsUpdate = true;
     trajectoryGeo.setDrawRange(0, count);
     
-    const lineColor = weapon.id === 'hegrenade' ? 0x00ff00 : (weapon.id === 'flashbang' ? 0xffffff : (weapon.id === 'molotov' ? 0xff4400 : 0xaa8844));
+    const lineColor = weapon.id === 'hegrenade' ? 0x00ff00 : (weapon.id === 'flashbang' ? 0xffffff : (weapon.id === 'molotov' ? 0xff4400 : (weapon.id === 'cryo' ? 0x00e5ff : 0xaa8844)));
     trajectoryLine.material.color.setHex(lineColor);
     trajectoryLine.visible = true;
     
     const finalX = count > 0 ? trajectoryPositions[(count - 1) * 3 + 0] : posX;
     const finalZ = count > 0 ? trajectoryPositions[(count - 1) * 3 + 2] : posZ;
     
-    if (weapon.id === 'molotov') {
+    if (weapon.id === 'molotov' || weapon.id === 'cryo') {
         if (trajectoryAreaCircle) trajectoryAreaCircle.visible = false;
         trajectoryArea = trajectoryAreaPlane;
         trajectoryArea.visible = true;

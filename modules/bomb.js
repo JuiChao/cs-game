@@ -41,7 +41,7 @@ function handleBomb() {
                 promptUI.classList.add('hidden');
             }
 
-            if (isInteracting && !moveForward && !moveBackward && !moveLeft && !moveRight && playerState.isOnGround) {
+            if (isInteracting && !playerState.isFrozen && !moveForward && !moveBackward && !moveLeft && !moveRight && playerState.isOnGround) {
                 document.getElementById('bomb-text').innerText = "正在拆除 C4...";
                 bombUI.classList.remove('hidden');
                 bombState.plantProgress += 1;
@@ -111,7 +111,7 @@ function handleBomb() {
                 promptUI.classList.add('hidden');
             }
 
-            if (isInteracting && !moveForward && !moveBackward && !moveLeft && !moveRight && playerState.isOnGround) {
+            if (isInteracting && !playerState.isFrozen && !moveForward && !moveBackward && !moveLeft && !moveRight && playerState.isOnGround) {
                 document.getElementById('bomb-text').innerText = "正在安装 C4...";
                 bombUI.classList.remove('hidden');
                 bombState.plantProgress += 1;

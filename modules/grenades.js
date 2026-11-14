@@ -85,7 +85,7 @@ function updateGrenades(delta) {
             g.circleMesh.position.z = g.mesh.position.z;
         }
 
-        if (g.life <= 0 || (g.type === 'molotov' && hitFloor)) {
+        if (g.life <= 0 || ((g.type === 'molotov' || g.type === 'cryo') && hitFloor)) {
             triggerGrenadeExplosion(g);
             scene.remove(g.mesh);
             if (g.mesh.geometry) g.mesh.geometry.dispose();
@@ -225,6 +225,8 @@ function triggerGrenadeExplosion(g) {
         } else {
             createHitEffect(pos, true);
         }
+    } else if (g.type === 'cryo') {
+        createCryoZone(pos, g.team, g.isFromDrone, g.isPlayer);
     }
 }
 
@@ -342,7 +344,7 @@ function isSegmentBlockedBySmoke(a, b) {
 
 function createGrenade(start, direction, type, team, isFromDrone = false, isPlayer = false) {
     const geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    const color = type === 'hegrenade' ? 0x005500 : (type === 'flashbang' ? 0xaaaaaa : (type === 'molotov' ? 0xaa4400 : (type === 'smoke' ? 0x9aa0a6 : (type === 'mine' ? 0x2a3a2a : 0xaa8844))));
+    const color = type === 'hegrenade' ? 0x005500 : (type === 'flashbang' ? 0xaaaaaa : (type === 'molotov' ? 0xaa4400 : (type === 'smoke' ? 0x9aa0a6 : (type === 'mine' ? 0x2a3a2a : (type === 'cryo' ? 0x00d4ff : 0xaa8844)))));
     const mat = new THREE.MeshStandardMaterial({ color });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.copy(start);
@@ -356,10 +358,254 @@ function createGrenade(start, direction, type, team, isFromDrone = false, isPlay
         velocity: direction.multiplyScalar(65),
         type: type,
         team: team,
-        life: (type === 'molotov' || type === 'mine') ? Infinity : (type === 'hegrenade' && isFromDrone ? 1.5 : 2.0),
+        life: (type === 'molotov' || type === 'mine' || type === 'cryo') ? Infinity : (type === 'hegrenade' && isFromDrone ? 1.5 : 2.0),
         isFromDrone: isFromDrone,
         isPlayer: isPlayer
     });
+}
+
+function createCryoZone(pos, team, isFromDrone = false, isPlayer = false) {
+    if (typeof activeCryoZones === 'undefined') activeCryoZones = [];
+    const size = isFromDrone ? 45 * 1.25 : 45;
+    const cryoGeo = new THREE.PlaneGeometry(size, size);
+    const cryoMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.65, side: THREE.DoubleSide });
+    const cryoMesh = new THREE.Mesh(cryoGeo, cryoMat);
+    cryoMesh.rotation.x = -Math.PI / 2;
+    cryoMesh.position.set(pos.x, 0.12, pos.z);
+    scene.add(cryoMesh);
+
+    const innerGeo = new THREE.RingGeometry(size * 0.15, size * 0.48, 32);
+    const innerMat = new THREE.MeshBasicMaterial({ color: 0xa0e8ff, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+    const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+    innerMesh.rotation.x = -Math.PI / 2;
+    innerMesh.position.set(pos.x, 0.14, pos.z);
+    scene.add(innerMesh);
+
+    createHitEffect(pos, true);
+    if (typeof playExplosionSound === 'function') playExplosionSound(pos);
+
+    activeCryoZones.push({
+        mesh: cryoMesh,
+        innerMesh: innerMesh,
+        life: 8.0,
+        x: pos.x,
+        z: pos.z,
+        halfSize: size / 2,
+        team: team,
+        isFromDrone: isFromDrone,
+        isPlayer: isPlayer,
+        rangeTimer: 0
+    });
+}
+
+function updateCryoZones(delta) {
+    if (typeof activeCryoZones === 'undefined' || !activeCryoZones) return;
+
+    // 1. Zone lifecycle
+    for (let i = activeCryoZones.length - 1; i >= 0; i--) {
+        const z = activeCryoZones[i];
+        z.life -= delta;
+        if (z.life <= 0) {
+            if (z.mesh) {
+                scene.remove(z.mesh);
+                if (z.mesh.geometry) z.mesh.geometry.dispose();
+                if (z.mesh.material) z.mesh.material.dispose();
+            }
+            if (z.innerMesh) {
+                scene.remove(z.innerMesh);
+                if (z.innerMesh.geometry) z.innerMesh.geometry.dispose();
+                if (z.innerMesh.material) z.innerMesh.material.dispose();
+            }
+            activeCryoZones.splice(i, 1);
+            continue;
+        }
+        if (z.mesh && z.mesh.material) {
+            z.mesh.material.opacity = 0.55 + Math.sin((8.0 - z.life) * 4) * 0.12;
+        }
+    }
+
+    // 2. Player freeze timer & immunity countdown
+    if (typeof playerState !== 'undefined') {
+        if (playerState.isFrozen) {
+            playerState.freezeTimer -= delta;
+            if (playerState.freezeTimer <= 0) {
+                playerState.isFrozen = false;
+                playerState.freezeTimer = 0;
+                playerState.freezeImmuneTimer = 5.0; // 3 秒之后解冻，解冻之后的 5 秒内不会再被冰冻
+                playerState.cryoHits = 0;
+            }
+        } else if (playerState.freezeImmuneTimer > 0) {
+            playerState.freezeImmuneTimer -= delta;
+            if (playerState.freezeImmuneTimer < 0) playerState.freezeImmuneTimer = 0;
+        }
+
+        // Check if player is inside any active cryo zone
+        let pInZone = false;
+        let zForPlayer = null;
+        if (playerState.hp > 0 && !playerState.isSpectating && typeof getPlayerPosition === 'function') {
+            const pPos = getPlayerPosition();
+            for (let j = 0; j < activeCryoZones.length; j++) {
+                const z = activeCryoZones[j];
+                if (Math.abs(pPos.x - z.x) < z.halfSize && Math.abs(pPos.z - z.z) < z.halfSize) {
+                    pInZone = true;
+                    zForPlayer = z;
+                    break;
+                }
+            }
+        }
+
+        if (pInZone && playerState.hp > 0 && !playerState.isSpectating) {
+            playerState.cryoDecayTimer = 0;
+            playerState.cryoDamageTimer = (playerState.cryoDamageTimer || 0) + delta;
+            while (playerState.cryoDamageTimer >= 0.5) {
+                playerState.cryoDamageTimer -= 0.5;
+                if (!playerState.isInvincible) playerState.hp -= 5;
+                if (typeof triggerDamageVignette === 'function') triggerDamageVignette(0.2);
+                playerState.lastCombatTime = frameCount;
+                if (typeof updateHUD === 'function') updateHUD();
+                if (playerState.hp <= 0) {
+                    playerDie(zForPlayer ? zForPlayer.team : 'T', 'cryo');
+                    break;
+                }
+                if (!playerState.isFrozen && (!playerState.freezeImmuneTimer || playerState.freezeImmuneTimer <= 0)) {
+                    playerState.cryoHits = (playerState.cryoHits || 0) + 1;
+                    if (playerState.cryoHits >= 5) {
+                        playerState.isFrozen = true;
+                        playerState.freezeTimer = 3.0; // 持续 3 秒
+                        playerState.cryoHits = 5;
+                        playerState.isAds = false;
+                        playerState.isInspecting = false;
+                        playerState.binaryReleaseDueFrame = 0;
+                        playerState.binaryTriggerPressed = false;
+                    }
+                }
+            }
+        } else {
+            playerState.cryoDamageTimer = 0;
+            if (!playerState.isFrozen) {
+                playerState.cryoDecayTimer = (playerState.cryoDecayTimer || 0) + delta;
+                if (playerState.cryoDecayTimer >= 2.0) {
+                    playerState.cryoHits = 0;
+                }
+            }
+        }
+
+        // Update on-screen freeze progress bar
+        const freezeStatusEl = document.getElementById('freeze-status');
+        const freezeProgEl = document.getElementById('freeze-progress');
+        const freezeTextEl = document.getElementById('freeze-text');
+        if (freezeStatusEl && freezeProgEl && freezeTextEl) {
+            if (playerState.hp <= 0 || playerState.isSpectating) {
+                freezeStatusEl.classList.add('hidden');
+            } else if (playerState.isFrozen) {
+                freezeStatusEl.classList.remove('hidden');
+                freezeProgEl.style.width = '100%';
+                freezeTextEl.innerText = `已冰冻! (${playerState.freezeTimer.toFixed(1)}s)`;
+            } else if (playerState.cryoHits > 0) {
+                freezeStatusEl.classList.remove('hidden');
+                const pct = Math.min(100, Math.round((playerState.cryoHits / 5) * 100));
+                freezeProgEl.style.width = pct + '%';
+                freezeTextEl.innerText = `冰冻累积: ${pct}% (${playerState.cryoHits}/5)`;
+            } else if (playerState.freezeImmuneTimer > 0 && pInZone) {
+                freezeStatusEl.classList.remove('hidden');
+                freezeProgEl.style.width = '0%';
+                freezeTextEl.innerText = `冰冻免疫中 (${Math.max(0, playerState.freezeImmuneTimer).toFixed(1)}s)`;
+            } else {
+                freezeStatusEl.classList.add('hidden');
+                freezeProgEl.style.width = '0%';
+            }
+        }
+    }
+
+    // 3. Bots update
+    if (typeof bots !== 'undefined' && Array.isArray(bots)) {
+        for (let bIdx = bots.length - 1; bIdx >= 0; bIdx--) {
+            const b = bots[bIdx];
+            if (!b || b.isDead) continue;
+
+            if (b.isFrozen) {
+                if (b.cryoFreezeTimer === undefined) b.cryoFreezeTimer = (b.freezeTimer && b.freezeTimer <= 3.0) ? b.freezeTimer : 3.0;
+                b.cryoFreezeTimer -= delta;
+                b.freezeTimer = Math.max(0, b.cryoFreezeTimer);
+                if (b.cryoFreezeTimer <= 0) {
+                    b.isFrozen = false;
+                    b.cryoFreezeTimer = 0;
+                    b.freezeTimer = 0;
+                    b.freezeImmuneTimer = 5.0; // 解冻后 5 秒内不会再被冰冻
+                    b.cryoHits = 0;
+                }
+            } else if (b.freezeImmuneTimer > 0) {
+                b.freezeImmuneTimer -= delta;
+                if (b.freezeImmuneTimer < 0) b.freezeImmuneTimer = 0;
+            }
+
+            let bInZone = false;
+            let bZone = null;
+            for (let j = 0; j < activeCryoZones.length; j++) {
+                const z = activeCryoZones[j];
+                if (Math.abs(b.mesh.position.x - z.x) < z.halfSize && Math.abs(b.mesh.position.z - z.z) < z.halfSize) {
+                    bInZone = true;
+                    bZone = z;
+                    break;
+                }
+            }
+
+            if (bInZone) {
+                b.cryoDecayTimer = 0;
+                b.cryoDamageTimer = (b.cryoDamageTimer || 0) + delta;
+                while (b.cryoDamageTimer >= 0.5) {
+                    b.cryoDamageTimer -= 0.5;
+                    b.hp -= 5;
+                    if (bZone && bZone.isPlayer && typeof showFloatingDamage === 'function' && b.mesh) {
+                        showFloatingDamage(5, b.mesh.position);
+                    }
+                    if (b.hp <= 0) {
+                        killBot(bIdx, bZone ? bZone.team : 'CT', 'cryo', bZone ? !!bZone.isPlayer : false);
+                        break;
+                    }
+                    if (!b.isFrozen && (!b.freezeImmuneTimer || b.freezeImmuneTimer <= 0)) {
+                        b.cryoHits = (b.cryoHits || 0) + 1;
+                        if (b.cryoHits >= 5) {
+                            b.isFrozen = true;
+                            b.cryoFreezeTimer = 3.0;
+                            b.freezeTimer = 3.0;
+                            b.cryoHits = 5;
+                            b.actionProgress = 0;
+                        }
+                    }
+                }
+            } else {
+                b.cryoDamageTimer = 0;
+                if (!b.isFrozen) {
+                    b.cryoDecayTimer = (b.cryoDecayTimer || 0) + delta;
+                    if (b.cryoDecayTimer >= 2.0) {
+                        b.cryoHits = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Shooting range targets
+    if (typeof isShootingRange !== 'undefined' && isShootingRange && typeof rangeTargets !== 'undefined') {
+        for (let i = 0; i < activeCryoZones.length; i++) {
+            const z = activeCryoZones[i];
+            z.rangeTimer = (z.rangeTimer || 0) + delta;
+            if (z.rangeTimer >= 0.5) {
+                z.rangeTimer -= 0.5;
+                rangeTargets.forEach(t => {
+                    if (Math.abs(t.position.x - z.x) < z.halfSize && Math.abs(t.position.z - z.z) < z.halfSize) {
+                        if (typeof showFloatingDamage === 'function') showFloatingDamage(5, t.position);
+                    }
+                });
+            }
+        }
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.createCryoZone = createCryoZone;
+    window.updateCryoZones = updateCryoZones;
 }
 
 // #endregion

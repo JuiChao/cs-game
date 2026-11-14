@@ -139,7 +139,7 @@ function updateHUD() {
 
     const fmDisplay = document.getElementById('fire-mode-badge');
     if (fmDisplay) {
-        const nonFirearms = ['knife', 'kukri', 'switchblade', 'zombieClaw', 'hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'mortar', 'c4', 'flamethrower'];
+        const nonFirearms = ['knife', 'kukri', 'switchblade', 'zombieClaw', 'hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'mortar', 'c4', 'flamethrower', 'cryo'];
         const isGun = w && inventory && (inventory.currentSlot === 1 || inventory.currentSlot === 2) &&
                       !nonFirearms.includes(w.id);
         if (!isGun) {
@@ -167,7 +167,7 @@ function updateHUD() {
         if (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade' || w.id === 'zombieClaw') {
             ammoClip.innerText = '-';
             ammoReserve.innerText = '-';
-        } else if (['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'].includes(w.id)) {
+        } else if (['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'cryo'].includes(w.id)) {
             ammoClip.innerText = (inventory && inventory.grenades) ? (inventory.grenades[w.id] || 0) : 0;
             ammoReserve.innerText = '-';
         } else {

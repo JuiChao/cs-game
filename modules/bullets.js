@@ -224,6 +224,11 @@ function spawnBots(ctSpawns, tSpawns) {
             stunTimer: 0,
             freezeTimer: 0,
             freezeStacks: 0,
+            isFrozen: false,
+            cryoFreezeTimer: 0,
+            cryoHits: 0,
+            cryoDamageTimer: 0,
+            freezeImmuneTimer: 0,
             bombTarget: null,
             hasDrone: hasDrone,
             isControllingDrone: false
@@ -384,7 +389,9 @@ function applyBulletStatusEffects(b, bot, hitPoint) {
     if (hasBulletType(b, 'freeze')) {
         const cfg = BULLET_TYPES.freeze;
         bot.freezeStacks = Math.min(cfg.maxFreezeStacks, (bot.freezeStacks || 0) + 1);
-        bot.freezeTimer = cfg.freezeFrames;
+        if (!bot.isFrozen) {
+            bot.freezeTimer = cfg.freezeFrames;
+        }
         createFreezeEffect(hitPoint);
     }
 }

@@ -203,6 +203,8 @@ h1, h2, h3, h4 {
 .inv-slot .key,
 #bomb-status,
 #bomb-text,
+#freeze-status,
+#freeze-text,
 #mortar-map-info,
 .team-score small,
 #controls-hint {
@@ -1880,6 +1882,40 @@ h1, h2, h3, h4 {
     background: #ff3c3c;
 }
 
+/* Freeze Status UI */
+#freeze-status {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background: rgba(10, 25, 40, 0.85);
+    backdrop-filter: blur(10px);
+    padding: 16px 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+    pointer-events: none;
+    z-index: 50;
+}
+
+#freeze-text {
+    color: #00d4ff;
+    font-family: 'Orbitron', 'Inter', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+}
+
+#freeze-progress {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #0099ff, #00e5ff);
+    box-shadow: 0 0 10px #00e5ff;
+    transition: width 0.1s linear;
+}
+
 #interact-prompt {
     position: absolute;
     top: 50%;
@@ -2684,8 +2720,8 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     /* Prompts & Alerts */
     #controls-hint { display: none !important; }
     #buy-prompt { display: none !important; }
-    #bomb-status { top: 22% !important; padding: 10px 18px !important; background: rgba(6, 12, 20, 0.6) !important; border-radius: 6px !important; }
-    #bomb-text { font-size: 0.9rem !important; margin-bottom: 6px !important; }
+    #bomb-status, #freeze-status { top: 22% !important; padding: 10px 18px !important; background: rgba(6, 12, 20, 0.6) !important; border-radius: 6px !important; }
+    #bomb-text, #freeze-text { font-size: 0.9rem !important; margin-bottom: 6px !important; }
     .progress-bar { width: 180px !important; height: 6px !important; }
     #interact-prompt, #pickup-prompt { padding: 6px 14px !important; font-size: 0.8rem !important; background: rgba(6, 12, 20, 0.65) !important; border-radius: 6px !important; }
     #spectator-prompt { top: 6% !important; padding: 6px 14px !important; background: rgba(6, 12, 20, 0.6) !important; border-radius: 6px !important; }
@@ -3181,14 +3217,16 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     /* Prompts & Alerts */
     #controls-hint { display: none !important; }
     #buy-prompt { display: none !important; }
-    #bomb-status {
+    #bomb-status,
+    #freeze-status {
         top: 22% !important;
         padding: 8px 14px !important;
         background: rgba(6, 12, 20, 0.6) !important;
         border-radius: 6px !important;
         max-width: 180px !important;
     }
-    #bomb-text { font-size: 0.8rem !important; margin-bottom: 4px !important; }
+    #bomb-text,
+    #freeze-text { font-size: 0.8rem !important; margin-bottom: 4px !important; }
     .progress-bar { width: 150px !important; height: 5px !important; }
     #interact-prompt, #pickup-prompt {
         padding: 5px 12px !important;
@@ -3479,14 +3517,16 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     }
     #controls-hint { display: none !important; }
     #buy-prompt { display: none !important; }
-    #bomb-status {
+    #bomb-status,
+    #freeze-status {
         top: 20% !important;
         padding: 6px 12px !important;
         background: rgba(4, 8, 14, 0.55) !important;
         border-radius: 6px !important;
         max-width: 160px !important;
     }
-    #bomb-text { font-size: 0.75rem !important; margin-bottom: 3px !important; }
+    #bomb-text,
+    #freeze-text { font-size: 0.75rem !important; margin-bottom: 3px !important; }
     .progress-bar { width: 130px !important; height: 5px !important; }
     #interact-prompt, #pickup-prompt {
         padding: 4px 10px !important;

@@ -640,6 +640,40 @@ function resetRound() {
         playerState.isControllingDrone = false;
         playerState.lastFlameDamageTick = 0;
         playerState.cameraShake = 0;
+        playerState.isFrozen = false;
+        playerState.freezeTimer = 0;
+        playerState.freezeImmuneTimer = 0;
+        playerState.cryoHits = 0;
+        playerState.cryoDamageTimer = 0;
+        playerState.cryoDecayTimer = 0;
+        playerState.binaryReleaseDueFrame = 0;
+        playerState.binaryTriggerPressed = false;
+        playerState.isAds = false;
+        if (typeof binaryTriggerPurchased !== 'undefined') {
+            playerState.hasBinaryTrigger = Boolean(binaryTriggerPurchased);
+        }
+    }
+    const _freezeStatus = document.getElementById('freeze-status');
+    if (_freezeStatus) _freezeStatus.classList.add('hidden');
+    const _freezeProg = document.getElementById('freeze-progress');
+    if (_freezeProg) _freezeProg.style.width = '0%';
+
+    // 清理液氮冷罐区域
+    if (typeof activeCryoZones !== 'undefined' && activeCryoZones.length > 0) {
+        for (let i = activeCryoZones.length - 1; i >= 0; i--) {
+            const z = activeCryoZones[i];
+            if (z.mesh) {
+                scene.remove(z.mesh);
+                if (z.mesh.geometry) z.mesh.geometry.dispose();
+                if (z.mesh.material) z.mesh.material.dispose();
+            }
+            if (z.innerMesh) {
+                scene.remove(z.innerMesh);
+                if (z.innerMesh.geometry) z.innerMesh.geometry.dispose();
+                if (z.innerMesh.material) z.innerMesh.material.dispose();
+            }
+        }
+        activeCryoZones.length = 0;
     }
     if (typeof cleanupMortar === 'function') cleanupMortar();
     else if (typeof cancelMortarCamera === 'function') cancelMortarCamera();

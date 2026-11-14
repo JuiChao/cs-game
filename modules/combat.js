@@ -1,13 +1,16 @@
 // #region 射击与战斗
-function handleShooting(initialClick = false) {
-    if (playerState.isSpectating) return;
+function handleShooting(initialClick = false, isRelease = false) {
+    if (playerState.isSpectating || playerState.isFrozen) return;
     if (!controls || (!controls.isLocked && !isPlayerControlActive())) return;
+    if (initialClick && !isRelease) {
+        playerState.binaryReleaseDueFrame = 0;
+    }
     
     if (playerState.isControllingDrone) {
         if (!initialClick) return;
         if (inventory.currentSlot !== 4) return;
         const weapon = getCurrentWeapon();
-        if (!weapon || !['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine'].includes(weapon.id)) return;
+        if (!weapon || !['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'cryo'].includes(weapon.id)) return;
 
         const camDir = new THREE.Vector3();
         camera.getWorldDirection(camDir);
@@ -15,7 +18,7 @@ function handleShooting(initialClick = false) {
 
         inventory.grenades[weapon.id]--;
 
-        const types = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'];
+        const types = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'cryo'];
         const available = types.filter(t => inventory.grenades[t] > 0);
         if (available.length > 0) {
             if (inventory.grenades[weapon.id] <= 0) {
@@ -62,8 +65,8 @@ function handleShooting(initialClick = false) {
     }
 
     const canAutoFire = !isSingleMode && (weapon.auto || awpLightAuto);
-    if (!canAutoFire && !initialClick && !burstShotDue) return;
-    if (!isShooting && !burstShotDue) {
+    if (!canAutoFire && !initialClick && !burstShotDue && !isRelease) return;
+    if (!isShooting && !burstShotDue && !isRelease) {
         playerState.gatlingFireStartFrame = 0;
         return;
     }
@@ -120,7 +123,7 @@ function handleShooting(initialClick = false) {
         
         inventory.grenades[weapon.id]--;
         
-        const types = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone'];
+        const types = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'cryo'];
         const available = types.filter(t => inventory.grenades[t] > 0);
         if (available.length > 0) {
             if (inventory.grenades[weapon.id] <= 0) {
@@ -140,6 +143,9 @@ function handleShooting(initialClick = false) {
     }
 
     playerState.lastShot = frameCount;
+    if (initialClick && !isRelease && isSingleMode && (playerState.hasBinaryTrigger || (typeof binaryTriggerPurchased !== 'undefined' && binaryTriggerPurchased))) {
+        playerState.binaryTriggerPressed = true;
+    }
     // 三连发: 首发入队后续弹, 队列弹推进后重新排队 (单发模式下不进行连发入队)
     if (weapon.burst && !isSingleMode) {
         if (burstShotDue) {
@@ -557,6 +563,18 @@ function handleShooting(initialClick = false) {
 
 function playerDie(killerTeam = null, weaponId = 'rifle') {
     playerState.killStreak = 0; // 死亡清零连杀
+    playerState.isFrozen = false;
+    playerState.freezeTimer = 0;
+    playerState.freezeImmuneTimer = 0;
+    playerState.cryoHits = 0;
+    playerState.cryoDamageTimer = 0;
+    playerState.binaryReleaseDueFrame = 0;
+    playerState.binaryTriggerPressed = false;
+    playerState.isAds = false;
+    const _fStatus = document.getElementById('freeze-status');
+    if (_fStatus) _fStatus.classList.add('hidden');
+    const _fProg = document.getElementById('freeze-progress');
+    if (_fProg) _fProg.style.width = '0%';
     // 生化模式: 人类死亡即被感染，僵尸死亡8秒后重生
     if (gameMode === 'zombie' && roundActive) {
         if (!playerState.isZombie) {
@@ -616,7 +634,7 @@ function showSpectatorPrompt() {
 
 // ── G键快速投掷高爆手雷（无需切换到4号槽位）──
 function quickThrowGrenade() {
-    if (!roundActive || playerState.isSpectating || playerState.isControllingDrone || playerState.hp <= 0) return;
+    if (!roundActive || playerState.isSpectating || playerState.isControllingDrone || playerState.hp <= 0 || playerState.isFrozen) return;
     if (gameMode === 'zombie' && (playerState.isZombie || playerState.team === 'ZOMBIE')) return;
     if (!(inventory.grenades.hegrenade > 0)) {
         showKillFeed('没有高爆手雷！可在商店购买');
@@ -828,6 +846,11 @@ function killBot(index, killerTeam, weaponId = 'rifle', killerIsPlayer = false, 
         bot.stunTimer = 0;
         bot.freezeTimer = 0;
         bot.freezeStacks = 0;
+        bot.isFrozen = false;
+        bot.cryoFreezeTimer = 0;
+        bot.cryoHits = 0;
+        bot.cryoDamageTimer = 0;
+        bot.freezeImmuneTimer = 0;
         scene.remove(bot.mesh);
         checkWinCondition();
         return;
@@ -964,7 +987,7 @@ function handleWeaponPickup() {
         promptEl.addEventListener('click', triggerPickup);
         promptEl.addEventListener('touchstart', triggerPickup, { passive: false });
     }
-    if (isInteracting && frameCount - (playerState.lastPickupFrame || -999) > 30) {
+    if (isInteracting && !playerState.isFrozen && frameCount - (playerState.lastPickupFrame || -999) > 30) {
         playerState.lastPickupFrame = frameCount;
         const isSecondary = drop.weaponId === 'pistol' || drop.weaponId === 'deagle';
         if (isSecondary) {
@@ -983,6 +1006,55 @@ function handleWeaponPickup() {
         promptEl.classList.add('hidden');
         updateHUD();
     }
+}
+
+function handleTriggerRelease(wasShooting = undefined) {
+    if (playerState.isSpectating || playerState.isControllingDrone || playerState.isFrozen) return;
+    if (isReloading) return;
+    if (!controls || (!controls.isLocked && !isPlayerControlActive())) return;
+    const hasBT = Boolean(playerState.hasBinaryTrigger || (typeof binaryTriggerPurchased !== 'undefined' && binaryTriggerPurchased));
+    if (!hasBT) return;
+    const weapon = getCurrentWeapon();
+    if (!weapon || (typeof NON_FIREARM_IDS !== 'undefined' && NON_FIREARM_IDS.includes(weapon.id))) return;
+    const currentFireMode = (typeof getWeaponFireMode === 'function') ? getWeaponFireMode(weapon) : 'multi';
+    if (currentFireMode !== 'single') {
+        playerState.binaryTriggerPressed = false;
+        playerState.binaryReleaseDueFrame = 0;
+        return;
+    }
+
+    if (wasShooting === false) {
+        playerState.binaryTriggerPressed = false;
+        return;
+    }
+    if (!playerState.binaryTriggerPressed && !playerState.binaryReleaseDueFrame && wasShooting === undefined) {
+        return;
+    }
+    playerState.binaryTriggerPressed = false;
+
+    let currentAmmo = inventory.currentSlot === 1 ? ammoState.primary : (inventory.currentSlot === 2 ? ammoState.secondary : null);
+    if (!currentAmmo || currentAmmo.clip <= 0) return;
+
+    const hasLightBullet = playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('light'));
+    const awpLightAuto = weapon.id === 'sniper' && hasLightBullet;
+    let requiredCooldown = weapon.fireRate;
+    if (hasLightBullet) {
+        if (awpLightAuto) requiredCooldown = 60 / 7;
+        else requiredCooldown *= 0.30;
+    }
+    let isDualBullet = playerState.bulletType === 'dual' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('dual'));
+    if (isDualBullet && weapon.id !== 'ash12') requiredCooldown *= 1.45;
+
+    if (frameCount - (playerState.lastShot || -999) >= requiredCooldown) {
+        playerState.binaryReleaseDueFrame = 0;
+        handleShooting(true, true);
+    } else {
+        playerState.binaryReleaseDueFrame = (playerState.lastShot || 0) + Math.ceil(requiredCooldown);
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.handleTriggerRelease = handleTriggerRelease;
 }
 
 // #endregion
