@@ -326,7 +326,8 @@ function botAI(delta) {
             activeCryoZones.forEach(z => {
                 const zPos = new THREE.Vector3(z.x, b.mesh.position.y, z.z);
                 const dist = b.mesh.position.distanceTo(zPos);
-                if (dist < 40) {
+                const avoidRadius = (z.halfSize || 32.5) + 12;
+                if (dist < avoidRadius) {
                     const dir = new THREE.Vector3().subVectors(b.mesh.position, zPos);
                     dir.y = 0;
                     if (dir.lengthSq() > 0.001) dir.normalize(); else dir.set(1, 0, 0);

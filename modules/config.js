@@ -241,11 +241,27 @@ function zombieExplosiveDmgMult(target) {
     return (gameMode === 'zombie' && target && target.team === 'ZOMBIE') ? 3 : 1;
 }
 
-// 冰冻子弹减速倍率: 1层50% / 2层65% / 3层80% 减速（供Bot移速计算调用）
+function isBotInCryoZone(bot) {
+    if (!bot || !bot.mesh) return false;
+    if (typeof activeCryoZones === 'undefined' || !activeCryoZones || activeCryoZones.length === 0) return false;
+    for (let i = 0; i < activeCryoZones.length; i++) {
+        const z = activeCryoZones[i];
+        if (Math.abs(bot.mesh.position.x - z.x) < z.halfSize && Math.abs(bot.mesh.position.z - z.z) < z.halfSize) return true;
+    }
+    return false;
+}
+
+// 冰冻子弹减速倍率 与 液氮冷罐减速（供Bot移速计算调用）
 function botFreezeSpeedMult(bot) {
-    if (!bot || !(bot.freezeTimer > 0)) return 1;
-    const stacks = Math.max(1, Math.min(BULLET_TYPES.freeze.maxFreezeStacks, bot.freezeStacks || 1));
-    return 1 - (0.5 + 0.15 * (stacks - 1));
+    let mult = 1.0;
+    if (bot && bot.freezeTimer > 0) {
+        const stacks = Math.max(1, Math.min(BULLET_TYPES.freeze.maxFreezeStacks, bot.freezeStacks || 1));
+        mult *= (1 - (0.5 + 0.15 * (stacks - 1)));
+    }
+    if (bot && (bot.inCryoZone || isBotInCryoZone(bot))) {
+        mult *= 0.6; // 液氮冷罐范围内减速 40%
+    }
+    return mult;
 }
 
 // Bot Difficulty Settings

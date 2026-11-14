@@ -75,16 +75,19 @@ async function runTests() {
             zoneHalfSize: z.halfSize,
             zoneLife: z.life,
             hasMesh: !!z.mesh,
-            hasInnerMesh: !!z.innerMesh
+            hasInnerMesh: !!z.innerMesh,
+            hasCountdownSprite: !!z.countdownSprite,
+            hasCountdownCanvas: !!z.countdownCanvas
         };
     });
 
     assert(zoneCreateTest.zoneCount >= 1, "createCryoZone adds zone to activeCryoZones");
-    assert(zoneCreateTest.zoneHalfSize === 22.5, "Standard cryo zone halfSize is 22.5 (size 45)");
-    assert(zoneCreateTest.zoneLife === 8.0, "Cryo zone initial life is 8.0 seconds");
+    assert(zoneCreateTest.zoneHalfSize === 32.5, "Standard cryo zone halfSize is 32.5 (size 65, expanded from 45)");
+    assert(zoneCreateTest.zoneLife === 11.0, "Cryo zone initial life is 11.0 seconds (8s + 3s)");
     assert(zoneCreateTest.hasMesh && zoneCreateTest.hasInnerMesh, "Cryo zone has outer mesh and inner ring mesh");
+    assert(zoneCreateTest.hasCountdownSprite && zoneCreateTest.hasCountdownCanvas, "Cryo zone has circular countdown sprite & canvas above area");
 
-    console.log("\n--- Section 1.3: Cryo Damage (5 damage per 0.5s) & Accumulation HUD ---");
+    console.log("\n--- Section 1.3: Cryo Damage (Escalating +1 per 0.5s) & 3s Accumulation ---");
     const damageProgressionTest = await page.evaluate(() => {
         // Place zone at center, position player at center
         activeCryoZones.length = 0;
@@ -93,6 +96,8 @@ async function runTests() {
         playerState.isFrozen = false;
         playerState.freezeTimer = 0;
         playerState.freezeImmuneTimer = 0;
+        playerState.cryoFreezeAccum = 0;
+        playerState.cryoDamageTicks = 0;
         playerState.cryoHits = 0;
         playerState.cryoDamageTimer = 0;
         camera.position.set(0, 2, 0);
@@ -107,56 +112,58 @@ async function runTests() {
         snapshots.push({
             t: 0.25,
             hp: playerState.hp,
-            hits: playerState.cryoHits,
             isFrozen: playerState.isFrozen,
             uiHidden: freezeStatus ? freezeStatus.classList.contains('hidden') : true
         });
 
-        // Tick another 0.25s (total 0.5s): Tick 1 (5 damage, 1 hit, 20% progress)
+        // Tick another 0.25s (total 0.5s): Tick 1 (5 base damage, hp 100 -> 95)
         updateCryoZones(0.25);
         snapshots.push({
             t: 0.5,
             hp: playerState.hp,
-            hits: playerState.cryoHits,
             isFrozen: playerState.isFrozen,
             uiHidden: freezeStatus ? freezeStatus.classList.contains('hidden') : true,
             progWidth: freezeProg ? freezeProg.style.width : '',
             text: freezeText ? freezeText.innerText : ''
         });
 
-        // Tick 0.5s (total 1.0s): Tick 2 (5 damage -> 90 hp, 2 hits, 40%)
+        // Tick 0.5s (total 1.0s): Tick 2 (5 + 1 = 6 damage -> hp 89)
         updateCryoZones(0.5);
         snapshots.push({
             t: 1.0,
             hp: playerState.hp,
-            hits: playerState.cryoHits,
             progWidth: freezeProg ? freezeProg.style.width : ''
         });
 
-        // Tick 0.5s (total 1.5s): Tick 3 (5 damage -> 85 hp, 3 hits, 60%)
+        // Tick 0.5s (total 1.5s): Tick 3 (5 + 2 = 7 damage -> hp 82)
         updateCryoZones(0.5);
         snapshots.push({
             t: 1.5,
             hp: playerState.hp,
-            hits: playerState.cryoHits,
             progWidth: freezeProg ? freezeProg.style.width : ''
         });
 
-        // Tick 0.5s (total 2.0s): Tick 4 (5 damage -> 80 hp, 4 hits, 80%)
+        // Tick 0.5s (total 2.0s): Tick 4 (5 + 3 = 8 damage -> hp 74)
         updateCryoZones(0.5);
         snapshots.push({
             t: 2.0,
             hp: playerState.hp,
-            hits: playerState.cryoHits,
             progWidth: freezeProg ? freezeProg.style.width : ''
         });
 
-        // Tick 0.5s (total 2.5s): Tick 5 (5 damage -> 75 hp, 5 hits -> FREEZE!)
+        // Tick 0.5s (total 2.5s): Tick 5 (5 + 4 = 9 damage -> hp 65)
         updateCryoZones(0.5);
         snapshots.push({
             t: 2.5,
             hp: playerState.hp,
-            hits: playerState.cryoHits,
+            progWidth: freezeProg ? freezeProg.style.width : ''
+        });
+
+        // Tick 0.5s (total 3.0s): Tick 6 (5 + 5 = 10 damage -> hp 55, stacked 3s -> FREEZE!)
+        updateCryoZones(0.5);
+        snapshots.push({
+            t: 3.0,
+            hp: playerState.hp,
             isFrozen: playerState.isFrozen,
             freezeTimer: playerState.freezeTimer,
             progWidth: freezeProg ? freezeProg.style.width : '',
@@ -166,19 +173,18 @@ async function runTests() {
         return snapshots;
     });
 
-    assert(damageProgressionTest[0].hp === 100 && damageProgressionTest[0].hits === 0, "No damage dealt before 0.5s elapsed");
-    assert(damageProgressionTest[1].hp === 95 && damageProgressionTest[1].hits === 1, "At 0.5s: Exactly 5 damage dealt (hp 100 -> 95), cryoHits = 1");
+    assert(damageProgressionTest[0].hp === 100, "No damage dealt before 0.5s elapsed");
+    assert(damageProgressionTest[1].hp === 95, "At 0.5s: Tick 1 deals 5 damage (hp 100 -> 95)");
     assert(damageProgressionTest[1].uiHidden === false, "At 0.5s: Freeze status UI overlay is visible");
-    assert(damageProgressionTest[1].progWidth === '20%', "Freeze progress bar is 20% on 1 hit");
-    assert(damageProgressionTest[2].hp === 90 && damageProgressionTest[2].hits === 2, "At 1.0s: Exactly 10 total damage dealt, cryoHits = 2");
-    assert(damageProgressionTest[2].progWidth === '40%', "Freeze progress bar is 40% on 2 hits");
-    assert(damageProgressionTest[3].hp === 85 && damageProgressionTest[3].hits === 3, "At 1.5s: Exactly 15 total damage dealt, cryoHits = 3");
-    assert(damageProgressionTest[4].hp === 80 && damageProgressionTest[4].hits === 4, "At 2.0s: Exactly 20 total damage dealt, cryoHits = 4");
-    assert(damageProgressionTest[5].hp === 75 && damageProgressionTest[5].hits === 5, "At 2.5s: 5 hits reached, total damage = 25");
-    assert(damageProgressionTest[5].isFrozen === true, "5 damage ticks triggers isFrozen = true");
-    assert(Math.abs(damageProgressionTest[5].freezeTimer - 3.0) < 0.001, "Freeze duration is set to exactly 3.0 seconds");
-    assert(damageProgressionTest[5].progWidth === '100%', "Freeze progress bar is 100% when frozen");
-    assert(damageProgressionTest[5].text.includes('已冰冻'), "Freeze status text shows '已冰冻!'");
+    assert(damageProgressionTest[2].hp === 89, "At 1.0s: Tick 2 deals 6 damage (5+1), hp becomes 89");
+    assert(damageProgressionTest[3].hp === 82, "At 1.5s: Tick 3 deals 7 damage (5+2), hp becomes 82");
+    assert(damageProgressionTest[4].hp === 74, "At 2.0s: Tick 4 deals 8 damage (5+3), hp becomes 74");
+    assert(damageProgressionTest[5].hp === 65, "At 2.5s: Tick 5 deals 9 damage (5+4), hp becomes 65");
+    assert(damageProgressionTest[6].hp === 55, "At 3.0s: Tick 6 deals 10 damage (5+5), hp becomes 55");
+    assert(damageProgressionTest[6].isFrozen === true, "Stacking 3.0s in cryo zone triggers isFrozen = true");
+    assert(Math.abs(damageProgressionTest[6].freezeTimer - 3.0) < 0.001, "Freeze duration is set to exactly 3.0 seconds");
+    assert(damageProgressionTest[6].progWidth === '100%', "Freeze progress bar is 100% when frozen");
+    assert(damageProgressionTest[6].text.includes('已冰冻'), "Freeze status text shows '已冰冻!'");
 
     console.log("\n--- Section 1.4: Frozen State Action Restrictions (Move/Shoot/Jump/Interact) ---");
     const frozenActionTest = await page.evaluate(() => {
@@ -207,7 +213,7 @@ async function runTests() {
     assert(frozenActionTest.vxAfterPhysics === 0 && frozenActionTest.vzAfterPhysics === 0, "updatePhysics forces velocity to 0 when frozen");
     assert(frozenActionTest.clipAfterShoot === frozenActionTest.clipBeforeShoot, "handleShooting is completely blocked when frozen");
 
-    console.log("\n--- Section 1.5: 3s Freeze Duration & 5s Freeze Immunity Mechanics ---");
+    console.log("\n--- Section 1.5: 3s Freeze Duration & 5s Percentage Thaw Cooldown ---");
     const unfreezeImmunityTest = await page.evaluate(() => {
         // Player is currently frozen with freezeTimer = 3.0s, ensure zone stays active
         activeCryoZones.length = 0;
@@ -218,8 +224,10 @@ async function runTests() {
         playerState.isFrozen = true;
         playerState.freezeTimer = 3.0;
         playerState.freezeImmuneTimer = 0;
-        playerState.cryoHits = 5;
+        playerState.cryoFreezeAccum = 0;
+        playerState.cryoHits = 0;
         playerState.cryoDamageTimer = 0;
+        playerState.cryoDamageTicks = 0;
         playerState.hp = 100;
 
         // Advance 2.0s: still frozen (1.0s remaining)
@@ -232,22 +240,25 @@ async function runTests() {
 
         // Advance 1.0s (total 3.0s): Exactly unfreezes!
         updateCryoZones(1.0);
+        const freezeProg = document.getElementById('freeze-progress');
+        const freezeText = document.getElementById('freeze-text');
         const stateAt3s = {
             isFrozen: playerState.isFrozen,
             freezeTimer: playerState.freezeTimer,
             freezeImmuneTimer: playerState.freezeImmuneTimer,
-            cryoHits: playerState.cryoHits
+            cryoFreezeAccum: playerState.cryoFreezeAccum,
+            progWidth: freezeProg ? freezeProg.style.width : '',
+            text: freezeText ? freezeText.innerText : ''
         };
 
         // Advance 2.5s while still in zone:
-        // Takes 5 damage every 0.5s (5 ticks = 25 damage), but CANNOT be frozen because immune!
-        const hpBeforeImmuneTicks = playerState.hp;
+        // Immune timer decreases from 5.0 to 2.5s (50%)
         updateCryoZones(2.5);
         const stateDuringImmune = {
             isFrozen: playerState.isFrozen,
-            damageTaken: hpBeforeImmuneTicks - playerState.hp,
-            cryoHits: playerState.cryoHits,
-            immuneTimerLeft: playerState.freezeImmuneTimer
+            immuneTimerLeft: playerState.freezeImmuneTimer,
+            progWidth: freezeProg ? freezeProg.style.width : '',
+            text: freezeText ? freezeText.innerText : ''
         };
 
         // Advance remaining 2.5s of immunity (total 5.0s immunity elapsed)
@@ -256,9 +267,10 @@ async function runTests() {
             immuneTimer: playerState.freezeImmuneTimer
         };
 
-        // Reset HP to 100 to prevent death, then advance 2.5s after immunity expired: can accumulate freeze again and freeze!
-        playerState.hp = 100;
-        updateCryoZones(2.5);
+        // Reset HP to 500 to prevent death from escalating damage, then advance 3.0s after immunity expired: accumulates 3s and freezes again!
+        playerState.hp = 500;
+        playerState.isSpectating = false;
+        updateCryoZones(3.0);
         const stateRefrozen = {
             isFrozen: playerState.isFrozen,
             freezeTimer: playerState.freezeTimer
@@ -275,13 +287,13 @@ async function runTests() {
 
     assert(unfreezeImmunityTest.stateAt2s.isFrozen === true, "Player remains frozen at 2.0s");
     assert(unfreezeImmunityTest.stateAt3s.isFrozen === false, "Player unfreezes after 3.0 seconds");
-    assert(Math.abs(unfreezeImmunityTest.stateAt3s.freezeImmuneTimer - 5.0) < 0.001, "Unfreezing grants exactly 5.0s freeze immunity");
-    assert(unfreezeImmunityTest.stateAt3s.cryoHits === 0, "CryoHits resets to 0 on unfreezing");
-    assert(unfreezeImmunityTest.stateDuringImmune.isFrozen === false, "Cannot be frozen while immunity is active");
-    assert(unfreezeImmunityTest.stateDuringImmune.damageTaken === 25, "Still takes 5 damage per 0.5s during immunity (5 ticks = 25 dmg)");
-    assert(unfreezeImmunityTest.stateDuringImmune.cryoHits === 0, "CryoHits does NOT accumulate during 5s immunity");
-    assert(unfreezeImmunityTest.stateAfterImmunityExpires.immuneTimer === 0, "Immunity timer expires after 5.0s");
-    assert(unfreezeImmunityTest.stateRefrozen.isFrozen === true, "Can be frozen again after 5s immunity cooldown passes");
+    assert(Math.abs(unfreezeImmunityTest.stateAt3s.freezeImmuneTimer - 5.0) < 0.001, "Unfreezing grants exactly 5.0s thaw cooldown");
+    assert(unfreezeImmunityTest.stateAt3s.progWidth === '100%', "Thaw cooldown progress starts at 100%");
+    assert(unfreezeImmunityTest.stateAt3s.text.includes('解冻冷却'), "Thaw cooldown text displays '解冻冷却'");
+    assert(unfreezeImmunityTest.stateDuringImmune.isFrozen === false, "Cannot be frozen while thaw cooldown is active");
+    assert(unfreezeImmunityTest.stateDuringImmune.progWidth === '50%', "Thaw cooldown bar decreases to 50% after 2.5s (5s -> 2.5s)");
+    assert(unfreezeImmunityTest.stateAfterImmunityExpires.immuneTimer === 0, "Thaw cooldown timer expires after 5.0s");
+    assert(unfreezeImmunityTest.stateRefrozen.isFrozen === true, "Can be frozen again after 5s thaw cooldown passes");
 
     console.log("\n--- Section 1.6: Bot Freezing & Bot AI Halt ---");
     const botCryoTest = await page.evaluate(() => {
@@ -299,8 +311,10 @@ async function runTests() {
                 isFrozen: false,
                 freezeTimer: 0,
                 freezeImmuneTimer: 0,
+                cryoFreezeAccum: 0,
                 cryoHits: 0,
                 cryoDamageTimer: 0,
+                cryoDamageTicks: 0,
                 stunTimer: 0
             }];
             scene.add(bots[0].mesh);
@@ -311,11 +325,13 @@ async function runTests() {
         b.isFrozen = false;
         b.freezeTimer = 0;
         b.freezeImmuneTimer = 0;
+        b.cryoFreezeAccum = 0;
         b.cryoHits = 0;
         b.cryoDamageTimer = 0;
+        b.cryoDamageTicks = 0;
 
-        // Apply 2.5s of zone updates to bot (5 ticks of 5 damage = 25 dmg, 5 hits)
-        updateCryoZones(2.5);
+        // Apply 3.0s of zone updates to bot (6 ticks: 5+6+7+8+9+10 = 45 dmg, 3s accumulation -> freeze!)
+        updateCryoZones(3.0);
         const botFrozen = b.isFrozen;
         const botTimer = b.freezeTimer;
         const botHp = b.hp;
@@ -339,10 +355,10 @@ async function runTests() {
         };
     });
 
-    assert(botCryoTest.botFrozen === true, "Bot in cryo zone becomes isFrozen = true after 5 hits");
-    assert(botCryoTest.botHp === 75, "Bot took 25 damage (5 ticks * 5 dmg = 25 dmg)");
+    assert(botCryoTest.botFrozen === true, "Bot in cryo zone becomes isFrozen = true after 3.0s accumulation");
+    assert(botCryoTest.botHp === 55, "Bot took 45 escalating damage (5+6+7+8+9+10 = 45 dmg, hp 100 -> 55)");
     assert(botCryoTest.botUnfrozen === false, "Bot unfreezes after 3.0s");
-    assert(Math.abs(botCryoTest.botImmuneTimer - 5.0) < 0.001, "Bot receives 5s immunity after unfreezing");
+    assert(Math.abs(botCryoTest.botImmuneTimer - 5.0) < 0.001, "Bot receives 5s thaw cooldown after unfreezing");
 
     console.log("\n--- Section 1.7: Bot Mid-Defuse Interruption & Player Action Lock ---");
     const edgeCase1Test = await page.evaluate(() => {
@@ -363,8 +379,10 @@ async function runTests() {
             isFrozen: false,
             freezeTimer: 0,
             freezeImmuneTimer: 0,
+            cryoFreezeAccum: 0,
             cryoHits: 0,
             cryoDamageTimer: 0,
+            cryoDamageTicks: 0,
             stunTimer: 0,
             actionProgress: 180
         };
@@ -374,7 +392,7 @@ async function runTests() {
         activeCryoZones.length = 0;
         createCryoZone(new THREE.Vector3(100, 0, 100), 'T', false, true);
         activeCryoZones[0].life = 999;
-        updateCryoZones(2.5);
+        updateCryoZones(3.0);
         botAI(0.016);
         const defuseInterrupted = bDefuse.isFrozen && bDefuse.actionProgress === 0;
 
@@ -411,6 +429,361 @@ async function runTests() {
     assert(edgeCase1Test.nadesBlocked === true, "quickThrowGrenade is blocked while player is frozen");
     assert(edgeCase1Test.reloadBlocked === true, "handleReload is blocked while player is frozen");
     assert(edgeCase1Test.switchBlocked === true, "switchWeapon is blocked while player is frozen");
+
+    console.log("\n--- Section 1.8: Cryo Zone 40% Slowdown for Player and Bots ---");
+    const slowTest = await page.evaluate(() => {
+        playerState.hp = 100;
+        playerState.isSpectating = false;
+        activeCryoZones.length = 0;
+        createCryoZone(new THREE.Vector3(0, 0, 0), 'CT', false, false);
+        activeCryoZones[0].life = 999;
+
+        // Test player speed multiplier in cryo zone
+        playerState.isFrozen = false;
+        playerState.inCryoZone = true;
+        camera.position.set(0, 2, 0); // inside zone
+
+        // Normal player move velocity check
+        playerState.velocity.set(0, 0, 0);
+        moveForward = true;
+        moveBackward = false;
+        moveLeft = false;
+        moveRight = false;
+        updatePhysics(0.016);
+        const playerVzInZone = playerState.velocity.z;
+
+        // Move player outside cryo zone
+        playerState.inCryoZone = false;
+        camera.position.set(500, 2, 500); // outside zone
+        playerState.velocity.set(0, 0, 0);
+        updatePhysics(0.016);
+        const playerVzOutside = playerState.velocity.z;
+
+        moveForward = false;
+
+        // Test bot speed multiplier in cryo zone
+        const testBot = {
+            mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial()),
+            hp: 100,
+            team: 'CT',
+            inCryoZone: true,
+            freezeTimer: 0
+        };
+        testBot.mesh.position.set(0, 0, 0); // inside zone
+        const botSpeedInZone = botFreezeSpeedMult(testBot);
+        testBot.inCryoZone = false;
+        testBot.mesh.position.set(500, 0, 500); // outside zone
+        const botSpeedOutside = botFreezeSpeedMult(testBot);
+
+        return {
+            playerVzInZone,
+            playerVzOutside,
+            playerRatio: playerVzInZone / playerVzOutside,
+            botSpeedInZone,
+            botSpeedOutside
+        };
+    });
+
+    assert(Math.abs(slowTest.playerRatio - 0.6) < 0.05, `Player speed is reduced by 40% in cryo zone (ratio: ${slowTest.playerRatio.toFixed(3)})`);
+    assert(slowTest.botSpeedInZone === 0.6, "Bot speed multiplier is exactly 0.6 (40% slow) in cryo zone");
+    assert(slowTest.botSpeedOutside === 1.0, "Bot speed multiplier is 1.0 outside cryo zone");
+
+    console.log("\n--- Section 1.9: Leaving Cryo Zone Removes Continuous Damage Effect ---");
+    const exitZoneDamageTest = await page.evaluate(() => {
+        activeCryoZones.length = 0;
+        createCryoZone(new THREE.Vector3(0, 0, 0), 'CT', false, false);
+        playerState.hp = 100;
+        playerState.isFrozen = false;
+        camera.position.set(0, 2, 0); // inside
+
+        // Spend 1.0s in zone: 2 damage ticks, cryoDamageTicks becomes 2
+        updateCryoZones(0.5);
+        updateCryoZones(0.5);
+        const hpAfterTicks = playerState.hp;
+        const ticksInZone = playerState.cryoDamageTicks;
+
+        // Step out of zone
+        camera.position.set(300, 2, 300);
+        updateCryoZones(1.0); // 1.0s outside zone
+        const hpOutside = playerState.hp;
+        const ticksAfterExit = playerState.cryoDamageTicks;
+
+        return {
+            hpAfterTicks,
+            ticksInZone,
+            hpOutside,
+            ticksAfterExit
+        };
+    });
+
+    assert(exitZoneDamageTest.ticksInZone === 2, "Cryo damage ticks stacked to 2 while in zone");
+    assert(exitZoneDamageTest.hpOutside === exitZoneDamageTest.hpAfterTicks, "Zero damage dealt after stepping out of cryo zone");
+    assert(exitZoneDamageTest.ticksAfterExit === 0, "CryoDamageTicks reset to 0 after exiting zone");
+
+    console.log("\n--- Section 1.10: Enemy Freeze Progress HUD and '敌人已冻结' Prompt ---");
+    const enemyFreezeHUDTest = await page.evaluate(() => {
+        activeCryoZones.length = 0;
+        // Player throws cryo grenade (isPlayer = true)
+        createCryoZone(new THREE.Vector3(0, 0, 0), 'CT', false, true);
+        playerState.team = 'CT';
+
+        const enemyBot = {
+            mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial()),
+            hp: 1000,
+            team: 'T', // enemy
+            isDead: false,
+            isFrozen: false,
+            freezeTimer: 0,
+            freezeImmuneTimer: 0,
+            cryoFreezeAccum: 0,
+            cryoHits: 0,
+            cryoDamageTimer: 0,
+            cryoDamageTicks: 0,
+            stunTimer: 0
+        };
+        enemyBot.mesh.position.set(0, 0, 0);
+        bots = [enemyBot];
+
+        const eFreezeStatus = document.getElementById('enemy-freeze-status');
+        const eFreezeProg = document.getElementById('enemy-freeze-progress');
+        const eFreezeText = document.getElementById('enemy-freeze-text');
+
+        // Tick 1.5s (50% accumulated):
+        updateCryoZones(1.5);
+        const hudAt1_5s = {
+            hidden: eFreezeStatus ? eFreezeStatus.classList.contains('hidden') : true,
+            width: eFreezeProg ? eFreezeProg.style.width : '',
+            text: eFreezeText ? eFreezeText.innerText : ''
+        };
+
+        // Tick another 1.5s (total 3.0s -> enemy frozen!):
+        updateCryoZones(1.5);
+        const hudAt3_0s = {
+            isEnemyFrozen: enemyBot.isFrozen,
+            hidden: eFreezeStatus ? eFreezeStatus.classList.contains('hidden') : true,
+            width: eFreezeProg ? eFreezeProg.style.width : '',
+            text: eFreezeText ? eFreezeText.innerText : ''
+        };
+
+        const generalAnnouncement = document.getElementById('general-announcement');
+        const announcementText = generalAnnouncement ? generalAnnouncement.innerText : '';
+
+        return {
+            hudAt1_5s,
+            hudAt3_0s,
+            announcementText
+        };
+    });
+
+    assert(enemyFreezeHUDTest.hudAt1_5s.hidden === false, "Enemy freeze status HUD is visible while enemy accumulates freeze");
+    assert(enemyFreezeHUDTest.hudAt1_5s.width === '50%', "Enemy freeze progress shows 50% at 1.5s");
+    assert(enemyFreezeHUDTest.hudAt1_5s.text.includes('50%'), "Enemy freeze text displays '50%'");
+    assert(enemyFreezeHUDTest.hudAt3_0s.isEnemyFrozen === true, "Enemy bot becomes frozen at 3.0s");
+    assert(enemyFreezeHUDTest.hudAt3_0s.text.includes('敌人已冻结'), "Enemy freeze HUD displays '敌人已冻结'");
+    assert(enemyFreezeHUDTest.announcementText.includes('敌人已冻结'), "Screen announcement displays '敌人已冻结'");
+
+    console.log("\n--- Section 1.10b: Friendly Bot Safety & Player Death/Spectator HUD Hide ---");
+    const friendlyAndDeathHUDTest = await page.evaluate(() => {
+        // Clear announcement and zones
+        const announcementEl = document.getElementById('general-announcement');
+        if (announcementEl) announcementEl.innerText = '';
+        activeCryoZones.length = 0;
+        createCryoZone(new THREE.Vector3(0, 0, 0), 'CT', false, true); // player throw
+        playerState.team = 'CT';
+        playerState.hp = 100;
+        playerState.isSpectating = false;
+
+        // Friendly teammate bot (CT)
+        const friendlyBot = {
+            mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial()),
+            hp: 1000,
+            team: 'CT', // friendly teammate!
+            isDead: false,
+            isFrozen: false,
+            freezeTimer: 0,
+            freezeImmuneTimer: 0,
+            cryoFreezeAccum: 0,
+            cryoHits: 0,
+            cryoDamageTimer: 0,
+            cryoDamageTicks: 0,
+            stunTimer: 0
+        };
+        friendlyBot.mesh.position.set(0, 0, 0);
+        bots = [friendlyBot];
+
+        // 3 seconds in zone: friendly bot gets frozen by cryo effect
+        updateCryoZones(3.0);
+        const friendlyFrozen = friendlyBot.isFrozen;
+        const friendlyAccumFromPlayer = friendlyBot.cryoAccumFromPlayer;
+        const friendlyFrozenByPlayer = friendlyBot.frozenByPlayer;
+        const announcementAfterFriendly = announcementEl ? announcementEl.innerText : '';
+        const eFreezeStatus = document.getElementById('enemy-freeze-status');
+        const hudVisibleForFriendly = eFreezeStatus ? !eFreezeStatus.classList.contains('hidden') : false;
+
+        // Now test player death hiding enemy freeze HUD
+        const enemyBot = {
+            mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial()),
+            hp: 1000,
+            team: 'T', // enemy
+            isDead: false,
+            isFrozen: false,
+            freezeTimer: 0,
+            freezeImmuneTimer: 0,
+            cryoFreezeAccum: 0,
+            cryoHits: 0,
+            cryoDamageTimer: 0,
+            cryoDamageTicks: 0,
+            stunTimer: 0
+        };
+        enemyBot.mesh.position.set(0, 0, 0);
+        bots = [enemyBot];
+        updateCryoZones(1.5); // enemy accumulates 50%
+        const hudVisibleBeforeDeath = eFreezeStatus ? !eFreezeStatus.classList.contains('hidden') : false;
+
+        playerState.hp = 0; // player dies
+        updateCryoZones(0.1);
+        const hudHiddenAfterDeath = eFreezeStatus ? eFreezeStatus.classList.contains('hidden') : true;
+
+        playerState.hp = 100;
+        playerState.isSpectating = true; // player spectating
+        updateCryoZones(0.1);
+        const hudHiddenWhileSpectating = eFreezeStatus ? eFreezeStatus.classList.contains('hidden') : true;
+
+        playerState.isSpectating = false;
+
+        return {
+            friendlyFrozen,
+            friendlyAccumFromPlayer: !!friendlyAccumFromPlayer,
+            friendlyFrozenByPlayer: !!friendlyFrozenByPlayer,
+            announcementAfterFriendly,
+            hudVisibleForFriendly,
+            hudVisibleBeforeDeath,
+            hudHiddenAfterDeath,
+            hudHiddenWhileSpectating
+        };
+    });
+
+    assert(friendlyAndDeathHUDTest.friendlyFrozen === true, "Friendly bot is frozen by cryo zone");
+    assert(friendlyAndDeathHUDTest.friendlyAccumFromPlayer === false, "Friendly bot DOES NOT set cryoAccumFromPlayer");
+    assert(friendlyAndDeathHUDTest.friendlyFrozenByPlayer === false, "Friendly bot DOES NOT set frozenByPlayer");
+    assert(!friendlyAndDeathHUDTest.announcementAfterFriendly.includes('敌人已冻结'), "Freezing friendly bot DOES NOT announce '敌人已冻结'");
+    assert(friendlyAndDeathHUDTest.hudVisibleForFriendly === false, "Enemy freeze HUD remains hidden for friendly bots");
+    assert(friendlyAndDeathHUDTest.hudVisibleBeforeDeath === true, "Enemy freeze HUD visible when enemy accumulates");
+    assert(friendlyAndDeathHUDTest.hudHiddenAfterDeath === true, "Enemy freeze HUD hides when player hp <= 0");
+    assert(friendlyAndDeathHUDTest.hudHiddenWhileSpectating === true, "Enemy freeze HUD hides when player is spectating");
+
+    console.log("\n--- Section 1.10c: Bot Fatal Cryo Damage & No Post-Mortem Freeze ---");
+    const fatalBotCryoTest = await page.evaluate(() => {
+        const announcementEl = document.getElementById('general-announcement');
+        if (announcementEl) announcementEl.innerText = '';
+        activeCryoZones.length = 0;
+        createCryoZone(new THREE.Vector3(0, 0, 0), 'CT', false, true); // player throw
+        playerState.team = 'CT';
+        playerState.hp = 100;
+        playerState.isSpectating = false;
+
+        // Bot with 5 hp (will die on tick 1)
+        const lowHpBot = {
+            mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial()),
+            hp: 5,
+            team: 'T',
+            isDead: false,
+            isFrozen: false,
+            freezeTimer: 0,
+            freezeImmuneTimer: 0,
+            cryoFreezeAccum: 2.9, // almost frozen
+            cryoHits: 5,
+            cryoDamageTimer: 0.45,
+            cryoDamageTicks: 0,
+            stunTimer: 0
+        };
+        lowHpBot.mesh.position.set(0, 0, 0);
+        bots = [lowHpBot];
+
+        // 0.1s delta: damage timer hits 0.5s -> deals 5 dmg -> bot dies
+        updateCryoZones(0.1);
+
+        const botDied = (lowHpBot.hp <= 0 || lowHpBot.isDead || bots.length === 0);
+        const postMortemFrozen = lowHpBot.isFrozen;
+        const postMortemAnnouncement = announcementEl ? announcementEl.innerText : '';
+
+        return {
+            botDied,
+            postMortemFrozen,
+            postMortemAnnouncement
+        };
+    });
+
+    assert(fatalBotCryoTest.botDied === true, "Low-hp bot dies from cryo damage");
+    assert(fatalBotCryoTest.postMortemFrozen === false, "Dead bot is NOT frozen post-mortem");
+    assert(!fatalBotCryoTest.postMortemAnnouncement.includes('敌人已冻结'), "Dead bot DOES NOT trigger '敌人已冻结' announcement");
+
+    console.log("\n--- Section 1.11: Circular Countdown Sprite and Shrinking Arc Above Zone ---");
+    const countdownVisualTest = await page.evaluate(() => {
+        activeCryoZones.length = 0;
+        createCryoZone(new THREE.Vector3(0, 0, 0), 'CT', false, false);
+        const z = activeCryoZones[0];
+
+        const initialLife = z.life;
+        const spriteY = z.countdownSprite.position.y;
+
+        // Advance 4.0s
+        updateCryoZones(4.0);
+        const lifeAt4s = z.life;
+
+        return {
+            initialLife,
+            spriteY,
+            lifeAt4s,
+            maxLife: z.maxLife
+        };
+    });
+
+    assert(countdownVisualTest.initialLife === 11.0, "Cryo zone countdown starts at 11.0s");
+    assert(countdownVisualTest.spriteY > 2.0, "Countdown sprite floats above zone ground (Y > 2.0)");
+    assert(Math.abs(countdownVisualTest.lifeAt4s - 7.0) < 0.01, "Countdown decreases to 7.0s after 4s elapsed");
+
+    console.log("\n--- Section 1.12: Grenade Explosion, Molotov & Cryo Area Particle Effects ---");
+    const particleEffectsTest = await page.evaluate(() => {
+        particles.length = 0;
+        const pCountBefore = particles.length;
+
+        // 1. Grenade explosion particles
+        createGrenadeExplosionParticles(new THREE.Vector3(10, 1, 10));
+        const pCountAfterGrenade = particles.length;
+
+        // 2. Molotov area particles
+        activeFires.length = 0;
+        const fireMesh = new THREE.Mesh(new THREE.PlaneGeometry(45, 45), new THREE.MeshBasicMaterial());
+        activeFires.push({
+            mesh: fireMesh,
+            life: 7.0,
+            x: 0,
+            z: 0,
+            isFromDrone: false
+        });
+        frameCount = 2; // trigger frameCount % 2 === 0
+        updateFires(0.016);
+        const pCountAfterMolotov = particles.length;
+
+        // 3. Cryo zone particles
+        activeCryoZones.length = 0;
+        createCryoZone(new THREE.Vector3(50, 0, 50), 'CT', false, false);
+        frameCount = 4;
+        updateCryoZones(0.016);
+        const pCountAfterCryo = particles.length;
+
+        return {
+            pCountBefore,
+            pCountAfterGrenade,
+            pCountAfterMolotov,
+            pCountAfterCryo
+        };
+    });
+
+    assert(particleEffectsTest.pCountAfterGrenade >= 14, "Grenade explosion spawns lightweight particle burst (>= 14 particles)");
+    assert(particleEffectsTest.pCountAfterMolotov > particleEffectsTest.pCountAfterGrenade, "Molotov zone generates rising fire particles");
+    assert(particleEffectsTest.pCountAfterCryo > particleEffectsTest.pCountAfterMolotov, "Cryo zone generates rising frost particles");
 
     // =========================================================================
     // SECTION 2: BINARY TRIGGER (双发扳机) TESTS

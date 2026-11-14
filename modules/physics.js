@@ -29,6 +29,17 @@ function tryStepUp(blockers, curFeet) {
     return maxTop > curFeet + 0.05 ? maxTop : -1;
 }
 
+function isPlayerInCryoZone() {
+    if (typeof activeCryoZones === 'undefined' || !activeCryoZones || activeCryoZones.length === 0) return false;
+    if (typeof getPlayerPosition !== 'function') return false;
+    const pPos = getPlayerPosition();
+    for (let i = 0; i < activeCryoZones.length; i++) {
+        const z = activeCryoZones[i];
+        if (Math.abs(pPos.x - z.x) < z.halfSize && Math.abs(pPos.z - z.z) < z.halfSize) return true;
+    }
+    return false;
+}
+
 function updatePhysics(delta) {
     if (playerState.isSpectating) return;
 
@@ -87,6 +98,8 @@ function updatePhysics(delta) {
         speedMult = 0;
         playerState.velocity.x = 0;
         playerState.velocity.z = 0;
+    } else if (playerState.inCryoZone || isPlayerInCryoZone()) {
+        speedMult *= 0.6; // 液氮冷罐范围内减速 40%
     }
 
     if (moveForward || moveBackward) playerState.velocity.z -= playerState.direction.z * 400.0 * speedMult * delta;

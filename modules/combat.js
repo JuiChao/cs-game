@@ -568,6 +568,9 @@ function playerDie(killerTeam = null, weaponId = 'rifle') {
     playerState.freezeImmuneTimer = 0;
     playerState.cryoHits = 0;
     playerState.cryoDamageTimer = 0;
+    playerState.inCryoZone = false;
+    playerState.cryoFreezeAccum = 0;
+    playerState.cryoDamageTicks = 0;
     playerState.binaryReleaseDueFrame = 0;
     playerState.binaryTriggerPressed = false;
     playerState.isAds = false;
@@ -575,6 +578,10 @@ function playerDie(killerTeam = null, weaponId = 'rifle') {
     if (_fStatus) _fStatus.classList.add('hidden');
     const _fProg = document.getElementById('freeze-progress');
     if (_fProg) _fProg.style.width = '0%';
+    const _efStatus = document.getElementById('enemy-freeze-status');
+    if (_efStatus) _efStatus.classList.add('hidden');
+    const _efProg = document.getElementById('enemy-freeze-progress');
+    if (_efProg) _efProg.style.width = '0%';
     // 生化模式: 人类死亡即被感染，僵尸死亡8秒后重生
     if (gameMode === 'zombie' && roundActive) {
         if (!playerState.isZombie) {
@@ -850,6 +857,11 @@ function killBot(index, killerTeam, weaponId = 'rifle', killerIsPlayer = false, 
         bot.cryoFreezeTimer = 0;
         bot.cryoHits = 0;
         bot.cryoDamageTimer = 0;
+        bot.cryoDamageTicks = 0;
+        bot.cryoFreezeAccum = 0;
+        bot.cryoAccumFromPlayer = false;
+        bot.frozenByPlayer = false;
+        bot.inCryoZone = false;
         bot.freezeImmuneTimer = 0;
         scene.remove(bot.mesh);
         checkWinCondition();

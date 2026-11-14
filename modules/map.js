@@ -646,6 +646,9 @@ function resetRound() {
         playerState.cryoHits = 0;
         playerState.cryoDamageTimer = 0;
         playerState.cryoDecayTimer = 0;
+        playerState.inCryoZone = false;
+        playerState.cryoFreezeAccum = 0;
+        playerState.cryoDamageTicks = 0;
         playerState.binaryReleaseDueFrame = 0;
         playerState.binaryTriggerPressed = false;
         playerState.isAds = false;
@@ -657,6 +660,10 @@ function resetRound() {
     if (_freezeStatus) _freezeStatus.classList.add('hidden');
     const _freezeProg = document.getElementById('freeze-progress');
     if (_freezeProg) _freezeProg.style.width = '0%';
+    const _enemyFreezeStatus = document.getElementById('enemy-freeze-status');
+    if (_enemyFreezeStatus) _enemyFreezeStatus.classList.add('hidden');
+    const _enemyFreezeProg = document.getElementById('enemy-freeze-progress');
+    if (_enemyFreezeProg) _enemyFreezeProg.style.width = '0%';
 
     // 清理液氮冷罐区域
     if (typeof activeCryoZones !== 'undefined' && activeCryoZones.length > 0) {
@@ -671,6 +678,13 @@ function resetRound() {
                 scene.remove(z.innerMesh);
                 if (z.innerMesh.geometry) z.innerMesh.geometry.dispose();
                 if (z.innerMesh.material) z.innerMesh.material.dispose();
+            }
+            if (z.countdownSprite) {
+                scene.remove(z.countdownSprite);
+                if (z.countdownSprite.material) z.countdownSprite.material.dispose();
+            }
+            if (z.countdownTexture) {
+                z.countdownTexture.dispose();
             }
         }
         activeCryoZones.length = 0;
