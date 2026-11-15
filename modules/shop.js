@@ -89,13 +89,13 @@ function openBuyMenu() {
     const btnBT = document.getElementById('btn-binary-trigger');
     if (btnBT && hasBT) {
         const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
-        const desc = isTouch ? '单发模式专用：按下攻击一次，松开再攻击一次' : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次';
+        const desc = isTouch ? '单发模式专用：按下攻击一次，松开再攻击一次，单发射速+30%' : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次，单发射速+30%';
         btnBT.innerHTML = `双发扳机 <span class="price">已购买</span> <br><small>${desc}</small>`;
         btnBT.disabled = true;
         btnBT.style.opacity = '0.5';
     } else if (btnBT) {
         const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
-        const desc = isTouch ? '单发模式专用：按下攻击一次，松开再攻击一次' : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次';
+        const desc = isTouch ? '单发模式专用：按下攻击一次，松开再攻击一次，单发射速+30%' : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次，单发射速+30%';
         btnBT.innerHTML = `双发扳机 <span class="price">700$</span> <br><small>${desc}</small>`;
         btnBT.disabled = false;
         btnBT.style.opacity = '1';
@@ -279,11 +279,11 @@ function buyBinaryTrigger() {
     binaryTriggerPurchased = true;
     const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
     if (typeof showKillFeed === 'function') {
-        showKillFeed('双发扳机已购买！单发模式下按下与松开均可攻击');
+        showKillFeed('双发扳机已购买！单发模式下按下与松开均可攻击，单发射速+30%');
     }
     const btn = document.getElementById('btn-binary-trigger');
     if (btn) {
-        const desc = isTouch ? '单发模式专用：按下攻击一次，松开再攻击一次' : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次';
+        const desc = isTouch ? '单发模式专用：按下攻击一次，松开再攻击一次，单发射速+30%' : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次，单发射速+30%';
         btn.innerHTML = `双发扳机 <span class="price">已购买</span> <br><small>${desc}</small>`;
         btn.disabled = true;
         btn.style.opacity = '0.5';

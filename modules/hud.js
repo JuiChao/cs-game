@@ -147,9 +147,10 @@ function updateHUD() {
         } else {
             fmDisplay.style.display = 'inline-flex';
             const mode = (typeof getWeaponFireMode === 'function') ? getWeaponFireMode(w) : 'multi';
+            const hasBT = Boolean(playerState.hasBinaryTrigger || (typeof binaryTriggerPurchased !== 'undefined' && binaryTriggerPurchased));
             if (mode === 'single') {
                 fmDisplay.innerText = '单发';
-                fmDisplay.title = '当前单发模式 (后坐力 80%)，点击或按 X 切换';
+                fmDisplay.title = hasBT ? '当前单发模式 (后坐力 80%, 双发扳机射速+30%)，点击或按 X 切换' : '当前单发模式 (后坐力 80%)，点击或按 X 切换';
                 fmDisplay.classList.add('single-mode');
                 fmDisplay.classList.remove('multi-mode');
             } else {

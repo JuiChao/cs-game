@@ -111,8 +111,8 @@ function updateAdaptivePrompts() {
         var smallBt = binaryTriggerBtn.querySelector('small');
         if (smallBt) {
             smallBt.innerText = isTouch
-                ? '单发模式专用：按下开火键攻击一次，松开再攻击一次'
-                : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次';
+                ? '单发模式专用：按下开火键攻击一次，松开再攻击一次，单发射速+30%'
+                : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次，单发射速+30%';
         }
     }
     var adrenalineBtn = document.getElementById('btn-adrenaline');

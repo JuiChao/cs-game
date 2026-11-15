@@ -92,6 +92,13 @@ function handleShooting(initialClick = false, isRelease = false) {
         requiredCooldown *= 1.45;
     }
     if (weapon.id === 'switchblade' && playerState.knifeComboStage === 2) requiredCooldown = 48;
+
+    const isFirearm = weapon && (typeof NON_FIREARM_IDS === 'undefined' || !NON_FIREARM_IDS.includes(weapon.id));
+    const hasBT = Boolean(playerState.hasBinaryTrigger || (typeof binaryTriggerPurchased !== 'undefined' && binaryTriggerPurchased));
+    if (isSingleMode && hasBT && isFirearm) {
+        requiredCooldown /= 1.30; // 双发扳机单发模式射速提升30% (冷却时间 / 1.3)
+    }
+
     if (!burstShotDue && frameCount - playerState.lastShot < requiredCooldown) return;
 
     let currentAmmo = inventory.currentSlot === 1 ? ammoState.primary : (inventory.currentSlot === 2 ? ammoState.secondary : (inventory.currentSlot === 4 ? ammoState.grenade : null));
@@ -1056,6 +1063,10 @@ function handleTriggerRelease(wasShooting = undefined) {
     }
     let isDualBullet = playerState.bulletType === 'dual' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('dual'));
     if (isDualBullet && weapon.id !== 'ash12') requiredCooldown *= 1.45;
+
+    if (hasBT) {
+        requiredCooldown /= 1.30; // 双发扳机单发模式射速提升30% (冷却时间 / 1.3)
+    }
 
     if (frameCount - (playerState.lastShot || -999) >= requiredCooldown) {
         playerState.binaryReleaseDueFrame = 0;

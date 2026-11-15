@@ -990,7 +990,7 @@ async function runTests() {
 
     assert(btBufferTest.clipPress === 29, "First shot fired on immediate press (30 -> 29)");
     assert(btBufferTest.clipImmediateRelease === 29, "Release during cooldown did not fire prematurely (stays 29)");
-    assert(btBufferTest.bufferedFrame === 2006, "Buffered release shot scheduled for frame 2006");
+    assert(btBufferTest.bufferedFrame === 2005, "Buffered release shot scheduled for frame 2005 (30% fire rate boost: ceil(6/1.3) = 5 frames)");
     assert(btBufferTest.clipAfterBufferExecuted === 28, "Buffered shot executed when cooldown frame reached (29 -> 28)");
 
     console.log("\n--- Section 2.4: Binary Trigger Disabled in Multi / Burst Modes ---");
@@ -1168,6 +1168,174 @@ async function runTests() {
     assert(resetRoundTest.binaryReleaseDueFrame === 0, "resetRound resets binaryReleaseDueFrame = 0");
     assert(resetRoundTest.uiHidden === true, "resetRound hides freeze status UI overlay");
     assert(resetRoundTest.progWidth === '0%', "resetRound resets freeze progress bar width to 0%");
+
+    console.log("\n--- Section 2.8: Binary Trigger 30% Single-Fire Rate Boost ---");
+    const btFireRateTest = await page.evaluate(() => {
+        playerState.hp = 100;
+        playerState.isSpectating = false;
+        playerState.isFrozen = false;
+        roundActive = true;
+        if (controls) controls.isLocked = true;
+        inventory.primary = 'rifle';
+        switchWeapon(1);
+        ammoState.primary.clip = 30;
+
+        // 1. Single mode WITHOUT Binary Trigger (base rifle cooldown = 6 frames)
+        playerState.hasBinaryTrigger = false;
+        binaryTriggerPurchased = false;
+        setWeaponFireMode(WEAPONS.rifle, 'single');
+        frameCount = 5000;
+        playerState.lastShot = -1000;
+        isShooting = true;
+        handleShooting(true, false); // Shot 1 fired at frame 5000
+        const noBtShot1 = ammoState.primary.clip; // 29
+
+        // Try to shoot at frame 5005 (delta 5 frames < 6 frames cooldown)
+        frameCount = 5005;
+        isShooting = true;
+        handleShooting(true, false);
+        const noBtAt5Frames = ammoState.primary.clip; // still 29 (blocked)
+
+        // Shoot at frame 5006 (delta 6 frames >= 6 frames cooldown)
+        frameCount = 5006;
+        isShooting = true;
+        handleShooting(true, false);
+        const noBtAt6Frames = ammoState.primary.clip; // 28 (success)
+
+        // 2. Single mode WITH Binary Trigger (boosted 30% fire rate: 6 / 1.3 = 4.615 frames)
+        playerState.hasBinaryTrigger = true;
+        binaryTriggerPurchased = true;
+        setWeaponFireMode(WEAPONS.rifle, 'single');
+        ammoState.primary.clip = 30;
+        frameCount = 6000;
+        playerState.lastShot = -1000;
+        isShooting = true;
+        handleShooting(true, false); // Shot 1 fired at frame 6000
+        const btShot1 = ammoState.primary.clip; // 29
+
+        // Try to shoot at frame 6004 (delta 4 frames < 4.615 frames cooldown)
+        frameCount = 6004;
+        isShooting = true;
+        handleShooting(true, false);
+        const btAt4Frames = ammoState.primary.clip; // still 29 (blocked)
+
+        // Shoot at frame 6005 (delta 5 frames >= 4.615 frames cooldown -> 30% faster fire rate!)
+        frameCount = 6005;
+        isShooting = true;
+        handleShooting(true, false);
+        const btAt5Frames = ammoState.primary.clip; // 28 (fires!)
+
+        // 3. Multi mode WITH Binary Trigger (should NOT have single-fire boost, cooldown remains 6 frames)
+        setWeaponFireMode(WEAPONS.rifle, 'multi');
+        ammoState.primary.clip = 30;
+        frameCount = 7000;
+        playerState.lastShot = -1000;
+        isShooting = true;
+        handleShooting(true, false); // Shot 1 fired at frame 7000
+        const multiShot1 = ammoState.primary.clip; // 29
+
+        frameCount = 7005; // delta 5 frames < 6 frames
+        isShooting = true;
+        handleShooting(false, false);
+        const multiAt5Frames = ammoState.primary.clip; // still 29 (blocked)
+
+        frameCount = 7006; // delta 6 frames >= 6 frames
+        isShooting = true;
+        handleShooting(false, false);
+        const multiAt6Frames = ammoState.primary.clip; // 28 (success)
+
+        // 4. Sniper (AWP) single mode with BT (base 64 frames -> 64 / 1.3 = 49.23 frames)
+        inventory.primary = 'sniper';
+        switchWeapon(1);
+        setWeaponFireMode(WEAPONS.sniper, 'single');
+        ammoState.primary.clip = 10;
+        frameCount = 8000;
+        playerState.lastShot = -1000;
+        isShooting = true;
+        handleShooting(true, false); // Shot 1 fired at frame 8000
+        const awpShot1 = ammoState.primary.clip; // 9
+
+        frameCount = 8049; // delta 49 < 49.23 frames
+        isShooting = true;
+        handleShooting(true, false);
+        const awpAt49Frames = ammoState.primary.clip; // still 9 (blocked)
+
+        frameCount = 8050; // delta 50 >= 49.23 frames
+        isShooting = true;
+        handleShooting(true, false);
+        const awpAt50Frames = ammoState.primary.clip; // 8 (fires!)
+
+        // 5. Check HUD badge title mentions 30% fire rate boost
+        updateHUD();
+        const badge = document.getElementById('fire-mode-badge');
+        const badgeTitle = badge ? badge.title : '';
+
+        // 6. Check toggleFireMode killfeed mentions 30% fire rate boost
+        setWeaponFireMode(WEAPONS.rifle, 'multi');
+        toggleFireMode(WEAPONS.rifle); // toggles to single with BT
+        const killFeedEl = document.getElementById('kill-feed');
+        const toggleAnnouncement = killFeedEl && killFeedEl.lastElementChild ? killFeedEl.lastElementChild.innerText : '';
+
+        // 7. Verify updateAdaptivePrompts preserves '单发射速+30%'
+        binaryTriggerPurchased = false;
+        updateAdaptivePrompts();
+        const btnBT = document.getElementById('btn-binary-trigger');
+        const smallText = btnBT ? btnBT.querySelector('small').innerText : '';
+        binaryTriggerPurchased = true;
+
+        // 8. Knife safety: knife does NOT get cooldown reduced even if forced single mode with BT
+        inventory.melee = 'knife';
+        switchWeapon(3);
+        if (!playerState.weaponFireModes) playerState.weaponFireModes = {};
+        playerState.weaponFireModes['knife'] = 'single';
+        frameCount = 9000;
+        playerState.lastShot = -1000;
+        isShooting = true;
+        handleShooting(true, false); // Knife attack at 9000
+        frameCount = 9013; // delta 13 frames < base knife fireRate 16 (16 / 1.3 would be 12.3)
+        handleShooting(true, false);
+        const knifeComboAt13 = playerState.knifeComboStage; // Should NOT advance combo if blocked by 16 frames
+
+        return {
+            noBtShot1,
+            noBtAt5Frames,
+            noBtAt6Frames,
+            btShot1,
+            btAt4Frames,
+            btAt5Frames,
+            multiShot1,
+            multiAt5Frames,
+            multiAt6Frames,
+            awpShot1,
+            awpAt49Frames,
+            awpAt50Frames,
+            badgeTitle,
+            toggleAnnouncement,
+            smallText,
+            knifeComboAt13
+        };
+    });
+
+    assert(btFireRateTest.noBtShot1 === 29, "Without BT: shot 1 fired");
+    assert(btFireRateTest.noBtAt5Frames === 29, "Without BT: shot at delta 5 frames is blocked (normal cooldown = 6)");
+    assert(btFireRateTest.noBtAt6Frames === 28, "Without BT: shot at delta 6 frames succeeds");
+
+    assert(btFireRateTest.btShot1 === 29, "With BT: shot 1 fired");
+    assert(btFireRateTest.btAt4Frames === 29, "With BT in single mode: shot at delta 4 frames is blocked");
+    assert(btFireRateTest.btAt5Frames === 28, "With BT in single mode: shot at delta 5 frames succeeds (30% faster fire rate)");
+
+    assert(btFireRateTest.multiShot1 === 29, "With BT in multi mode: shot 1 fired");
+    assert(btFireRateTest.multiAt5Frames === 29, "With BT in multi mode: shot at delta 5 frames is blocked (unboosted in multi)");
+    assert(btFireRateTest.multiAt6Frames === 28, "With BT in multi mode: shot at delta 6 frames succeeds");
+
+    assert(btFireRateTest.awpShot1 === 9, "AWP single mode: shot 1 fired");
+    assert(btFireRateTest.awpAt49Frames === 9, "AWP with BT in single mode: shot at delta 49 frames is blocked");
+    assert(btFireRateTest.awpAt50Frames === 8, "AWP with BT in single mode: shot at delta 50 frames succeeds (reduced from 64 frames)");
+
+    assert(btFireRateTest.badgeTitle.includes('射速+30%'), "HUD fire mode badge title reflects '射速+30%' with Binary Trigger in single mode");
+    assert(btFireRateTest.toggleAnnouncement.includes('双发扳机射速+30%'), "toggleFireMode killfeed announcement reflects '双发扳机射速+30%' when switching to single with BT");
+    assert(btFireRateTest.smallText.includes('单发射速+30%'), "updateAdaptivePrompts description on #btn-binary-trigger contains '单发射速+30%'");
+    assert(btFireRateTest.knifeComboAt13 === 0, "Non-firearm melee weapon retains standard cooldown (16 frames) and is not boosted by BT");
 
     assert(pageErrors.length === 0, `Zero page runtime errors during test run (errors: ${pageErrors.join(', ')})`);
 

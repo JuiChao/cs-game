@@ -53,7 +53,8 @@ function toggleFireMode(weapon = null) {
     if (typeof playEmptyClick === 'function') playEmptyClick();
 
     if (typeof showKillFeed === 'function') {
-        const modeDesc = (next === 'single') ? '单发模式 (后坐力 80%)' : '多发模式';
+        const hasBT = Boolean(typeof playerState !== 'undefined' && playerState && (playerState.hasBinaryTrigger || (typeof binaryTriggerPurchased !== 'undefined' && binaryTriggerPurchased)));
+        const modeDesc = (next === 'single') ? (hasBT ? '单发模式 (后坐力 80%, 双发扳机射速+30%)' : '单发模式 (后坐力 80%)') : '多发模式';
         showKillFeed(`${weapon.name} 切换为: ${modeDesc}`);
     }
     return next;
