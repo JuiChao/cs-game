@@ -210,7 +210,7 @@ function zombieBotAI(b, delta) {
     if (distToFinal >= 2) {
         dir.normalize();
         b.mesh.lookAt(botPos.x + dir.x, botPos.y, botPos.z + dir.z);
-        let speedMult = (b.poisonTimer > 0) ? 0.25 : 1.0;
+        let speedMult = (b.poisonTimer > 0) ? (BULLET_TYPES.poison.slowMult || 0.70) : 1.0;
         if (b.zombieSlowTimer > 0) speedMult *= ZOMBIE.newSlowMult;
         speedMult *= botFreezeSpeedMult(b);
         const moveVec = dir.multiplyScalar(ZOMBIE.speed * delta * speedMult);
@@ -434,7 +434,7 @@ function botAI(delta) {
             b.mesh.lookAt(nearestEnemy.x, b.mesh.position.y, nearestEnemy.z);
             
             let moveVec = new THREE.Vector3();
-            const combatSlow = ((b.poisonTimer > 0) ? 0.25 : 1.0) * botFreezeSpeedMult(b);
+            const combatSlow = ((b.poisonTimer > 0) ? (BULLET_TYPES.poison.slowMult || 0.70) : 1.0) * botFreezeSpeedMult(b);
             if (lowHP) {
                 const fleeDir = new THREE.Vector3().subVectors(b.mesh.position, nearestEnemy);
                 fleeDir.y = 0;
@@ -466,7 +466,7 @@ function botAI(delta) {
                 
                 let actualSpread = WEAPONS[b.weapon].spread * diff.spreadMult;
                 if (minDist > 150) actualSpread *= 0.1; // ADS Simulation at long range
-                if (b.poisonTimer > 0) actualSpread *= 4; // Poison reduces accuracy by 75%
+                if (b.poisonTimer > 0) actualSpread *= (1 / (BULLET_TYPES.poison.slowMult || 0.70)); // Poison reduces accuracy by 30%
                 
                 if (Math.random() < diff.grenadeChance) {
                     const gType = ['hegrenade', 'flashbang', 'molotov', 'smoke'][Math.floor(Math.random()*4)];
@@ -660,7 +660,7 @@ function botAI(delta) {
                 dir.normalize();
 
                 b.mesh.lookAt(b.mesh.position.x + dir.x, b.mesh.position.y, b.mesh.position.z + dir.z);
-                const speedMult = ((b.poisonTimer > 0) ? 0.25 : 1.0) * botFreezeSpeedMult(b);
+                const speedMult = ((b.poisonTimer > 0) ? (BULLET_TYPES.poison.slowMult || 0.70) : 1.0) * botFreezeSpeedMult(b);
                 const moveVec = dir.multiplyScalar(22 * delta * speedMult); // Normal speed
                 
                 const startPos = b.mesh.position.clone();

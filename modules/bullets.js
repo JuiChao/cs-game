@@ -393,6 +393,30 @@ function applyBulletStatusEffects(b, bot, hitPoint) {
             bot.freezeTimer = cfg.freezeFrames;
         }
         createFreezeEffect(hitPoint);
+
+        // 命中两发可冻结敌人 2 秒
+        if (!bot.isFrozen && (!bot.freezeImmuneTimer || bot.freezeImmuneTimer <= 0)) {
+            bot.freezeBulletHits = (bot.freezeBulletHits || 0) + 1;
+            const isEnemyOfPlayer = (typeof playerState !== 'undefined' && bot.team !== playerState.team);
+            if (b.shooter && b.shooter.isPlayer && isEnemyOfPlayer) {
+                bot.cryoAccumFromPlayer = true;
+                bot.cryoFreezeAccum = (bot.freezeBulletHits / 2.0) * 2.0;
+            }
+            if (bot.freezeBulletHits >= 2) {
+                bot.isFrozen = true;
+                bot.cryoFreezeTimer = 2.0;
+                bot.freezeTimer = 2.0;
+                bot.actionProgress = 0;
+                bot.freezeBulletHits = 0;
+                bot.cryoFreezeAccum = 0;
+                if (b.shooter && b.shooter.isPlayer && isEnemyOfPlayer) {
+                    bot.frozenByPlayer = true;
+                    if (typeof showAnnouncement === 'function') {
+                        showAnnouncement('敌人已冻结', '#00e5ff');
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -760,6 +784,20 @@ function updateBullets(delta) {
                 playerState.burnStacks = Math.min(6, (playerState.burnStacks || 0) + 1);
                 playerState.burnTimer = 420;
                 playerState.burnSourceTeam = b.shooter.team;
+            }
+            if (hasBulletType(b, 'freeze')) {
+                if (!playerState.isFrozen && (!playerState.freezeImmuneTimer || playerState.freezeImmuneTimer <= 0)) {
+                    playerState.freezeBulletHits = (playerState.freezeBulletHits || 0) + 1;
+                    if (playerState.freezeBulletHits >= 2) {
+                        playerState.isFrozen = true;
+                        playerState.freezeTimer = 2.0;
+                        playerState.freezeBulletHits = 0;
+                        playerState.cryoFreezeAccum = 0;
+                    } else {
+                        playerState.cryoFreezeAccum = 1.0;
+                    }
+                    if (typeof updateFreezeHUD === 'function') updateFreezeHUD();
+                }
             }
             playerState.lastCombatTime = frameCount;
             updateHUD();

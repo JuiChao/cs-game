@@ -827,8 +827,15 @@ function animate() {
         baseSpread = 12.8; // Reduced hip fire spread for shotgun
     }
     
+    const hasLaser = Boolean(playerState.hasLaserSight || (typeof laserSightPurchased !== 'undefined' && laserSightPurchased));
+    const hasLight = (playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('light')));
+
     if (playerState.isAds) {
         baseSpread *= 0.1;
+        if (hasLaser) {
+            const laserAdsMult = (typeof LASER_SIGHT !== 'undefined' && typeof LASER_SIGHT.adsSpreadMult === 'number') ? LASER_SIGHT.adsSpreadMult : 0.70;
+            baseSpread *= laserAdsMult; // 瞄视精度增加 30% (瞄视散布减少30%)
+        }
     } else {
         if (!playerState.isOnGround) {
             if (weapon.id === 'gatling') {
@@ -857,6 +864,13 @@ function animate() {
                 baseSpread *= 0.6;
             }
         }
+
+        // 轻型子弹腰射精度增加 50% (腰射散布减少50%)
+        if (hasLight) {
+            const hipMult = (BULLET_TYPES.light && typeof BULLET_TYPES.light.hipSpreadMult === 'number') ? BULLET_TYPES.light.hipSpreadMult : 0.50;
+            baseSpread *= hipMult;
+        }
+
         if (isShooting && !isReloading && !playerState.isFrozen && controls && (controls.isLocked || isPlayerControlActive())) {
             const isSingle = (typeof getWeaponFireMode === 'function') && getWeaponFireMode(weapon) === 'single';
             const canContShoot = !isSingle && (weapon.auto || (weapon.id === 'sniper' && (playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('light')))));
@@ -887,11 +901,13 @@ function animate() {
     
     // View model bobbing & ADS animation
     if (!playerState.isSpectating && !mortarCameraActive && !mortarMapOpen && playerState.viewModel && controls && (controls.isLocked || isPlayerControlActive())) {
+        const weaponAdsSpeed = (weapon && typeof weapon.adsSpeed === 'number') ? weapon.adsSpeed : 8;
+        const effectiveAdsSpeed = hasLaser ? weaponAdsSpeed * 1.2 : weaponAdsSpeed;
         if (playerState.isAds) {
-            playerState.adsProgress += delta * 8;
+            playerState.adsProgress += delta * effectiveAdsSpeed;
             if (playerState.adsProgress > 1) playerState.adsProgress = 1;
         } else {
-            playerState.adsProgress -= delta * 8;
+            playerState.adsProgress -= delta * effectiveAdsSpeed;
             if (playerState.adsProgress < 0) playerState.adsProgress = 0;
         }
 

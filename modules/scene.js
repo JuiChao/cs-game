@@ -75,11 +75,13 @@ let playerState = {
     cameraShake: 0,
     weaponFireModes: {},
     hasBinaryTrigger: false,
+    hasLaserSight: false,
     binaryTriggerPressed: false,
     binaryReleaseDueFrame: 0,
     isFrozen: false,
     freezeTimer: 0,
     freezeImmuneTimer: 0,
+    freezeBulletHits: 0,
     cryoHits: 0,
     cryoDamageTimer: 0,
     cryoDecayTimer: 0

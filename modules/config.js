@@ -115,6 +115,15 @@ function updateAdaptivePrompts() {
                 : '单发模式专用：按一下鼠标攻击一次，松开鼠标再攻击一次，单发射速+30%';
         }
     }
+    var laserSightBtn = document.getElementById('btn-laser-sight');
+    if (laserSightBtn && (typeof laserSightPurchased === 'undefined' || !laserSightPurchased)) {
+        var smallLs = laserSightBtn.querySelector('small');
+        if (smallLs) {
+            smallLs.innerText = isTouch
+                ? '枪械战术配件：开镜速度+20%，瞄视精度+30%，枪身加装镭射指示器'
+                : '枪械战术配件：开镜速度+20%，瞄视精度+30%，枪身加装红外镭射指示器';
+        }
+    }
     var adrenalineBtn = document.getElementById('btn-adrenaline');
     if (adrenalineBtn) {
         var small3 = adrenalineBtn.querySelector('small');
@@ -283,32 +292,32 @@ function setBotDifficulty(level) {
 
 // Weapon Definitions
 const WEAPONS = {
-    pistol: { id: 'pistol', name: '格洛克', damage: 20, fireRate: 3, spread: 0.01, mag: 33, reserve: 120, auto: true, range: 100, color: 0x333333, length: 0.4, killReward: 300, dropRate: 0.000040 },
-    rifle: { id: 'rifle', name: '突击步枪 (AK-47)', damage: 35, fireRate: 6, spread: 0.005, mag: 30, reserve: 90, auto: true, range: 200, color: 0x8b4513, length: 0.8, killReward: 300, dropRate: 0.000020 },
-    sniper: { id: 'sniper', name: '狙击步枪 (AWP)', damage: 110, fireRate: 64, spread: 0.00025, mag: 10, reserve: 30, auto: false, range: 500, color: 0x1a4314, length: 1.2, killReward: 100, dropRate: 0.000008 },
-    marksman: { id: 'marksman', name: '射手步枪 (DMR)', damage: 34, fireRate: 6.86, spread: 0.002, mag: 25, reserve: 90, auto: true, range: 450, color: 0x2e4a23, length: 1.1, killReward: 300, dropRate: 0.000012 },
-    smg: { id: 'smg', name: '冲锋枪 (P90)', damage: 27.8, fireRate: 3.4, spread: 0.00625, mag: 50, reserve: 150, auto: true, range: 120, color: 0x444444, length: 0.5, killReward: 600, dropRate: 0.000035 },
-    mk4: { id: 'mk4', name: 'MK4 冲锋枪 (三连发)', damage: 32, fireRate: 6.16, burst: 3, burstDelay: 3, spread: 0.004, mag: 30, reserve: 90, auto: false, range: 160, color: 0x3a4a5a, length: 0.55, killReward: 600, reloadTime: 2.2, dropRate: 0.000030 },
-    shotgun: { id: 'shotgun', name: '连发霰弹枪 (Auto)', damage: 6, fireRate: 13.5, spread: 0.00511, mag: 12, reserve: 36, auto: true, range: 50, color: 0x222222, length: 0.9, killReward: 900, dropRate: 0.000080 },
-    m249: { id: 'm249', name: '重机枪 (M249)', damage: 30, fireRate: 5.19, spread: 0.02, mag: 100, reserve: 200, auto: true, range: 180, color: 0x113311, length: 1.0, killReward: 300, dropRate: 0.000030 },
-    gatling: { id: 'gatling', name: '加特林 (Gatling)', damage: 12.5, fireRate: 8, spread: 0.015, mag: 400, reserve: 800, auto: true, range: 200, color: 0x2a2a3a, length: 0.7, killReward: 300, reloadTime: 5, dropRate: 0.000035 },
-    ash12: { id: 'ash12', name: 'ASH-12 (突击步枪)', damage: 65, fireRate: 10.5, spread: 0.008, mag: 30, reserve: 90, auto: true, range: 300, color: 0x1a1a2e, length: 0.85, killReward: 300, dropRate: 0.000018 },
-    flamethrower: { id: 'flamethrower', name: '喷火器 (Flamethrower)', damage: 3, fireRate: 0, spread: 0.02, mag: 300, reserve: 600, auto: true, range: 1050, color: 0x8B0000, length: 0.8, killReward: 300, reloadTime: 4 },
-    deagle: { id: 'deagle', name: '沙漠之鹰 (Deagle)', damage: 60, fireRate: 20, spread: 0.005, mag: 7, reserve: 35, auto: false, range: 150, color: 0x777777, length: 0.45, killReward: 300, dropRate: 0.000025 },
-    knife: { id: 'knife', name: '战术小刀 (Karambit)', damage: 34, fireRate: 16, spread: 0, mag: '-', reserve: '-', auto: true, range: 8.05, color: 0xcccccc, length: 0.3, killReward: 1500 },
-    zombieClaw: { id: 'zombieClaw', name: '僵尸利爪 (Claw)', damage: 45, fireRate: 22, spread: 0, mag: '-', reserve: '-', auto: true, range: 16.0, color: 0x4a7a3a, length: 0.35, killReward: 0 },
-    kukri: { id: 'kukri', name: '尼泊尔军刀 (Kukri)', damage: 55, fireRate: 34, spread: 0, mag: '-', reserve: '-', auto: true, range: 15.0, color: 0xaaaaaa, length: 0.4, killReward: 1500 },
-    switchblade: { id: 'switchblade', name: '北极星弹簧刀 (Switchblade)', damage: 35, fireRate: 20, spread: 0, mag: '-', reserve: '-', auto: true, range: 12.0, color: 0xcccccc, length: 0.35, killReward: 1500 },
-    hegrenade: { id: 'hegrenade', name: '手雷 (HE)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x005500, length: 0.2, killReward: 300 },
-    flashbang: { id: 'flashbang', name: '闪光弹 (Flash)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xaaaaaa, length: 0.2, killReward: 300 },
-    molotov: { id: 'molotov', name: '燃烧瓶 (Molotov)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xaa4400, length: 0.2, killReward: 300 },
-    smoke: { id: 'smoke', name: '烟雾弹 (Smoke)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x9aa0a6, length: 0.2, killReward: 300 },
-    sandbag: { id: 'sandbag', name: '沙包 (Sandbag)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xc2b280, length: 0.25, killReward: 0 },
-    mine: { id: 'mine', name: '地雷 (Mine)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x2a3a2a, length: 0.2, killReward: 300 },
-    cryo: { id: 'cryo', name: '液氮冷罐 (Cryo)', damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x00d4ff, length: 0.2, killReward: 300 },
-    drone: { id: 'drone', name: '战术无人机 (Drone)', damage: 150, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x2c3e50, length: 0.3, killReward: 300 },
-    mortar: { id: 'mortar', name: '迫击炮 (Mortar)', damage: 150, fireRate: 120, spread: 0, mag: 1, reserve: 5, auto: false, range: 0, color: 0x4a5a2a, length: 0.6, killReward: 300, explosionRadius: 50 },
-    c4: { id: 'c4', name: 'C4 炸弹', damage: 500, fireRate: 0, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x333333, length: 0.3, killReward: 300 }
+    pistol: { id: 'pistol', name: '格洛克', type: 'pistol', adsSpeed: 12, damage: 20, fireRate: 3, spread: 0.01, mag: 33, reserve: 120, auto: true, range: 100, color: 0x333333, length: 0.4, killReward: 300, dropRate: 0.000040 },
+    rifle: { id: 'rifle', name: '突击步枪 (AK-47)', type: 'rifle', adsSpeed: 7, damage: 35, fireRate: 6, spread: 0.005, mag: 30, reserve: 90, auto: true, range: 200, color: 0x8b4513, length: 0.8, killReward: 300, dropRate: 0.000020 },
+    sniper: { id: 'sniper', name: '狙击步枪 (AWP)', type: 'sniper', adsSpeed: 4.5, damage: 110, fireRate: 64, spread: 0.00025, mag: 10, reserve: 30, auto: false, range: 500, color: 0x1a4314, length: 1.2, killReward: 100, dropRate: 0.000008 },
+    marksman: { id: 'marksman', name: '射手步枪 (DMR)', type: 'marksman', adsSpeed: 5.5, damage: 34, fireRate: 6.86, spread: 0.002, mag: 25, reserve: 90, auto: true, range: 450, color: 0x2e4a23, length: 1.1, killReward: 300, dropRate: 0.000012 },
+    smg: { id: 'smg', name: '冲锋枪 (P90)', type: 'smg', adsSpeed: 9.5, damage: 27.8, fireRate: 3.4, spread: 0.00625, mag: 50, reserve: 150, auto: true, range: 120, color: 0x444444, length: 0.5, killReward: 600, dropRate: 0.000035 },
+    mk4: { id: 'mk4', name: 'MK4 冲锋枪 (三连发)', type: 'smg', adsSpeed: 9, damage: 32, fireRate: 6.16, burst: 3, burstDelay: 3, spread: 0.004, mag: 30, reserve: 90, auto: false, range: 160, color: 0x3a4a5a, length: 0.55, killReward: 600, reloadTime: 2.2, dropRate: 0.000030 },
+    shotgun: { id: 'shotgun', name: '连发霰弹枪 (Auto)', type: 'shotgun', adsSpeed: 7.5, damage: 6, fireRate: 13.5, spread: 0.00511, mag: 12, reserve: 36, auto: true, range: 50, color: 0x222222, length: 0.9, killReward: 900, dropRate: 0.000080 },
+    m249: { id: 'm249', name: '重机枪 (M249)', type: 'machinegun', adsSpeed: 4, damage: 30, fireRate: 5.19, spread: 0.02, mag: 100, reserve: 200, auto: true, range: 180, color: 0x113311, length: 1.0, killReward: 300, dropRate: 0.000030 },
+    gatling: { id: 'gatling', name: '加特林 (Gatling)', type: 'heavy', adsSpeed: 3, damage: 12.5, fireRate: 8, spread: 0.015, mag: 400, reserve: 800, auto: true, range: 200, color: 0x2a2a3a, length: 0.7, killReward: 300, reloadTime: 5, dropRate: 0.000035 },
+    ash12: { id: 'ash12', name: 'ASH-12 (突击步枪)', type: 'rifle', adsSpeed: 6, damage: 65, fireRate: 10.5, spread: 0.008, mag: 30, reserve: 90, auto: true, range: 300, color: 0x1a1a2e, length: 0.85, killReward: 300, dropRate: 0.000018 },
+    flamethrower: { id: 'flamethrower', name: '喷火器 (Flamethrower)', type: 'heavy', adsSpeed: 3.5, damage: 3, fireRate: 0, spread: 0.02, mag: 300, reserve: 600, auto: true, range: 1050, color: 0x8B0000, length: 0.8, killReward: 300, reloadTime: 4 },
+    deagle: { id: 'deagle', name: '沙漠之鹰 (Deagle)', type: 'pistol', adsSpeed: 10, damage: 60, fireRate: 20, spread: 0.005, mag: 7, reserve: 35, auto: false, range: 150, color: 0x777777, length: 0.45, killReward: 300, dropRate: 0.000025 },
+    knife: { id: 'knife', name: '战术小刀 (Karambit)', type: 'melee', adsSpeed: 12, damage: 34, fireRate: 16, spread: 0, mag: '-', reserve: '-', auto: true, range: 8.05, color: 0xcccccc, length: 0.3, killReward: 1500 },
+    zombieClaw: { id: 'zombieClaw', name: '僵尸利爪 (Claw)', type: 'melee', adsSpeed: 12, damage: 45, fireRate: 22, spread: 0, mag: '-', reserve: '-', auto: true, range: 16.0, color: 0x4a7a3a, length: 0.35, killReward: 0 },
+    kukri: { id: 'kukri', name: '尼泊尔军刀 (Kukri)', type: 'melee', adsSpeed: 12, damage: 55, fireRate: 34, spread: 0, mag: '-', reserve: '-', auto: true, range: 15.0, color: 0xaaaaaa, length: 0.4, killReward: 1500 },
+    switchblade: { id: 'switchblade', name: '北极星弹簧刀 (Switchblade)', type: 'melee', adsSpeed: 12, damage: 35, fireRate: 20, spread: 0, mag: '-', reserve: '-', auto: true, range: 12.0, color: 0xcccccc, length: 0.35, killReward: 1500 },
+    hegrenade: { id: 'hegrenade', name: '手雷 (HE)', type: 'grenade', adsSpeed: 8, damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x005500, length: 0.2, killReward: 300 },
+    flashbang: { id: 'flashbang', name: '闪光弹 (Flash)', type: 'grenade', adsSpeed: 8, damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xaaaaaa, length: 0.2, killReward: 300 },
+    molotov: { id: 'molotov', name: '燃烧瓶 (Molotov)', type: 'grenade', adsSpeed: 8, damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xaa4400, length: 0.2, killReward: 300 },
+    smoke: { id: 'smoke', name: '烟雾弹 (Smoke)', type: 'grenade', adsSpeed: 8, damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x9aa0a6, length: 0.2, killReward: 300 },
+    sandbag: { id: 'sandbag', name: '沙包 (Sandbag)', type: 'grenade', adsSpeed: 8, damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0xc2b280, length: 0.25, killReward: 0 },
+    mine: { id: 'mine', name: '地雷 (Mine)', type: 'grenade', adsSpeed: 8, damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x2a3a2a, length: 0.2, killReward: 300 },
+    cryo: { id: 'cryo', name: '液氮冷罐 (Cryo)', type: 'grenade', adsSpeed: 8, damage: 0, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x00d4ff, length: 0.2, killReward: 300 },
+    drone: { id: 'drone', name: '战术无人机 (Drone)', type: 'special', adsSpeed: 8, damage: 150, fireRate: 60, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x2c3e50, length: 0.3, killReward: 300 },
+    mortar: { id: 'mortar', name: '迫击炮 (Mortar)', type: 'special', adsSpeed: 2, damage: 150, fireRate: 120, spread: 0, mag: 1, reserve: 5, auto: false, range: 0, color: 0x4a5a2a, length: 0.6, killReward: 300, explosionRadius: 50 },
+    c4: { id: 'c4', name: 'C4 炸弹', type: 'special', adsSpeed: 8, damage: 500, fireRate: 0, spread: 0, mag: 1, reserve: 0, auto: false, range: 0, color: 0x333333, length: 0.3, killReward: 300 }
 };
 
 // Deterministic recoil patterns (CS-style learnable spray patterns)
@@ -371,7 +380,17 @@ let dropCompensationPurchased = false;
 let dropCompensationActive = false;
 let dropCompensationOffset = 0;
 let binaryTriggerPurchased = false;
+let laserSightPurchased = false;
 let activeCryoZones = [];
+
+const LASER_SIGHT = {
+    id: 'laserSight',
+    name: '镭射激光',
+    cost: 500,
+    adsSpeedBonus: 0.20,
+    adsAccuracyBonus: 0.30,
+    adsSpreadMult: 0.70
+};
 
 if (typeof window !== 'undefined') {
     window.inventory = inventory;
@@ -379,9 +398,15 @@ if (typeof window !== 'undefined') {
     window.WEAPONS = WEAPONS;
     window.RECOIL_PATTERNS = RECOIL_PATTERNS;
     window.activeCryoZones = activeCryoZones;
+    window.LASER_SIGHT = LASER_SIGHT;
     Object.defineProperty(window, 'binaryTriggerPurchased', {
         get() { return binaryTriggerPurchased; },
         set(val) { return binaryTriggerPurchased = val; },
+        configurable: true
+    });
+    Object.defineProperty(window, 'laserSightPurchased', {
+        get() { return laserSightPurchased; },
+        set(val) { return laserSightPurchased = val; },
         configurable: true
     });
 }
@@ -444,8 +469,8 @@ const BULLET_TYPES = {
     },
     poison: {
         id: 'poison', name: '剧毒子弹', cost: 500, costType: 'currency',
-        desc: '命中后不造成即时伤害，持续8秒每0.57秒造成3点伤害，敌人移速与精度减少75%',
-        poisonDuration: 480, poisonDamage: 3, poisonTickInterval: 34, slowMult: 0.25
+        desc: '命中后不造成即时伤害，持续8秒每0.57秒造成3点伤害，敌人移速减少30%',
+        poisonDuration: 480, poisonDamage: 3, poisonTickInterval: 34, slowMult: 0.70, slowReduction: 0.30
     },
     proximity: {
         id: 'proximity', name: '近炸引信子弹', cost: 1000, costType: 'currency',
@@ -458,9 +483,9 @@ const BULLET_TYPES = {
         damageMult: 0.50, trackingRange: 30, trackingStrength: 0.24
     },
     light: {
-        id: 'light', name: '轻型子弹', cost: 1200, costType: 'currency',
-        desc: '子弹伤害降低30%，飞行速度+20%，枪械射速+70%，后坐力减少60%，弹匣容量+50%；AWP专用：全自动、射速420发/分、弹匣25发、身体伤害-40%',
-        damageMult: 0.70, speedMult: 1.2, fireRateMult: 0.30, recoilMult: 0.4, magMult: 1.5
+        id: 'light', name: '轻型子弹', cost: 1400, costType: 'currency',
+        desc: '子弹伤害降低30%，飞行速度+20%，枪械射速+70%，后坐力减少60%，弹匣容量+50%，腰射精度+50%；AWP专用：全自动、射速420发/分、弹匣25发、身体伤害-40%',
+        damageMult: 0.70, speedMult: 1.2, fireRateMult: 0.30, recoilMult: 0.4, magMult: 1.5, hipAccuracyBonus: 0.50, hipSpreadMult: 0.50
     },
     dual: {
         id: 'dual', name: '双头弹', cost: 600, costType: 'currency',
@@ -474,8 +499,8 @@ const BULLET_TYPES = {
     },
     freeze: {
         id: 'freeze', name: '冰冻子弹', cost: 700, costType: 'currency',
-        desc: '命中减速50%持续3秒，可叠加最多3层（2层65%、3层80%减速）',
-        freezeFrames: 180, maxFreezeStacks: 3
+        desc: '命中减速50%持续3秒，可叠加最多3层（2层65%、3层80%减速）；命中两发可冻结敌人2秒',
+        freezeFrames: 180, maxFreezeStacks: 3, hitsToFreeze: 2, freezeDuration: 2.0
     },
     ricochet: {
         id: 'ricochet', name: '跳弹', cost: 600, costType: 'currency',

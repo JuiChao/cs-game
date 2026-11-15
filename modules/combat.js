@@ -447,8 +447,12 @@ function handleShooting(initialClick = false, isRelease = false) {
         
         // Add spread
         let actualSpread = (currentSpread + 5) / 500;
+        const hasLight = (playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('light')));
         if (playerState.isAds) {
             actualSpread = 0;
+        } else if (hasLight) {
+            const hipMult = (BULLET_TYPES.light && typeof BULLET_TYPES.light.hipSpreadMult === 'number') ? BULLET_TYPES.light.hipSpreadMult : 0.50;
+            actualSpread *= hipMult;
         }
         let theta, r;
         if (weapon.id === 'shotgun') {
@@ -577,6 +581,7 @@ function playerDie(killerTeam = null, weaponId = 'rifle') {
     playerState.cryoDamageTimer = 0;
     playerState.inCryoZone = false;
     playerState.cryoFreezeAccum = 0;
+    playerState.freezeBulletHits = 0;
     playerState.cryoDamageTicks = 0;
     playerState.binaryReleaseDueFrame = 0;
     playerState.binaryTriggerPressed = false;
@@ -866,6 +871,7 @@ function killBot(index, killerTeam, weaponId = 'rifle', killerIsPlayer = false, 
         bot.cryoDamageTimer = 0;
         bot.cryoDamageTicks = 0;
         bot.cryoFreezeAccum = 0;
+        bot.freezeBulletHits = 0;
         bot.cryoAccumFromPlayer = false;
         bot.frozenByPlayer = false;
         bot.inCryoZone = false;

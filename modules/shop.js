@@ -100,6 +100,21 @@ function openBuyMenu() {
         btnBT.disabled = false;
         btnBT.style.opacity = '1';
     }
+
+    const hasLaser = Boolean(playerState.hasLaserSight || (typeof laserSightPurchased !== 'undefined' && laserSightPurchased));
+    const btnLaser = document.getElementById('btn-laser-sight');
+    if (btnLaser && hasLaser) {
+        btnLaser.innerHTML = `镭射激光 <span class="price">已购买</span> <br><small>开镜速度+20%，瞄视精度+30%，已装配红外指示器</small>`;
+        btnLaser.disabled = true;
+        btnLaser.style.opacity = '0.5';
+    } else if (btnLaser) {
+        const isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
+        const desc = isTouch ? '枪械战术配件：开镜速度+20%，瞄视精度+30%，枪身加装镭射指示器' : '枪械战术配件：开镜速度+20%，瞄视精度+30%，枪身加装红外镭射指示器';
+        const cost = (typeof LASER_SIGHT !== 'undefined' && typeof LASER_SIGHT.cost === 'number') ? LASER_SIGHT.cost : 500;
+        btnLaser.innerHTML = `镭射激光 <span class="price">${cost}$</span> <br><small>${desc}</small>`;
+        btnLaser.disabled = false;
+        btnLaser.style.opacity = '1';
+    }
     
     const buyCreditsEl = document.getElementById('buy-credits');
     if (buyCreditsEl) buyCreditsEl.innerText = playerCurrency;
@@ -290,8 +305,46 @@ function buyBinaryTrigger() {
     }
 }
 
+function buyLaserSight(customCost) {
+    if (playerState.isControllingDrone) return;
+    if (gameMode === 'zombie' && (playerState.isZombie || playerState.team === 'ZOMBIE')) {
+        if (typeof showKillFeed === 'function') showKillFeed('僵尸无法购买镭射激光');
+        return;
+    }
+    const hasLaser = Boolean(playerState.hasLaserSight || (typeof laserSightPurchased !== 'undefined' && laserSightPurchased));
+    if (hasLaser) {
+        if (typeof showKillFeed === 'function') showKillFeed('镭射激光已购买');
+        return;
+    }
+    const cost = (typeof customCost === 'number') ? customCost : ((typeof LASER_SIGHT !== 'undefined' && typeof LASER_SIGHT.cost === 'number') ? LASER_SIGHT.cost : 500);
+    if (playerCurrency < cost) {
+        if (typeof showKillFeed === 'function') showKillFeed(`金币不足，无法购买镭射激光 (需要 ${cost}$)`);
+        return;
+    }
+    playerCurrency -= cost;
+    const bCred = document.getElementById('buy-credits');
+    if (bCred) bCred.innerText = playerCurrency;
+    const hCred = document.getElementById('hud-credits');
+    if (hCred) hCred.innerText = playerCurrency;
+    playerState.hasLaserSight = true;
+    laserSightPurchased = true;
+    if (typeof showKillFeed === 'function') {
+        showKillFeed('镭射激光已装备！开镜速度+20%，瞄视精度+30%');
+    }
+    const btn = document.getElementById('btn-laser-sight');
+    if (btn) {
+        btn.innerHTML = `镭射激光 <span class="price">已购买</span> <br><small>开镜速度+20%，瞄视精度+30%，已装配红外指示器</small>`;
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+    }
+    if (typeof updateViewModel === 'function') {
+        updateViewModel();
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.buyBinaryTrigger = buyBinaryTrigger;
+    window.buyLaserSight = buyLaserSight;
 }
 
 function toggleDropCompensation() {

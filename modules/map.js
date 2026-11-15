@@ -649,11 +649,15 @@ function resetRound() {
         playerState.inCryoZone = false;
         playerState.cryoFreezeAccum = 0;
         playerState.cryoDamageTicks = 0;
+        playerState.freezeBulletHits = 0;
         playerState.binaryReleaseDueFrame = 0;
         playerState.binaryTriggerPressed = false;
         playerState.isAds = false;
         if (typeof binaryTriggerPurchased !== 'undefined') {
             playerState.hasBinaryTrigger = Boolean(binaryTriggerPurchased);
+        }
+        if (typeof laserSightPurchased !== 'undefined') {
+            playerState.hasLaserSight = Boolean(laserSightPurchased);
         }
     }
     const _freezeStatus = document.getElementById('freeze-status');
