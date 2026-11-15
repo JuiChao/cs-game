@@ -572,14 +572,23 @@ function updateCryoZones(delta) {
         // Check if player is inside any active cryo zone
         let pInZone = false;
         let zForPlayer = null;
+        let pFromDrone = false;
+        let pZoneTeam = 'T';
         if (playerState.hp > 0 && !playerState.isSpectating && typeof getPlayerPosition === 'function') {
             const pPos = getPlayerPosition();
-            for (let j = 0; j < activeCryoZones.length; j++) {
-                const z = activeCryoZones[j];
-                if (Math.abs(pPos.x - z.x) < z.halfSize && Math.abs(pPos.z - z.z) < z.halfSize) {
-                    pInZone = true;
-                    zForPlayer = z;
-                    break;
+            if (pPos) {
+                for (let j = 0; j < activeCryoZones.length; j++) {
+                    const z = activeCryoZones[j];
+                    if (Math.abs(pPos.x - z.x) < z.halfSize && Math.abs(pPos.z - z.z) < z.halfSize) {
+                        pInZone = true;
+                        if (!zForPlayer) {
+                            zForPlayer = z;
+                            pZoneTeam = z.team || 'T';
+                        }
+                        if (z.isFromDrone) {
+                            pFromDrone = true;
+                        }
+                    }
                 }
             }
         }
@@ -594,26 +603,26 @@ function updateCryoZones(delta) {
                 playerState.cryoDamageTimer -= 0.5;
                 const ticks = (playerState.cryoDamageTicks || 0);
                 playerState.cryoDamageTicks = ticks + 1;
-                const extraDamage = ticks; // 第1次伤害基础5, 待0.5秒后下一次伤害+1(6), 再+1(7)...
-                const dmgMult = (zForPlayer && zForPlayer.isFromDrone) ? 1.1 : 1.0;
-                const finalDmg = Math.ceil((5 + extraDamage) * dmgMult);
+                const extraDamage = ticks; // 第1次伤害基础3, 待0.5秒后下一次伤害+1(4), 再+1(5)...
+                const dmgMult = pFromDrone ? 1.1 : 1.0;
+                const finalDmg = Math.ceil((3 + extraDamage) * dmgMult);
 
                 if (!playerState.isInvincible) playerState.hp -= finalDmg;
                 if (typeof triggerDamageVignette === 'function') triggerDamageVignette(0.2);
                 playerState.lastCombatTime = frameCount;
                 if (typeof updateHUD === 'function') updateHUD();
                 if (playerState.hp <= 0) {
-                    playerDie(zForPlayer ? zForPlayer.team : 'T', 'cryo');
+                    playerDie(zForPlayer ? zForPlayer.team : pZoneTeam, 'cryo');
                     break;
                 }
             }
 
-            // 冰冻累积: 堆满 3 秒就会产生冻结
+            // 冰冻累积: 堆满 2 秒就会产生冻结
             if (!playerState.isFrozen && (!playerState.freezeImmuneTimer || playerState.freezeImmuneTimer <= 0)) {
                 playerState.cryoFreezeAccum = (playerState.cryoFreezeAccum || 0) + delta;
-                playerState.cryoHits = Math.round((playerState.cryoFreezeAccum / 3.0) * 6);
-                if (playerState.cryoFreezeAccum >= 3.0) {
-                    playerState.cryoFreezeAccum = 3.0;
+                playerState.cryoHits = Math.round((playerState.cryoFreezeAccum / 2.0) * 6);
+                if (playerState.cryoFreezeAccum >= 2.0) {
+                    playerState.cryoFreezeAccum = 2.0;
                     playerState.isFrozen = true;
                     playerState.freezeTimer = 3.0; // 持续 3 秒
                     playerState.cryoFreezeAccum = 0;
@@ -632,36 +641,40 @@ function updateCryoZones(delta) {
                 playerState.cryoDecayTimer = (playerState.cryoDecayTimer || 0) + delta;
                 if (playerState.cryoDecayTimer >= 1.5) {
                     playerState.cryoFreezeAccum = Math.max(0, (playerState.cryoFreezeAccum || 0) - delta * 2.0);
-                    playerState.cryoHits = Math.round((playerState.cryoFreezeAccum / 3.0) * 6);
+                    playerState.cryoHits = Math.round((playerState.cryoFreezeAccum / 2.0) * 6);
                 }
             }
         }
 
         // Update on-screen freeze progress bar
-        const freezeStatusEl = document.getElementById('freeze-status');
-        const freezeProgEl = document.getElementById('freeze-progress');
-        const freezeTextEl = document.getElementById('freeze-text');
-        if (freezeStatusEl && freezeProgEl && freezeTextEl) {
-            if (playerState.hp <= 0 || playerState.isSpectating) {
-                freezeStatusEl.classList.add('hidden');
-            } else if (playerState.isFrozen) {
-                freezeStatusEl.classList.remove('hidden');
-                freezeProgEl.style.width = '100%';
-                freezeTextEl.innerText = `已冰冻! (${playerState.freezeTimer.toFixed(1)}s)`;
-            } else if (playerState.freezeImmuneTimer > 0) {
-                // 5 秒的解冻冷却也是百分比，从 100% 慢慢减到 0%
-                freezeStatusEl.classList.remove('hidden');
-                const immunePct = Math.max(0, Math.min(100, Math.round((playerState.freezeImmuneTimer / 5.0) * 100)));
-                freezeProgEl.style.width = immunePct + '%';
-                freezeTextEl.innerText = `解冻冷却: ${immunePct}% (${playerState.freezeImmuneTimer.toFixed(1)}s)`;
-            } else if (playerState.cryoFreezeAccum > 0 || playerState.cryoHits > 0) {
-                freezeStatusEl.classList.remove('hidden');
-                const accumPct = Math.min(100, Math.round(((playerState.cryoFreezeAccum || 0) / 3.0) * 100));
-                freezeProgEl.style.width = accumPct + '%';
-                freezeTextEl.innerText = `冰冻累积: ${accumPct}%`;
-            } else {
-                freezeStatusEl.classList.add('hidden');
-                freezeProgEl.style.width = '0%';
+        if (typeof updateFreezeHUD === 'function') {
+            updateFreezeHUD();
+        } else {
+            const freezeStatusEl = document.getElementById('freeze-status');
+            const freezeProgEl = document.getElementById('freeze-progress');
+            const freezeTextEl = document.getElementById('freeze-text');
+            if (freezeStatusEl && freezeProgEl && freezeTextEl) {
+                if (playerState.hp <= 0 || playerState.isSpectating) {
+                    freezeStatusEl.classList.add('hidden');
+                } else if (playerState.isFrozen) {
+                    freezeStatusEl.classList.remove('hidden');
+                    freezeProgEl.style.width = '100%';
+                    freezeTextEl.innerText = `已冰冻! (${playerState.freezeTimer.toFixed(1)}s)`;
+                } else if (playerState.freezeImmuneTimer > 0) {
+                    // 5 秒的解冻冷却也是百分比，从 100% 慢慢减到 0%
+                    freezeStatusEl.classList.remove('hidden');
+                    const immunePct = Math.max(0, Math.min(100, Math.round((playerState.freezeImmuneTimer / 5.0) * 100)));
+                    freezeProgEl.style.width = immunePct + '%';
+                    freezeTextEl.innerText = `解冻冷却: ${immunePct}% (${playerState.freezeImmuneTimer.toFixed(1)}s)`;
+                } else if (playerState.cryoFreezeAccum > 0 || playerState.cryoHits > 0) {
+                    freezeStatusEl.classList.remove('hidden');
+                    const accumPct = Math.min(100, Math.round(((playerState.cryoFreezeAccum || 0) / 2.0) * 100));
+                    freezeProgEl.style.width = accumPct + '%';
+                    freezeTextEl.innerText = `冰冻累积: ${accumPct}%`;
+                } else {
+                    freezeStatusEl.classList.add('hidden');
+                    freezeProgEl.style.width = '0%';
+                }
             }
         }
     }
@@ -693,12 +706,24 @@ function updateCryoZones(delta) {
 
             let bInZone = false;
             let bZone = null;
+            let bIsPlayer = false;
+            let bFromDrone = false;
+            let bKillerTeam = 'CT';
             for (let j = 0; j < activeCryoZones.length; j++) {
                 const z = activeCryoZones[j];
                 if (Math.abs(b.mesh.position.x - z.x) < z.halfSize && Math.abs(b.mesh.position.z - z.z) < z.halfSize) {
                     bInZone = true;
-                    bZone = z;
-                    break;
+                    if (!bZone) {
+                        bZone = z;
+                        bKillerTeam = z.team || 'CT';
+                    }
+                    if (z.isPlayer) {
+                        bIsPlayer = true;
+                        bKillerTeam = z.team || 'CT';
+                    }
+                    if (z.isFromDrone) {
+                        bFromDrone = true;
+                    }
                 }
             }
             b.inCryoZone = bInZone;
@@ -711,15 +736,15 @@ function updateCryoZones(delta) {
                     const bTicks = (b.cryoDamageTicks || 0);
                     b.cryoDamageTicks = bTicks + 1;
                     const bExtraDmg = bTicks; // 待0.5秒下一次伤害+1
-                    const dmgMult = (bZone && bZone.isFromDrone) ? 1.1 : 1.0;
-                    const finalDmg = Math.ceil((5 + bExtraDmg) * dmgMult);
+                    const dmgMult = bFromDrone ? 1.1 : 1.0;
+                    const finalDmg = Math.ceil((3 + bExtraDmg) * dmgMult);
 
                     b.hp -= finalDmg * zombieExplosiveDmgMult(b);
-                    if (bZone && bZone.isPlayer && typeof showFloatingDamage === 'function' && b.mesh) {
+                    if (bIsPlayer && typeof showFloatingDamage === 'function' && b.mesh) {
                         showFloatingDamage(finalDmg, b.mesh.position);
                     }
                     if (b.hp <= 0) {
-                        killBot(bIdx, bZone ? bZone.team : 'CT', 'cryo', bZone ? !!bZone.isPlayer : false);
+                        killBot(bIdx, bKillerTeam, 'cryo', bIsPlayer);
                         break;
                     }
                 }
@@ -728,23 +753,23 @@ function updateCryoZones(delta) {
                     continue;
                 }
 
-                // 堆满 3 秒就会产生冻结
+                // 堆满 2 秒就会产生冻结
                 if (!b.isFrozen && (!b.freezeImmuneTimer || b.freezeImmuneTimer <= 0)) {
                     b.cryoFreezeAccum = (b.cryoFreezeAccum || 0) + delta;
-                    b.cryoHits = Math.round((b.cryoFreezeAccum / 3.0) * 6);
+                    b.cryoHits = Math.round((b.cryoFreezeAccum / 2.0) * 6);
                     const isEnemyOfPlayer = (typeof playerState !== 'undefined' && b.team !== playerState.team);
-                    if (bZone && bZone.isPlayer && isEnemyOfPlayer) {
+                    if (bIsPlayer && isEnemyOfPlayer) {
                         b.cryoAccumFromPlayer = true;
                     }
-                    if (b.cryoFreezeAccum >= 3.0) {
-                        b.cryoFreezeAccum = 3.0;
+                    if (b.cryoFreezeAccum >= 2.0) {
+                        b.cryoFreezeAccum = 2.0;
                         b.isFrozen = true;
                         b.cryoFreezeTimer = 3.0;
                         b.freezeTimer = 3.0;
                         b.actionProgress = 0;
                         b.cryoFreezeAccum = 0;
                         b.cryoHits = 0;
-                        if (bZone && bZone.isPlayer && isEnemyOfPlayer) {
+                        if (bIsPlayer && isEnemyOfPlayer) {
                             b.frozenByPlayer = true;
                             if (typeof showAnnouncement === 'function') {
                                 showAnnouncement('敌人已冻结', '#00e5ff');
@@ -759,7 +784,7 @@ function updateCryoZones(delta) {
                     b.cryoDecayTimer = (b.cryoDecayTimer || 0) + delta;
                     if (b.cryoDecayTimer >= 1.5) {
                         b.cryoFreezeAccum = Math.max(0, (b.cryoFreezeAccum || 0) - delta * 2.0);
-                        b.cryoHits = Math.round((b.cryoFreezeAccum / 3.0) * 6);
+                        b.cryoHits = Math.round((b.cryoFreezeAccum / 2.0) * 6);
                         if (b.cryoFreezeAccum <= 0) b.cryoAccumFromPlayer = false;
                     }
                 }
@@ -768,50 +793,54 @@ function updateCryoZones(delta) {
     }
 
     // 4. Enemy freeze HUD for player screen
-    const eFreezeStatusEl = document.getElementById('enemy-freeze-status');
-    const eFreezeProgEl = document.getElementById('enemy-freeze-progress');
-    const eFreezeTextEl = document.getElementById('enemy-freeze-text');
-    if (typeof playerState !== 'undefined' && (playerState.hp <= 0 || playerState.isSpectating)) {
-        if (eFreezeStatusEl) eFreezeStatusEl.classList.add('hidden');
-        if (eFreezeProgEl) eFreezeProgEl.style.width = '0%';
-    } else if (eFreezeStatusEl && eFreezeProgEl && eFreezeTextEl) {
-        let maxEnemyPct = 0;
-        let anyEnemyFrozen = false;
-        let enemyFrozenTimer = 0;
-        let activeEnemyFound = false;
+    if (typeof updateEnemyFreezeHUD === 'function') {
+        updateEnemyFreezeHUD();
+    } else {
+        const eFreezeStatusEl = document.getElementById('enemy-freeze-status');
+        const eFreezeProgEl = document.getElementById('enemy-freeze-progress');
+        const eFreezeTextEl = document.getElementById('enemy-freeze-text');
+        if (typeof playerState !== 'undefined' && (playerState.hp <= 0 || playerState.isSpectating)) {
+            if (eFreezeStatusEl) eFreezeStatusEl.classList.add('hidden');
+            if (eFreezeProgEl) eFreezeProgEl.style.width = '0%';
+        } else if (eFreezeStatusEl && eFreezeProgEl && eFreezeTextEl) {
+            let maxEnemyPct = 0;
+            let anyEnemyFrozen = false;
+            let enemyFrozenTimer = 0;
+            let activeEnemyFound = false;
 
-        if (typeof bots !== 'undefined' && Array.isArray(bots)) {
-            for (let k = 0; k < bots.length; k++) {
-                const eb = bots[k];
-                if (!eb || eb.isDead || (typeof playerState !== 'undefined' && eb.team === playerState.team)) continue;
-                if (eb.frozenByPlayer && eb.isFrozen) {
-                    anyEnemyFrozen = true;
-                    const ft = eb.cryoFreezeTimer || eb.freezeTimer || 0;
-                    if (ft > enemyFrozenTimer) enemyFrozenTimer = ft;
-                    activeEnemyFound = true;
-                    continue;
-                }
-                if (eb.cryoAccumFromPlayer && eb.cryoFreezeAccum > 0) {
-                    const pct = Math.min(100, Math.round((eb.cryoFreezeAccum / 3.0) * 100));
-                    if (pct > maxEnemyPct) {
-                        maxEnemyPct = pct;
+            if (typeof bots !== 'undefined' && Array.isArray(bots)) {
+                for (let k = 0; k < bots.length; k++) {
+                    const eb = bots[k];
+                    if (!eb || eb.isDead || (typeof playerState !== 'undefined' && eb.team === playerState.team)) continue;
+                    if (eb.frozenByPlayer && eb.isFrozen) {
+                        anyEnemyFrozen = true;
+                        const ft = eb.cryoFreezeTimer || eb.freezeTimer || 0;
+                        if (ft > enemyFrozenTimer) enemyFrozenTimer = ft;
                         activeEnemyFound = true;
+                        continue;
+                    }
+                    if (eb.cryoAccumFromPlayer && eb.cryoFreezeAccum > 0) {
+                        const pct = Math.min(100, Math.round((eb.cryoFreezeAccum / 2.0) * 100));
+                        if (pct > maxEnemyPct) {
+                            maxEnemyPct = pct;
+                            activeEnemyFound = true;
+                        }
                     }
                 }
             }
-        }
 
-        if (anyEnemyFrozen) {
-            eFreezeStatusEl.classList.remove('hidden');
-            eFreezeProgEl.style.width = '100%';
-            eFreezeTextEl.innerText = `敌人已冻结! (${enemyFrozenTimer.toFixed(1)}s)`;
-        } else if (activeEnemyFound && maxEnemyPct > 0) {
-            eFreezeStatusEl.classList.remove('hidden');
-            eFreezeProgEl.style.width = maxEnemyPct + '%';
-            eFreezeTextEl.innerText = `敌人冰冻累积: ${maxEnemyPct}%`;
-        } else {
-            eFreezeStatusEl.classList.add('hidden');
-            eFreezeProgEl.style.width = '0%';
+            if (anyEnemyFrozen) {
+                eFreezeStatusEl.classList.remove('hidden');
+                eFreezeProgEl.style.width = '100%';
+                eFreezeTextEl.innerText = `敌人已冻结! (${enemyFrozenTimer.toFixed(1)}s)`;
+            } else if (activeEnemyFound && maxEnemyPct > 0) {
+                eFreezeStatusEl.classList.remove('hidden');
+                eFreezeProgEl.style.width = maxEnemyPct + '%';
+                eFreezeTextEl.innerText = `敌人冰冻累积: ${maxEnemyPct}%`;
+            } else {
+                eFreezeStatusEl.classList.add('hidden');
+                eFreezeProgEl.style.width = '0%';
+            }
         }
     }
 
@@ -824,7 +853,7 @@ function updateCryoZones(delta) {
                 z.rangeTimer -= 0.5;
                 const rTicks = (z.rangeTicks || 0);
                 z.rangeTicks = rTicks + 1;
-                const rDmg = 5 + rTicks;
+                const rDmg = 3 + rTicks;
                 rangeTargets.forEach(t => {
                     if (Math.abs(t.position.x - z.x) < z.halfSize && Math.abs(t.position.z - z.z) < z.halfSize) {
                         if (typeof showFloatingDamage === 'function') showFloatingDamage(rDmg, t.position);

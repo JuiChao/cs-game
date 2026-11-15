@@ -87,7 +87,7 @@ async function runTests() {
     assert(zoneCreateTest.hasMesh && zoneCreateTest.hasInnerMesh, "Cryo zone has outer mesh and inner ring mesh");
     assert(zoneCreateTest.hasCountdownSprite && zoneCreateTest.hasCountdownCanvas, "Cryo zone has circular countdown sprite & canvas above area");
 
-    console.log("\n--- Section 1.3: Cryo Damage (Escalating +1 per 0.5s) & 3s Accumulation ---");
+    console.log("\n--- Section 1.3: Cryo Damage (Escalating +1 per 0.5s) & 2s Accumulation ---");
     const damageProgressionTest = await page.evaluate(() => {
         // Place zone at center, position player at center
         activeCryoZones.length = 0;
@@ -116,7 +116,7 @@ async function runTests() {
             uiHidden: freezeStatus ? freezeStatus.classList.contains('hidden') : true
         });
 
-        // Tick another 0.25s (total 0.5s): Tick 1 (5 base damage, hp 100 -> 95)
+        // Tick another 0.25s (total 0.5s): Tick 1 (3 base damage, hp 100 -> 97)
         updateCryoZones(0.25);
         snapshots.push({
             t: 0.5,
@@ -127,7 +127,7 @@ async function runTests() {
             text: freezeText ? freezeText.innerText : ''
         });
 
-        // Tick 0.5s (total 1.0s): Tick 2 (5 + 1 = 6 damage -> hp 89)
+        // Tick 0.5s (total 1.0s): Tick 2 (3 + 1 = 4 damage -> hp 93)
         updateCryoZones(0.5);
         snapshots.push({
             t: 1.0,
@@ -135,7 +135,7 @@ async function runTests() {
             progWidth: freezeProg ? freezeProg.style.width : ''
         });
 
-        // Tick 0.5s (total 1.5s): Tick 3 (5 + 2 = 7 damage -> hp 82)
+        // Tick 0.5s (total 1.5s): Tick 3 (3 + 2 = 5 damage -> hp 88)
         updateCryoZones(0.5);
         snapshots.push({
             t: 1.5,
@@ -143,26 +143,10 @@ async function runTests() {
             progWidth: freezeProg ? freezeProg.style.width : ''
         });
 
-        // Tick 0.5s (total 2.0s): Tick 4 (5 + 3 = 8 damage -> hp 74)
+        // Tick 0.5s (total 2.0s): Tick 4 (3 + 3 = 6 damage -> hp 82, stacked 2.0s -> FREEZE!)
         updateCryoZones(0.5);
         snapshots.push({
             t: 2.0,
-            hp: playerState.hp,
-            progWidth: freezeProg ? freezeProg.style.width : ''
-        });
-
-        // Tick 0.5s (total 2.5s): Tick 5 (5 + 4 = 9 damage -> hp 65)
-        updateCryoZones(0.5);
-        snapshots.push({
-            t: 2.5,
-            hp: playerState.hp,
-            progWidth: freezeProg ? freezeProg.style.width : ''
-        });
-
-        // Tick 0.5s (total 3.0s): Tick 6 (5 + 5 = 10 damage -> hp 55, stacked 3s -> FREEZE!)
-        updateCryoZones(0.5);
-        snapshots.push({
-            t: 3.0,
             hp: playerState.hp,
             isFrozen: playerState.isFrozen,
             freezeTimer: playerState.freezeTimer,
@@ -174,17 +158,15 @@ async function runTests() {
     });
 
     assert(damageProgressionTest[0].hp === 100, "No damage dealt before 0.5s elapsed");
-    assert(damageProgressionTest[1].hp === 95, "At 0.5s: Tick 1 deals 5 damage (hp 100 -> 95)");
+    assert(damageProgressionTest[1].hp === 97, "At 0.5s: Tick 1 deals 3 damage (hp 100 -> 97)");
     assert(damageProgressionTest[1].uiHidden === false, "At 0.5s: Freeze status UI overlay is visible");
-    assert(damageProgressionTest[2].hp === 89, "At 1.0s: Tick 2 deals 6 damage (5+1), hp becomes 89");
-    assert(damageProgressionTest[3].hp === 82, "At 1.5s: Tick 3 deals 7 damage (5+2), hp becomes 82");
-    assert(damageProgressionTest[4].hp === 74, "At 2.0s: Tick 4 deals 8 damage (5+3), hp becomes 74");
-    assert(damageProgressionTest[5].hp === 65, "At 2.5s: Tick 5 deals 9 damage (5+4), hp becomes 65");
-    assert(damageProgressionTest[6].hp === 55, "At 3.0s: Tick 6 deals 10 damage (5+5), hp becomes 55");
-    assert(damageProgressionTest[6].isFrozen === true, "Stacking 3.0s in cryo zone triggers isFrozen = true");
-    assert(Math.abs(damageProgressionTest[6].freezeTimer - 3.0) < 0.001, "Freeze duration is set to exactly 3.0 seconds");
-    assert(damageProgressionTest[6].progWidth === '100%', "Freeze progress bar is 100% when frozen");
-    assert(damageProgressionTest[6].text.includes('已冰冻'), "Freeze status text shows '已冰冻!'");
+    assert(damageProgressionTest[2].hp === 93, "At 1.0s: Tick 2 deals 4 damage (3+1), hp becomes 93");
+    assert(damageProgressionTest[3].hp === 88, "At 1.5s: Tick 3 deals 5 damage (3+2), hp becomes 88");
+    assert(damageProgressionTest[4].hp === 82, "At 2.0s: Tick 4 deals 6 damage (3+3), hp becomes 82");
+    assert(damageProgressionTest[4].isFrozen === true, "Stacking 2.0s in cryo zone triggers isFrozen = true");
+    assert(Math.abs(damageProgressionTest[4].freezeTimer - 3.0) < 0.001, "Freeze duration is set to exactly 3.0 seconds");
+    assert(damageProgressionTest[4].progWidth === '100%', "Freeze progress bar is 100% when frozen");
+    assert(damageProgressionTest[4].text.includes('已冰冻'), "Freeze status text shows '已冰冻!'");
 
     console.log("\n--- Section 1.4: Frozen State Action Restrictions (Move/Shoot/Jump/Interact) ---");
     const frozenActionTest = await page.evaluate(() => {
@@ -267,10 +249,10 @@ async function runTests() {
             immuneTimer: playerState.freezeImmuneTimer
         };
 
-        // Reset HP to 500 to prevent death from escalating damage, then advance 3.0s after immunity expired: accumulates 3s and freezes again!
+        // Reset HP to 500 to prevent death from escalating damage, then advance 2.0s after immunity expired: accumulates 2s and freezes again!
         playerState.hp = 500;
         playerState.isSpectating = false;
-        updateCryoZones(3.0);
+        updateCryoZones(2.0);
         const stateRefrozen = {
             isFrozen: playerState.isFrozen,
             freezeTimer: playerState.freezeTimer
@@ -330,8 +312,8 @@ async function runTests() {
         b.cryoDamageTimer = 0;
         b.cryoDamageTicks = 0;
 
-        // Apply 3.0s of zone updates to bot (6 ticks: 5+6+7+8+9+10 = 45 dmg, 3s accumulation -> freeze!)
-        updateCryoZones(3.0);
+        // Apply 2.0s of zone updates to bot (4 ticks: 3+4+5+6 = 18 dmg, 2s accumulation -> freeze!)
+        updateCryoZones(2.0);
         const botFrozen = b.isFrozen;
         const botTimer = b.freezeTimer;
         const botHp = b.hp;
@@ -355,8 +337,8 @@ async function runTests() {
         };
     });
 
-    assert(botCryoTest.botFrozen === true, "Bot in cryo zone becomes isFrozen = true after 3.0s accumulation");
-    assert(botCryoTest.botHp === 55, "Bot took 45 escalating damage (5+6+7+8+9+10 = 45 dmg, hp 100 -> 55)");
+    assert(botCryoTest.botFrozen === true, "Bot in cryo zone becomes isFrozen = true after 2.0s accumulation");
+    assert(botCryoTest.botHp === 82, "Bot took 18 escalating damage (3+4+5+6 = 18 dmg, hp 100 -> 82)");
     assert(botCryoTest.botUnfrozen === false, "Bot unfreezes after 3.0s");
     assert(Math.abs(botCryoTest.botImmuneTimer - 5.0) < 0.001, "Bot receives 5s thaw cooldown after unfreezing");
 
@@ -392,7 +374,7 @@ async function runTests() {
         activeCryoZones.length = 0;
         createCryoZone(new THREE.Vector3(100, 0, 100), 'T', false, true);
         activeCryoZones[0].life = 999;
-        updateCryoZones(3.0);
+        updateCryoZones(2.0);
         botAI(0.016);
         const defuseInterrupted = bDefuse.isFrozen && bDefuse.actionProgress === 0;
 
@@ -430,7 +412,7 @@ async function runTests() {
     assert(edgeCase1Test.reloadBlocked === true, "handleReload is blocked while player is frozen");
     assert(edgeCase1Test.switchBlocked === true, "switchWeapon is blocked while player is frozen");
 
-    console.log("\n--- Section 1.8: Cryo Zone 40% Slowdown for Player and Bots ---");
+    console.log("\n--- Section 1.8: Cryo Zone 60% Slowdown for Player and Bots ---");
     const slowTest = await page.evaluate(() => {
         playerState.hp = 100;
         playerState.isSpectating = false;
@@ -484,8 +466,8 @@ async function runTests() {
         };
     });
 
-    assert(Math.abs(slowTest.playerRatio - 0.6) < 0.05, `Player speed is reduced by 40% in cryo zone (ratio: ${slowTest.playerRatio.toFixed(3)})`);
-    assert(slowTest.botSpeedInZone === 0.6, "Bot speed multiplier is exactly 0.6 (40% slow) in cryo zone");
+    assert(Math.abs(slowTest.playerRatio - 0.4) < 0.05, `Player speed is reduced by 60% in cryo zone (ratio: ${slowTest.playerRatio.toFixed(3)})`);
+    assert(slowTest.botSpeedInZone === 0.4, "Bot speed multiplier is exactly 0.4 (60% slow) in cryo zone");
     assert(slowTest.botSpeedOutside === 1.0, "Bot speed multiplier is 1.0 outside cryo zone");
 
     console.log("\n--- Section 1.9: Leaving Cryo Zone Removes Continuous Damage Effect ---");
@@ -548,17 +530,17 @@ async function runTests() {
         const eFreezeProg = document.getElementById('enemy-freeze-progress');
         const eFreezeText = document.getElementById('enemy-freeze-text');
 
-        // Tick 1.5s (50% accumulated):
-        updateCryoZones(1.5);
-        const hudAt1_5s = {
+        // Tick 1.0s (50% accumulated):
+        updateCryoZones(1.0);
+        const hudAt1_0s = {
             hidden: eFreezeStatus ? eFreezeStatus.classList.contains('hidden') : true,
             width: eFreezeProg ? eFreezeProg.style.width : '',
             text: eFreezeText ? eFreezeText.innerText : ''
         };
 
-        // Tick another 1.5s (total 3.0s -> enemy frozen!):
-        updateCryoZones(1.5);
-        const hudAt3_0s = {
+        // Tick another 1.0s (total 2.0s -> enemy frozen!):
+        updateCryoZones(1.0);
+        const hudAt2_0s = {
             isEnemyFrozen: enemyBot.isFrozen,
             hidden: eFreezeStatus ? eFreezeStatus.classList.contains('hidden') : true,
             width: eFreezeProg ? eFreezeProg.style.width : '',
@@ -569,17 +551,17 @@ async function runTests() {
         const announcementText = generalAnnouncement ? generalAnnouncement.innerText : '';
 
         return {
-            hudAt1_5s,
-            hudAt3_0s,
+            hudAt1_0s,
+            hudAt2_0s,
             announcementText
         };
     });
 
-    assert(enemyFreezeHUDTest.hudAt1_5s.hidden === false, "Enemy freeze status HUD is visible while enemy accumulates freeze");
-    assert(enemyFreezeHUDTest.hudAt1_5s.width === '50%', "Enemy freeze progress shows 50% at 1.5s");
-    assert(enemyFreezeHUDTest.hudAt1_5s.text.includes('50%'), "Enemy freeze text displays '50%'");
-    assert(enemyFreezeHUDTest.hudAt3_0s.isEnemyFrozen === true, "Enemy bot becomes frozen at 3.0s");
-    assert(enemyFreezeHUDTest.hudAt3_0s.text.includes('敌人已冻结'), "Enemy freeze HUD displays '敌人已冻结'");
+    assert(enemyFreezeHUDTest.hudAt1_0s.hidden === false, "Enemy freeze status HUD is visible while enemy accumulates freeze");
+    assert(enemyFreezeHUDTest.hudAt1_0s.width === '50%', "Enemy freeze progress shows 50% at 1.0s");
+    assert(enemyFreezeHUDTest.hudAt1_0s.text.includes('50%'), "Enemy freeze text displays '50%'");
+    assert(enemyFreezeHUDTest.hudAt2_0s.isEnemyFrozen === true, "Enemy bot becomes frozen at 2.0s");
+    assert(enemyFreezeHUDTest.hudAt2_0s.text.includes('敌人已冻结'), "Enemy freeze HUD displays '敌人已冻结'");
     assert(enemyFreezeHUDTest.announcementText.includes('敌人已冻结'), "Screen announcement displays '敌人已冻结'");
 
     console.log("\n--- Section 1.10b: Friendly Bot Safety & Player Death/Spectator HUD Hide ---");
@@ -611,8 +593,8 @@ async function runTests() {
         friendlyBot.mesh.position.set(0, 0, 0);
         bots = [friendlyBot];
 
-        // 3 seconds in zone: friendly bot gets frozen by cryo effect
-        updateCryoZones(3.0);
+        // 2 seconds in zone: friendly bot gets frozen by cryo effect
+        updateCryoZones(2.0);
         const friendlyFrozen = friendlyBot.isFrozen;
         const friendlyAccumFromPlayer = friendlyBot.cryoAccumFromPlayer;
         const friendlyFrozenByPlayer = friendlyBot.frozenByPlayer;
@@ -637,7 +619,7 @@ async function runTests() {
         };
         enemyBot.mesh.position.set(0, 0, 0);
         bots = [enemyBot];
-        updateCryoZones(1.5); // enemy accumulates 50%
+        updateCryoZones(1.0); // enemy accumulates 50%
         const hudVisibleBeforeDeath = eFreezeStatus ? !eFreezeStatus.classList.contains('hidden') : false;
 
         playerState.hp = 0; // player dies
@@ -682,16 +664,16 @@ async function runTests() {
         playerState.hp = 100;
         playerState.isSpectating = false;
 
-        // Bot with 5 hp (will die on tick 1)
+        // Bot with 3 hp (will die on tick 1)
         const lowHpBot = {
             mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial()),
-            hp: 5,
+            hp: 3,
             team: 'T',
             isDead: false,
             isFrozen: false,
             freezeTimer: 0,
             freezeImmuneTimer: 0,
-            cryoFreezeAccum: 2.9, // almost frozen
+            cryoFreezeAccum: 1.9, // almost frozen
             cryoHits: 5,
             cryoDamageTimer: 0.45,
             cryoDamageTicks: 0,
@@ -700,7 +682,7 @@ async function runTests() {
         lowHpBot.mesh.position.set(0, 0, 0);
         bots = [lowHpBot];
 
-        // 0.1s delta: damage timer hits 0.5s -> deals 5 dmg -> bot dies
+        // 0.1s delta: damage timer hits 0.5s -> deals 3 dmg -> bot dies
         updateCryoZones(0.1);
 
         const botDied = (lowHpBot.hp <= 0 || lowHpBot.isDead || bots.length === 0);
@@ -717,6 +699,85 @@ async function runTests() {
     assert(fatalBotCryoTest.botDied === true, "Low-hp bot dies from cryo damage");
     assert(fatalBotCryoTest.postMortemFrozen === false, "Dead bot is NOT frozen post-mortem");
     assert(!fatalBotCryoTest.postMortemAnnouncement.includes('敌人已冻结'), "Dead bot DOES NOT trigger '敌人已冻结' announcement");
+
+    console.log("\n--- Section 1.10d: Overlapping Cryo Zones (Standard + Drone & Bot + Player Priority) ---");
+    const overlappingZonesTest = await page.evaluate(() => {
+        activeCryoZones.length = 0;
+        playerState.hp = 100;
+        playerState.team = 'CT';
+        playerState.isSpectating = false;
+
+        // Zone 0: Bot-thrown, standard 1.0x (isPlayer: false, isFromDrone: false)
+        createCryoZone(new THREE.Vector3(0, 0, 0), 'T', false, false);
+        // Zone 1: Player-thrown, drone enhanced 1.1x (isPlayer: true, isFromDrone: true)
+        createCryoZone(new THREE.Vector3(0, 0, 0), 'CT', true, true);
+
+        const enemyBot = {
+            mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial()),
+            hp: 100,
+            team: 'T',
+            isDead: false,
+            isFrozen: false,
+            freezeTimer: 0,
+            freezeImmuneTimer: 0,
+            cryoFreezeAccum: 0,
+            cryoHits: 0,
+            cryoDamageTimer: 0,
+            cryoDamageTicks: 0,
+            cryoAccumFromPlayer: false,
+            frozenByPlayer: false
+        };
+        enemyBot.mesh.position.set(0, 0, 0);
+        bots = [enemyBot];
+
+        // Tick 0.5s: First damage tick in overlapping zone
+        updateCryoZones(0.5);
+        const botHpAfterTick1 = enemyBot.hp; // 3 * 1.1 = Math.ceil(3.3) = 4 dmg -> 96 HP
+        const botAccumFromPlayer = enemyBot.cryoAccumFromPlayer;
+        const eFreezeProg = document.getElementById('enemy-freeze-progress');
+        const hudWidthAt0_5s = eFreezeProg ? eFreezeProg.style.width : '';
+
+        // Tick another 1.5s (total 2.0s): 2.0s accumulation reached -> frozen!
+        updateCryoZones(1.5);
+        const botFrozenAt2s = enemyBot.isFrozen;
+        const botFrozenByPlayer = enemyBot.frozenByPlayer;
+        const eFreezeText = document.getElementById('enemy-freeze-text');
+        const hudTextAt2s = eFreezeText ? eFreezeText.innerText : '';
+        const announcementEl = document.getElementById('general-announcement');
+        const announcementAt2s = announcementEl ? announcementEl.innerText : '';
+
+        // Player overlapping test
+        activeCryoZones.length = 0;
+        createCryoZone(new THREE.Vector3(50, 0, 50), 'T', false, false); // normal
+        createCryoZone(new THREE.Vector3(50, 0, 50), 'T', true, false);  // drone
+        camera.position.set(50, 2, 50);
+        playerState.hp = 100;
+        playerState.cryoDamageTimer = 0;
+        playerState.cryoDamageTicks = 0;
+        playerState.inCryoZone = false;
+        updateCryoZones(0.5);
+        const playerHpAfterTick1 = playerState.hp; // 100 - 4 = 96
+
+        return {
+            botHpAfterTick1,
+            botAccumFromPlayer,
+            hudWidthAt0_5s,
+            botFrozenAt2s,
+            botFrozenByPlayer,
+            hudTextAt2s,
+            announcementAt2s,
+            playerHpAfterTick1
+        };
+    });
+
+    assert(overlappingZonesTest.botHpAfterTick1 === 96, "Bot in overlapping normal + drone zones receives 1.1x drone damage (100 -> 96 HP)");
+    assert(overlappingZonesTest.botAccumFromPlayer === true, "Bot in overlapping bot + player zones correctly sets cryoAccumFromPlayer");
+    assert(overlappingZonesTest.hudWidthAt0_5s === '25%', "Enemy freeze HUD shows 25% progress at 0.5s in overlapping zone");
+    assert(overlappingZonesTest.botFrozenAt2s === true, "Bot in overlapping zones reaches full freeze at 2.0s");
+    assert(overlappingZonesTest.botFrozenByPlayer === true, "Bot in overlapping zones sets frozenByPlayer = true");
+    assert(overlappingZonesTest.hudTextAt2s.includes('敌人已冻结'), "Enemy freeze HUD displays '敌人已冻结' in overlapping zone");
+    assert(overlappingZonesTest.announcementAt2s.includes('敌人已冻结'), "Announcement displays '敌人已冻结' in overlapping zone");
+    assert(overlappingZonesTest.playerHpAfterTick1 === 96, "Player in overlapping normal + drone zones receives 1.1x drone damage (100 -> 96 HP)");
 
     console.log("\n--- Section 1.11: Circular Countdown Sprite and Shrinking Arc Above Zone ---");
     const countdownVisualTest = await page.evaluate(() => {

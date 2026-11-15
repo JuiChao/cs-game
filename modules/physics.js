@@ -33,6 +33,7 @@ function isPlayerInCryoZone() {
     if (typeof activeCryoZones === 'undefined' || !activeCryoZones || activeCryoZones.length === 0) return false;
     if (typeof getPlayerPosition !== 'function') return false;
     const pPos = getPlayerPosition();
+    if (!pPos) return false;
     for (let i = 0; i < activeCryoZones.length; i++) {
         const z = activeCryoZones[i];
         if (Math.abs(pPos.x - z.x) < z.halfSize && Math.abs(pPos.z - z.z) < z.halfSize) return true;
@@ -99,7 +100,7 @@ function updatePhysics(delta) {
         playerState.velocity.x = 0;
         playerState.velocity.z = 0;
     } else if (playerState.inCryoZone || isPlayerInCryoZone()) {
-        speedMult *= 0.6; // 液氮冷罐范围内减速 40%
+        speedMult *= 0.4; // 液氮冷罐范围内减速 60%
     }
 
     if (moveForward || moveBackward) playerState.velocity.z -= playerState.direction.z * 400.0 * speedMult * delta;

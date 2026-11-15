@@ -205,6 +205,94 @@ function updateHUD() {
 
     checkWinCondition(); // Updates top scores
     updateArmorHUD();
+    if (typeof updateFreezeHUD === 'function') updateFreezeHUD();
+    if (typeof updateEnemyFreezeHUD === 'function') updateEnemyFreezeHUD();
+}
+
+function updateFreezeHUD() {
+    const freezeStatusEl = document.getElementById('freeze-status');
+    const freezeProgEl = document.getElementById('freeze-progress');
+    const freezeTextEl = document.getElementById('freeze-text');
+    if (!freezeStatusEl || !freezeProgEl || !freezeTextEl || typeof playerState === 'undefined') return;
+
+    if (playerState.hp <= 0 || playerState.isSpectating) {
+        freezeStatusEl.classList.add('hidden');
+        freezeProgEl.style.width = '0%';
+    } else if (playerState.isFrozen) {
+        freezeStatusEl.classList.remove('hidden');
+        freezeProgEl.style.width = '100%';
+        freezeTextEl.innerText = `已冰冻! (${(playerState.freezeTimer || 0).toFixed(1)}s)`;
+    } else if (playerState.freezeImmuneTimer > 0) {
+        freezeStatusEl.classList.remove('hidden');
+        const immunePct = Math.max(0, Math.min(100, Math.round((playerState.freezeImmuneTimer / 5.0) * 100)));
+        freezeProgEl.style.width = immunePct + '%';
+        freezeTextEl.innerText = `解冻冷却: ${immunePct}% (${playerState.freezeImmuneTimer.toFixed(1)}s)`;
+    } else if (playerState.cryoFreezeAccum > 0 || playerState.cryoHits > 0) {
+        freezeStatusEl.classList.remove('hidden');
+        const accumPct = Math.min(100, Math.round(((playerState.cryoFreezeAccum || 0) / 2.0) * 100));
+        freezeProgEl.style.width = accumPct + '%';
+        freezeTextEl.innerText = `冰冻累积: ${accumPct}%`;
+    } else {
+        freezeStatusEl.classList.add('hidden');
+        freezeProgEl.style.width = '0%';
+    }
+}
+
+function updateEnemyFreezeHUD() {
+    const eFreezeStatusEl = document.getElementById('enemy-freeze-status');
+    const eFreezeProgEl = document.getElementById('enemy-freeze-progress');
+    const eFreezeTextEl = document.getElementById('enemy-freeze-text');
+    if (!eFreezeStatusEl || !eFreezeProgEl || !eFreezeTextEl) return;
+
+    if (typeof playerState !== 'undefined' && (playerState.hp <= 0 || playerState.isSpectating)) {
+        eFreezeStatusEl.classList.add('hidden');
+        eFreezeProgEl.style.width = '0%';
+        return;
+    }
+
+    let maxEnemyPct = 0;
+    let anyEnemyFrozen = false;
+    let enemyFrozenTimer = 0;
+    let activeEnemyFound = false;
+
+    if (typeof bots !== 'undefined' && Array.isArray(bots)) {
+        for (let k = 0; k < bots.length; k++) {
+            const eb = bots[k];
+            if (!eb || eb.isDead || (typeof playerState !== 'undefined' && eb.team === playerState.team)) continue;
+            if (eb.frozenByPlayer && eb.isFrozen) {
+                anyEnemyFrozen = true;
+                const ft = eb.cryoFreezeTimer || eb.freezeTimer || 0;
+                if (ft > enemyFrozenTimer) enemyFrozenTimer = ft;
+                activeEnemyFound = true;
+                continue;
+            }
+            if (eb.cryoAccumFromPlayer && eb.cryoFreezeAccum > 0) {
+                const pct = Math.min(100, Math.round((eb.cryoFreezeAccum / 2.0) * 100));
+                if (pct > maxEnemyPct) {
+                    maxEnemyPct = pct;
+                    activeEnemyFound = true;
+                }
+            }
+        }
+    }
+
+    if (anyEnemyFrozen) {
+        eFreezeStatusEl.classList.remove('hidden');
+        eFreezeProgEl.style.width = '100%';
+        eFreezeTextEl.innerText = `敌人已冻结! (${enemyFrozenTimer.toFixed(1)}s)`;
+    } else if (activeEnemyFound && maxEnemyPct > 0) {
+        eFreezeStatusEl.classList.remove('hidden');
+        eFreezeProgEl.style.width = maxEnemyPct + '%';
+        eFreezeTextEl.innerText = `敌人冰冻累积: ${maxEnemyPct}%`;
+    } else {
+        eFreezeStatusEl.classList.add('hidden');
+        eFreezeProgEl.style.width = '0%';
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.updateFreezeHUD = updateFreezeHUD;
+    window.updateEnemyFreezeHUD = updateEnemyFreezeHUD;
 }
 
 // 玩家受击屏幕边缘红色晕影提示 (Damage Vignette)

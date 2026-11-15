@@ -353,8 +353,11 @@ function botAI(delta) {
 
         if (avoiding) {
             b.actionProgress = 0;
-            if (avoidanceVec.length() > 25 * delta) {
-                avoidanceVec.normalize().multiplyScalar(25 * delta);
+            const slowMult = (typeof botFreezeSpeedMult === 'function') ? botFreezeSpeedMult(b) : 1.0;
+            avoidanceVec.multiplyScalar(slowMult);
+            const maxSpeed = 25 * delta * slowMult;
+            if (avoidanceVec.length() > maxSpeed) {
+                avoidanceVec.normalize().multiplyScalar(maxSpeed);
             }
             const lookPos = b.mesh.position.clone().add(avoidanceVec);
             b.mesh.lookAt(lookPos.x, b.mesh.position.y, lookPos.z);

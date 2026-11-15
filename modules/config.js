@@ -242,7 +242,7 @@ function zombieExplosiveDmgMult(target) {
 }
 
 function isBotInCryoZone(bot) {
-    if (!bot || !bot.mesh) return false;
+    if (!bot || !bot.mesh || !bot.mesh.position) return false;
     if (typeof activeCryoZones === 'undefined' || !activeCryoZones || activeCryoZones.length === 0) return false;
     for (let i = 0; i < activeCryoZones.length; i++) {
         const z = activeCryoZones[i];
@@ -259,7 +259,7 @@ function botFreezeSpeedMult(bot) {
         mult *= (1 - (0.5 + 0.15 * (stacks - 1)));
     }
     if (bot && (bot.inCryoZone || isBotInCryoZone(bot))) {
-        mult *= 0.6; // 液氮冷罐范围内减速 40%
+        mult *= 0.4; // 液氮冷罐范围内减速 60%
     }
     return mult;
 }
