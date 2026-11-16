@@ -111,57 +111,6 @@ function spawnBots(ctSpawns, tSpawns) {
         const bodyMat = (team === 'CT' ? ctMat : tMat).clone();
         const faceMat = (team === 'CT' ? ctFaceMat : tFaceMat).clone();
 
-        const group = new THREE.Group();
-        group.position.set(x, 0, z);
-
-        // Torso
-        const bodyGeo = new THREE.BoxGeometry(1.2, 1.4, 0.6);
-        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-        bodyMesh.position.y = 1.7; 
-        bodyMesh.name = 'body';
-        group.add(bodyMesh);
-
-        // Legs
-        const legGeo = new THREE.BoxGeometry(0.4, 1.0, 0.4);
-        const leftLeg = new THREE.Mesh(legGeo, bodyMat);
-        leftLeg.position.set(-0.3, 0.5, 0);
-        leftLeg.name = 'body';
-        group.add(leftLeg);
-        
-        const rightLeg = new THREE.Mesh(legGeo, bodyMat);
-        rightLeg.position.set(0.3, 0.5, 0);
-        rightLeg.name = 'body';
-        group.add(rightLeg);
-
-        // Cartoon Head (More proportional)
-        const headGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-        const materials = [
-            bodyMat, bodyMat, bodyMat, bodyMat, faceMat, bodyMat
-        ];
-        const headMesh = new THREE.Mesh(headGeo, materials);
-        headMesh.position.y = 2.8;
-        headMesh.name = 'head';
-        group.add(headMesh);
-        
-        // Arms
-        const handGeo = new THREE.SphereGeometry(0.3, 16, 16);
-        const handMat = new THREE.MeshStandardMaterial({ color: 0xf1c27d });
-        
-        const leftHand = new THREE.Mesh(handGeo, handMat);
-        leftHand.position.set(-0.9, 1.8, 0.3);
-        group.add(leftHand);
-
-        const rightHand = new THREE.Mesh(handGeo, handMat);
-        rightHand.position.set(0.9, 1.8, 0.3);
-        group.add(rightHand);
-
-        group.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
-        });
-
         // Buy logic
         let money = team === 'T' ? matchState.botMoneyT[tCount] : matchState.botMoneyCT[ctCount];
         let weaponId = 'pistol';
@@ -182,23 +131,85 @@ function spawnBots(ctSpawns, tSpawns) {
         if (team === 'T') { matchState.botMoneyT[tCount] = money; tCount++; }
         else { matchState.botMoneyCT[ctCount] = money; ctCount++; }
         
-        // Weapon
+        // Weapon info
         const wInfo = WEAPONS[weaponId];
-        const gunGeo = new THREE.BoxGeometry(0.15, 0.15, wInfo.length);
-        const gunMat = new THREE.MeshStandardMaterial({ color: wInfo.color });
-        const gunMesh = new THREE.Mesh(gunGeo, gunMat);
-        gunMesh.name = 'gun';
-        
-        // Magazine
-        const botMagGeo = new THREE.BoxGeometry(0.12, 0.22, 0.12);
-        const botMagMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        const botMag = new THREE.Mesh(botMagGeo, botMagMat);
-        botMag.position.set(0, -0.15, 0.1);
-        botMag.name = 'magazine';
-        gunMesh.add(botMag);
-        
-        gunMesh.position.set(0.9, 1.8, 0.8);
-        group.add(gunMesh);
+
+        // Modular Bot Character Creation
+        let group;
+        if (typeof BotCharacterComponent !== 'undefined' && BotCharacterComponent.createBotMesh) {
+            group = BotCharacterComponent.createBotMesh({ team, bodyMat, faceMat, wInfo });
+            group.position.set(x, 0, z);
+        } else if (typeof TacticalCharacterComponent !== 'undefined' && TacticalCharacterComponent.createTacticalBotMesh) {
+            group = TacticalCharacterComponent.createTacticalBotMesh({ team, bodyMat, faceMat, wInfo });
+            group.position.set(x, 0, z);
+        } else {
+            group = new THREE.Group();
+            group.position.set(x, 0, z);
+
+            // Torso
+            const bodyGeo = new THREE.BoxGeometry(1.2, 1.4, 0.6);
+            const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+            bodyMesh.position.y = 1.7; 
+            bodyMesh.name = 'body';
+            group.add(bodyMesh);
+
+            // Legs
+            const legGeo = new THREE.BoxGeometry(0.4, 1.0, 0.4);
+            const leftLeg = new THREE.Mesh(legGeo, bodyMat);
+            leftLeg.position.set(-0.3, 0.5, 0);
+            leftLeg.name = 'body';
+            group.add(leftLeg);
+            
+            const rightLeg = new THREE.Mesh(legGeo, bodyMat);
+            rightLeg.position.set(0.3, 0.5, 0);
+            rightLeg.name = 'body';
+            group.add(rightLeg);
+
+            // Cartoon Head (More proportional)
+            const headGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            const materials = [
+                bodyMat, bodyMat, bodyMat, bodyMat, faceMat, bodyMat
+            ];
+            const headMesh = new THREE.Mesh(headGeo, materials);
+            headMesh.position.y = 2.8;
+            headMesh.name = 'head';
+            group.add(headMesh);
+            
+            // Arms
+            const handGeo = new THREE.SphereGeometry(0.3, 16, 16);
+            const handMat = new THREE.MeshStandardMaterial({ color: 0xf1c27d });
+            
+            const leftHand = new THREE.Mesh(handGeo, handMat);
+            leftHand.position.set(-0.9, 1.8, 0.3);
+            group.add(leftHand);
+
+            const rightHand = new THREE.Mesh(handGeo, handMat);
+            rightHand.position.set(0.9, 1.8, 0.3);
+            group.add(rightHand);
+
+            const gunGeo = new THREE.BoxGeometry(0.15, 0.15, wInfo.length);
+            const gunMat = new THREE.MeshStandardMaterial({ color: wInfo.color });
+            const gunMesh = new THREE.Mesh(gunGeo, gunMat);
+            gunMesh.name = 'gun';
+            
+            // Magazine
+            const botMagGeo = new THREE.BoxGeometry(0.12, 0.22, 0.12);
+            const botMagMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            const botMag = new THREE.Mesh(botMagGeo, botMagMat);
+            botMag.position.set(0, -0.15, 0.1);
+            botMag.name = 'magazine';
+            gunMesh.add(botMag);
+            
+            gunMesh.position.set(0.9, 1.8, 0.8);
+            group.add(gunMesh);
+        }
+
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
 
         scene.add(group);
 
@@ -942,6 +953,16 @@ function updateBullets(delta) {
                     hitIndex = j;
                     break;
                 }
+                let cur = hit.object ? hit.object.parent : null;
+                while (cur && cur !== scene) {
+                    if (cur === bots[j].mesh || cur.parent === bots[j].mesh) {
+                        hitBot = bots[j];
+                        hitIndex = j;
+                        break;
+                    }
+                    cur = cur.parent;
+                }
+                if (hitBot) break;
             }
             if (!hitBot) {
                 for (let j = 0; j < activeDrones.length; j++) {
@@ -1027,16 +1048,24 @@ function updateBullets(delta) {
                 if (b.ricochetCount) dmg *= Math.pow(0.8, b.ricochetCount); // 跳弹: 每反弹一次伤害-20%（累计）
                 if (b.fragmentMult) dmg *= b.fragmentMult;
                 if (b.weapon.id === 'shotgun' && hasBulletType(b, 'incendiary')) dmg *= 0.50; // 龙息弹直击伤害减半
-                if (hit.object.name === 'head') dmg *= 3.0; // Headshot
+                let isHeadshot = (hit.object.name === 'head');
+                if (!isHeadshot && hitBot) {
+                    let cur = hit.object.parent;
+                    while (cur && cur !== hitBot.mesh && cur !== scene) {
+                        if (cur.name === 'head') { isHeadshot = true; break; }
+                        cur = cur.parent;
+                    }
+                }
+                if (isHeadshot) dmg *= 3.0; // Headshot
                 if (b.shooter.isPlayer) {
                     dmg *= zombieDmgTakenMult(hitBot);
-                    if (typeof playHitMarkerSound === 'function') playHitMarkerSound(hit.object.name === 'head');
+                    if (typeof playHitMarkerSound === 'function') playHitMarkerSound(isHeadshot);
                 }
                 hitBot.hp -= dmg;
 
                 applyBulletStatusEffects(b, hitBot, hit.point);
                 if (hasBulletType(b, 'fragment') && !b.isFragmentPellet) spawnFragmentPellets(b, hit.point);
-                if (b.shooter.isPlayer) showFloatingDamage(dmg, hit.point, hit.object.name === 'head');
+                if (b.shooter.isPlayer) showFloatingDamage(dmg, hit.point, isHeadshot);
                 // Burn effects (shotgun dragon breath + incendiary synergy)
                 if (b.weapon.id === 'shotgun' && hasBulletType(b, 'incendiary')) {
                     if ((hitBot.burnStacks || 0) < 20) hitBot.burnStacks = (hitBot.burnStacks || 0) + 1;

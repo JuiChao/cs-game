@@ -117,7 +117,9 @@ function createPlayerDummy() {
     const pd = activeDrones.find(d => d.isPlayer);
     if (!pd) return;
     
-    if (typeof TacticalCharacterComponent !== 'undefined' && TacticalCharacterComponent.createPlayerDummyMesh) {
+    if (typeof PlayerDummyComponent !== 'undefined' && PlayerDummyComponent.createPlayerDummyMesh) {
+        playerDummyMesh = PlayerDummyComponent.createPlayerDummyMesh(pd.playerPos, playerState.team);
+    } else if (typeof TacticalCharacterComponent !== 'undefined' && TacticalCharacterComponent.createPlayerDummyMesh) {
         playerDummyMesh = TacticalCharacterComponent.createPlayerDummyMesh(pd.playerPos, playerState.team);
     } else {
         playerDummyMesh = new THREE.Group();
@@ -144,9 +146,14 @@ function createPlayerDummy() {
 function removePlayerDummy() {
     if (playerDummyMesh) {
         scene.remove(playerDummyMesh);
-        playerDummyMesh.children.forEach(child => {
-            child.geometry.dispose();
-            child.material.dispose();
+        playerDummyMesh.traverse(child => {
+            if (child.isMesh) {
+                if (child.geometry && typeof child.geometry.dispose === 'function') child.geometry.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) child.material.forEach(m => { if (m && typeof m.dispose === 'function') m.dispose(); });
+                    else if (typeof child.material.dispose === 'function') child.material.dispose();
+                }
+            }
         });
         playerDummyMesh = null;
     }

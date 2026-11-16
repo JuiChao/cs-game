@@ -17,9 +17,12 @@
     'use strict';
 
     function createTacticalBotMesh(options) {
+        if (typeof BotCharacterComponent !== 'undefined' && BotCharacterComponent.createBotMesh) {
+            return BotCharacterComponent.createBotMesh(options);
+        }
+
         options = options || {};
         const team = options.team || 'CT';
-        const teamColor = team === 'CT' ? 0x3498db : 0xe67e22;
 
         const group = new THREE.Group();
         group.name = options.name || ('bot_' + team);
@@ -131,6 +134,10 @@
     }
 
     function createPlayerDummyMesh(playerPos, team) {
+        if (typeof PlayerDummyComponent !== 'undefined' && PlayerDummyComponent.createPlayerDummyMesh) {
+            return PlayerDummyComponent.createPlayerDummyMesh(playerPos, team);
+        }
+
         const playerDummyMesh = new THREE.Group();
         playerDummyMesh.name = 'playerDummy';
         if (playerPos) playerDummyMesh.position.copy(playerPos);

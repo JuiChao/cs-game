@@ -347,6 +347,7 @@ function buildViewModel() {
     
     const w = getCurrentWeapon();
     
+    // ── STEP 1: Build Base Weapon Mesh ──
     if (w.id === 'knife') {
         playerState.viewModel = (typeof TacticalKnifeComponent !== 'undefined' && TacticalKnifeComponent.createKarambit)
             ? TacticalKnifeComponent.createKarambit()
@@ -363,28 +364,32 @@ function buildViewModel() {
         playerState.viewModel = (typeof TacticalKnifeComponent !== 'undefined' && TacticalKnifeComponent.createZombieClaw)
             ? TacticalKnifeComponent.createZombieClaw()
             : createZombieClaw();
+    } else if ((w.id === 'rifle' || w.id === 'ak47') && typeof AK47Component !== 'undefined' && AK47Component.createAK47ViewModel) {
+        playerState.viewModel = AK47Component.createAK47ViewModel(w);
+    } else if ((w.id === 'm4a4' || w.id === 'm4') && typeof M4A4Component !== 'undefined' && M4A4Component.createM4A4ViewModel) {
+        playerState.viewModel = M4A4Component.createM4A4ViewModel(w);
+    } else if ((w.id === 'sniper' || w.id === 'awp') && typeof AWPComponent !== 'undefined' && AWPComponent.createAWPViewModel) {
+        playerState.viewModel = AWPComponent.createAWPViewModel(w);
+    } else if (w.id === 'shotgun' && typeof TacticalHeavyWeapons !== 'undefined' && TacticalHeavyWeapons.createShotgunMesh) {
+        playerState.viewModel = TacticalHeavyWeapons.createShotgunMesh(w);
+    } else if (w.id === 'gatling' && typeof TacticalHeavyWeapons !== 'undefined' && TacticalHeavyWeapons.createMinigunMesh) {
+        playerState.viewModel = TacticalHeavyWeapons.createMinigunMesh(w);
+    } else if (w.id === 'flamethrower' && typeof TacticalHeavyWeapons !== 'undefined' && TacticalHeavyWeapons.createFlamethrowerMesh) {
+        playerState.viewModel = TacticalHeavyWeapons.createFlamethrowerMesh(w);
+    } else if (w.id === 'mortar' && typeof TacticalHeavyWeapons !== 'undefined' && TacticalHeavyWeapons.createMortarMesh) {
+        playerState.viewModel = TacticalHeavyWeapons.createMortarMesh(w);
     } else {
-        if (w.id === 'rifle' && typeof AK47Component !== 'undefined' && AK47Component.createAK47ViewModel) {
-            playerState.viewModel = AK47Component.createAK47ViewModel(w);
-        } else if (w.id === 'sniper' && typeof AWPComponent !== 'undefined' && AWPComponent.createAWPViewModel) {
-            playerState.viewModel = AWPComponent.createAWPViewModel(w);
-        } else if (w.id === 'shotgun' && typeof TacticalHeavyWeapons !== 'undefined' && TacticalHeavyWeapons.createShotgunMesh) {
-            playerState.viewModel = TacticalHeavyWeapons.createShotgunMesh(w);
-        } else if (w.id === 'gatling' && typeof TacticalHeavyWeapons !== 'undefined' && TacticalHeavyWeapons.createMinigunMesh) {
-            playerState.viewModel = TacticalHeavyWeapons.createMinigunMesh(w);
-        } else {
-            const geo = new THREE.BoxGeometry(0.1, 0.1, w.length);
-            const mat = new THREE.MeshStandardMaterial({ color: w.color });
-            playerState.viewModel = new THREE.Mesh(geo, mat);
-            
-            // Magazine
-            const magGeo = new THREE.BoxGeometry(0.08, 0.15, 0.08);
-            const magMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-            const magMesh = new THREE.Mesh(magGeo, magMat);
-            magMesh.position.set(0, -0.1, 0.1);
-            magMesh.name = 'magazine';
-            playerState.viewModel.add(magMesh);
-        }
+        const geo = new THREE.BoxGeometry(0.1, 0.1, w.length);
+        const mat = new THREE.MeshStandardMaterial({ color: w.color });
+        playerState.viewModel = new THREE.Mesh(geo, mat);
+        
+        // Magazine
+        const magGeo = new THREE.BoxGeometry(0.08, 0.15, 0.08);
+        const magMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const magMesh = new THREE.Mesh(magGeo, magMat);
+        magMesh.position.set(0, -0.1, 0.1);
+        magMesh.name = 'magazine';
+        playerState.viewModel.add(magMesh);
 
         if (w.id === 'shotgun') {
             const fireGroup = new THREE.Group();
@@ -428,280 +433,26 @@ function buildViewModel() {
             ammoBox.position.set(0, -0.08, 0.05);
             playerState.viewModel.add(ammoBox);
         }
+    }
 
-        if (w.id === 'flamethrower') {
-            const ftGroup = new THREE.Group();
-            ftGroup.name = 'flamethrowerBody';
+    const isMelee = (w.id === 'knife' || w.id === 'kukri' || w.id === 'switchblade' || w.id === 'zombieClaw');
+    const isThrowableOrSpecial = ['hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'mortar', 'c4', 'cryo'].includes(w.id);
 
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x8B0000, metalness: 0.6, roughness: 0.4 });
-            const darkMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.7, roughness: 0.3 });
-            const brassMat = new THREE.MeshStandardMaterial({ color: 0xcc9900, metalness: 0.9, roughness: 0.2 });
-
-            const tankGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.4, 16);
-            const tank = new THREE.Mesh(tankGeo, bodyMat);
-            tank.position.set(0, -0.05, 0.05);
-            ftGroup.add(tank);
-
-            const tankCapGeo = new THREE.SphereGeometry(0.06, 16, 16);
-            const tankCap = new THREE.Mesh(tankCapGeo, darkMat);
-            tankCap.position.set(0, -0.05, 0.25);
-            ftGroup.add(tankCap);
-
-            const nozzleGeo = new THREE.CylinderGeometry(0.025, 0.035, 0.2, 16);
-            nozzleGeo.rotateX(Math.PI / 2);
-            const nozzle = new THREE.Mesh(nozzleGeo, darkMat);
-            nozzle.position.set(0, 0.02, -w.length / 2 - 0.05);
-            ftGroup.add(nozzle);
-
-            const muzzleRingGeo = new THREE.TorusGeometry(0.03, 0.008, 8, 16);
-            const muzzleRing = new THREE.Mesh(muzzleRingGeo, brassMat);
-            muzzleRing.position.set(0, 0.02, -w.length / 2 - 0.15);
-            ftGroup.add(muzzleRing);
-
-            const hoseGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.2, 8);
-            const hose = new THREE.Mesh(hoseGeo, darkMat);
-            hose.position.set(0, -0.02, -0.1);
-            hose.rotation.x = -0.5;
-            ftGroup.add(hose);
-
-            const gripGeo = new THREE.BoxGeometry(0.04, 0.1, 0.06);
-            const grip = new THREE.Mesh(gripGeo, darkMat);
-            grip.position.set(0, -0.08, 0.02);
-            ftGroup.add(grip);
-
-            playerState.viewModel.add(ftGroup);
+    // ── STEP 2: Attach Optics (Firearms) ──
+    if (!isMelee && !isThrowableOrSpecial) {
+        const scopeId = playerState.currentScope || 'redDot';
+        if (typeof TacticalOpticComponent !== 'undefined' && typeof TacticalOpticComponent.createScopeMesh === 'function') {
+            const scopeMesh = TacticalOpticComponent.createScopeMesh(scopeId, w);
+            if (scopeMesh) playerState.viewModel.add(scopeMesh);
         }
+    }
 
-        if (w.id === 'mortar') {
-            const mortarGroup = new THREE.Group();
-            mortarGroup.name = 'mortarBody';
-
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a5a2a, metalness: 0.5, roughness: 0.5 });
-            const darkMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.6, roughness: 0.4 });
-
-            const tubeGeo = new THREE.CylinderGeometry(0.08, 0.09, 0.5, 16);
-            tubeGeo.rotateX(Math.PI / 2);
-            const tube = new THREE.Mesh(tubeGeo, bodyMat);
-            tube.position.set(0, 0, -0.1);
-            mortarGroup.add(tube);
-
-            const muzzleGeo = new THREE.TorusGeometry(0.08, 0.015, 8, 16);
-            const muzzle = new THREE.Mesh(muzzleGeo, darkMat);
-            muzzle.position.set(0, 0, -0.35);
-            mortarGroup.add(muzzle);
-
-            const baseGeo = new THREE.BoxGeometry(0.25, 0.05, 0.15);
-            const base = new THREE.Mesh(baseGeo, darkMat);
-            base.position.set(0, -0.12, 0.05);
-            mortarGroup.add(base);
-
-            const bipodGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.15, 6);
-            const bipodMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.7, roughness: 0.3 });
-            const bipodL = new THREE.Mesh(bipodGeo, bipodMat);
-            bipodL.position.set(-0.08, -0.08, -0.15);
-            bipodL.rotation.z = 0.3;
-            mortarGroup.add(bipodL);
-            const bipodR = new THREE.Mesh(bipodGeo, bipodMat);
-            bipodR.position.set(0.08, -0.08, -0.15);
-            bipodR.rotation.z = -0.3;
-            mortarGroup.add(bipodR);
-
-            const sightGeo = new THREE.BoxGeometry(0.04, 0.05, 0.02);
-            const sight = new THREE.Mesh(sightGeo, darkMat);
-            sight.position.set(0, 0.08, 0);
-            mortarGroup.add(sight);
-
-            playerState.viewModel.add(mortarGroup);
-        }
-        if (w.id === 'sniper' || w.id === 'marksman' || w.id === 'rifle' || w.id === 'smg' || w.id === 'mk4' || w.id === 'shotgun' || w.id === 'm249' || w.id === 'deagle' || w.id === 'pistol' || w.id === 'ash12') {
-            const scopeId = playerState.currentScope || 'redDot';
-
-            if (scopeId === 'none') {
-                if (w.id === 'sniper' || w.id === 'marksman') {
-                    const scopeGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 16);
-                    scopeGeo.rotateX(Math.PI / 2);
-                    const scopeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-                    const scope = new THREE.Mesh(scopeGeo, scopeMat);
-                    scope.position.set(0, 0.08, -0.1);
-                    playerState.viewModel.add(scope);
-                } else {
-                    const ironGeo = new THREE.BoxGeometry(0.006, 0.03, 0.006);
-                    const ironMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-                    const front = new THREE.Mesh(ironGeo, ironMat);
-                    front.position.set(0, 0.06, -0.22);
-                    playerState.viewModel.add(front);
-                }
-            } else if (scopeId === 'redDot') {
-                // Red dot sight (existing design)
-                const sightGroup = new THREE.Group();
-                const baseGeo = new THREE.BoxGeometry(0.10, 0.04, 0.12);
-                const baseMat = new THREE.MeshStandardMaterial({ color: 0x3a3530 });
-                const base = new THREE.Mesh(baseGeo, baseMat);
-                base.position.set(0, 0.077, -0.1);
-                sightGroup.add(base);
-                const sw = 0.045, sh = 0.035, st = 0.002;
-                const frameShape = new THREE.Shape();
-                frameShape.moveTo(-sw - st, -sh - st); frameShape.lineTo(sw + st, -sh - st);
-                frameShape.lineTo(sw + st, sh + st); frameShape.lineTo(-sw - st, sh + st);
-                frameShape.lineTo(-sw - st, -sh - st);
-                const hole = new THREE.Path();
-                hole.moveTo(-sw, -sh); hole.lineTo(-sw, sh); hole.lineTo(sw, sh);
-                hole.lineTo(sw, -sh); hole.lineTo(-sw, -sh);
-                frameShape.holes.push(hole);
-                const frameGeo = new THREE.ExtrudeGeometry(frameShape, { depth: 0.0075, bevelEnabled: false });
-                const frameMat = new THREE.MeshStandardMaterial({ color: 0x3a3530 });
-                const frame = new THREE.Mesh(frameGeo, frameMat);
-                frame.position.set(0, 0.13, -0.10375);
-                sightGroup.add(frame);
-                const glassShape = new THREE.Shape();
-                glassShape.moveTo(-sw, -sh); glassShape.lineTo(sw, -sh);
-                glassShape.lineTo(sw, sh); glassShape.lineTo(-sw, sh);
-                glassShape.lineTo(-sw, -sh);
-                const glassGeo = new THREE.ShapeGeometry(glassShape);
-                const glassMat = new THREE.MeshStandardMaterial({ color: 0x9955ff, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.5, side: THREE.DoubleSide });
-                const glass = new THREE.Mesh(glassGeo, glassMat);
-                glass.position.set(0, 0.13, -0.1);
-                sightGroup.add(glass);
-                const dotGeo = new THREE.CircleGeometry(0.0015, 8);
-                const dotMat = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
-                const dot = new THREE.Mesh(dotGeo, dotMat);
-                dot.position.set(0, 0.13, -0.099);
-                sightGroup.add(dot);
-                sightGroup.scale.set(1.2, 1.2, 1.2);
-                playerState.viewModel.add(sightGroup);
-            } else if (scopeId === 'holo') {
-                // Holographic sight — square window with thin frame (reticle shown via HTML overlay when ADS)
-                const holoGroup = new THREE.Group();
-                const baseGeo = new THREE.BoxGeometry(0.09, 0.03, 0.13);
-                const baseMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a });
-                const base = new THREE.Mesh(baseGeo, baseMat);
-                base.position.set(0, 0.077, -0.1);
-                holoGroup.add(base);
-                // Square window frame (thin border)
-                const fw = 0.05, fh = 0.04, ft = 0.0012;
-                const frameShape = new THREE.Shape();
-                frameShape.moveTo(-fw - ft, -fh - ft); frameShape.lineTo(fw + ft, -fh - ft);
-                frameShape.lineTo(fw + ft, fh + ft); frameShape.lineTo(-fw - ft, fh + ft);
-                frameShape.lineTo(-fw - ft, -fh - ft);
-                const hole = new THREE.Path();
-                hole.moveTo(-fw, -fh); hole.lineTo(-fw, fh); hole.lineTo(fw, fh);
-                hole.lineTo(fw, -fh); hole.lineTo(-fw, -fh);
-                frameShape.holes.push(hole);
-                const frameGeo = new THREE.ExtrudeGeometry(frameShape, { depth: 0.006, bevelEnabled: false });
-                const frameMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a });
-                const frame = new THREE.Mesh(frameGeo, frameMat);
-                frame.position.set(0, 0.13, -0.103);
-                holoGroup.add(frame);
-                // Glass
-                const glassGeo = new THREE.PlaneGeometry(0.1, 0.08);
-                const glassMat = new THREE.MeshStandardMaterial({ color: 0x00ff66, transparent: true, opacity: 0.10, side: THREE.DoubleSide });
-                const glass = new THREE.Mesh(glassGeo, glassMat);
-                glass.position.set(0, 0.13, -0.1);
-                holoGroup.add(glass);
-                holoGroup.scale.set(1.1, 1.1, 1.1);
-                playerState.viewModel.add(holoGroup);
-            } else {
-                // Magnified scopes (2x/3x/4x/5x/8x) — slim cylindrical scope
-                const scopeDef = SCOPE_TYPES[scopeId];
-                const mag = scopeDef ? scopeDef.magnification : 2;
-                // Slimmer tube: less screen obstruction
-                const sLen = 0.18 + mag * 0.012;
-                const sRad = 0.016 + mag * 0.0015;
-                const scopeGroup = new THREE.Group();
-                // Main tube
-                const tubeGeo = new THREE.CylinderGeometry(sRad, sRad, sLen, 20);
-                tubeGeo.rotateX(Math.PI / 2);
-                const tubeMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.6, roughness: 0.3 });
-                const tube = new THREE.Mesh(tubeGeo, tubeMat);
-                tube.position.set(0, 0.09, -0.1);
-                scopeGroup.add(tube);
-                // Front lens (objective)
-                const frontLensGeo = new THREE.CircleGeometry(sRad * 0.85, 20);
-                const lensMat = new THREE.MeshStandardMaterial({ color: 0x334466, transparent: true, opacity: 0.4, metalness: 0.8, roughness: 0.1, side: THREE.DoubleSide });
-                const frontLens = new THREE.Mesh(frontLensGeo, lensMat);
-                frontLens.position.set(0, 0.09, -0.1 - sLen / 2);
-                scopeGroup.add(frontLens);
-                // Rear lens (eyepiece)
-                const rearLensGeo = new THREE.CircleGeometry(sRad * 0.7, 20);
-                const rearLens = new THREE.Mesh(rearLensGeo, lensMat.clone());
-                rearLens.position.set(0, 0.09, -0.1 + sLen / 2);
-                scopeGroup.add(rearLens);
-                // Mount base (slimmed to match tube)
-                const mountGeo = new THREE.BoxGeometry(0.04, 0.02, 0.06);
-                const mountMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-                const mount = new THREE.Mesh(mountGeo, mountMat);
-                mount.position.set(0, 0.065, -0.1);
-                scopeGroup.add(mount);
-                playerState.viewModel.add(scopeGroup);
-            }
-        }
-
-        // Laser Sight 3D Attachment (if purchased and weapon is a firearm)
-        const hasLaser = Boolean(playerState.hasLaserSight || (typeof laserSightPurchased !== 'undefined' && laserSightPurchased));
-        if (hasLaser && !['knife', 'kukri', 'switchblade', 'zombieClaw', 'c4', 'hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'cryo', 'mortar'].includes(w.id)) {
-            if (typeof TacticalLaserComponent !== 'undefined' && typeof TacticalLaserComponent.createLaserSightModule === 'function') {
-                const laserGroup = TacticalLaserComponent.createLaserSightModule(w.length);
-                playerState.viewModel.add(laserGroup);
-            } else {
-                const laserGroup = new THREE.Group();
-                laserGroup.name = 'laserSight';
-
-                const mZ = -w.length * 0.25;
-
-                // 1. Tactical Box Module (mounted on the right rail of gun)
-                const boxGeo = new THREE.BoxGeometry(0.025, 0.025, 0.08);
-                const boxMat = new THREE.MeshStandardMaterial({ color: 0x1f1f1f, metalness: 0.8, roughness: 0.2 });
-                const boxMesh = new THREE.Mesh(boxGeo, boxMat);
-                boxMesh.name = 'laserSightModule';
-                boxMesh.position.set(0.065, -0.015, mZ);
-                laserGroup.add(boxMesh);
-
-                // 2. Front Lens / Emitter Ring
-                const emitterGeo = new THREE.CylinderGeometry(0.006, 0.007, 0.015, 8);
-                emitterGeo.rotateX(Math.PI / 2);
-                const emitterMat = new THREE.MeshStandardMaterial({ color: 0x050505, metalness: 0.9, roughness: 0.1 });
-                const emitterMesh = new THREE.Mesh(emitterGeo, emitterMat);
-                emitterMesh.position.set(0.065, -0.015, mZ - 0.045);
-                laserGroup.add(emitterMesh);
-
-                // 3. Glowing Red Diode / Emitter Dot
-                const diodeGeo = new THREE.CircleGeometry(0.004, 8);
-                const diodeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
-                const diodeMesh = new THREE.Mesh(diodeGeo, diodeMat);
-                diodeMesh.position.set(0.065, -0.015, mZ - 0.053);
-                laserGroup.add(diodeMesh);
-
-                // 4. Visible Red Laser Beam (projecting forward)
-                const beamLength = 40;
-                const beamGeo = new THREE.CylinderGeometry(0.0012, 0.002, beamLength, 6);
-                beamGeo.rotateX(Math.PI / 2);
-                const beamMat = new THREE.MeshBasicMaterial({
-                    color: 0xff0022,
-                    transparent: true,
-                    opacity: 0.45,
-                    blending: THREE.AdditiveBlending,
-                    depthWrite: false
-                });
-                const beamMesh = new THREE.Mesh(beamGeo, beamMat);
-                beamMesh.name = 'laserBeam';
-                beamMesh.position.set(0.065, -0.015, mZ - 0.053 - beamLength / 2);
-                laserGroup.add(beamMesh);
-
-                // 5. Laser Dot at distance
-                const dotGeo = new THREE.SphereGeometry(0.015, 8, 8);
-                const dotMat = new THREE.MeshBasicMaterial({
-                    color: 0xff0000,
-                    transparent: true,
-                    opacity: 0.85,
-                    blending: THREE.AdditiveBlending
-                });
-                const dotMesh = new THREE.Mesh(dotGeo, dotMat);
-                dotMesh.name = 'laserDot';
-                dotMesh.position.set(0.065, -0.015, mZ - 0.053 - beamLength);
-                laserGroup.add(dotMesh);
-
-                playerState.viewModel.add(laserGroup);
-            }
+    // ── STEP 3: Attach Laser Sight (Firearms) ──
+    const hasLaser = Boolean(playerState.hasLaserSight || (typeof laserSightPurchased !== 'undefined' && laserSightPurchased));
+    if (hasLaser && !isMelee && !isThrowableOrSpecial) {
+        if (typeof TacticalLaserComponent !== 'undefined' && typeof TacticalLaserComponent.createLaserSightModule === 'function') {
+            const laserGroup = TacticalLaserComponent.createLaserSightModule(w.length);
+            playerState.viewModel.add(laserGroup);
         }
     }
     

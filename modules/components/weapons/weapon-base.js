@@ -2,7 +2,7 @@
  * Tactical Weapon Base Component & Materials
  * 
  * Provides foundational procedural geometry and PBR materials for weapon systems:
- * - MIL-STD-1913 Picatinny tactical rails with transverse recoil slots & bevels
+ * - MIL-STD-1913 Picatinny tactical rails using ExtrudeGeometry with bevels & recoil grooves
  * - Weapon muzzle devices (birdcage flash hider, slanted AK compensator, dual-baffle brake)
  * - Cached high-fidelity procedural PBR materials (gunmetal, anodized aluminum, walnut wood, polymer)
  */
@@ -12,43 +12,79 @@
 
     /**
      * Procedural Picatinny Rail (MIL-STD-1913 Standard)
-     * Creates realistic segmented mounting rail with transverse recoil cross-grooves.
+     * Uses ExtrudeGeometry with bevels and transverse recoil grooves.
      * 
      * @param {number} length Rail length in meters
      * @param {Object} [options]
-     * @returns {THREE.Mesh}
+     * @returns {THREE.Group|THREE.Mesh}
      */
     function createPicatinnyRail(length, options) {
         options = options || {};
         const width = options.width || 0.021;
         const height = options.height || 0.009;
-        const slotPitch = 0.010; // 10mm pitch between slots
+        const slotPitch = 0.010; // 10mm pitch between recoil slots
         const slotWidth = 0.005; // 5mm slot width
 
-        // Base rail spine
         const railGroup = new THREE.Group();
         railGroup.name = options.name || 'picatinnyRail';
 
         const mat = options.material || getGunmetalMaterial();
 
-        const baseGeo = new THREE.BoxGeometry(width * 0.85, height * 0.5, length);
-        const baseMesh = new THREE.Mesh(baseGeo, mat);
-        baseMesh.position.y = height * 0.25;
-        railGroup.add(baseMesh);
+        // 1. Picatinny Cross-Section Shape (MIL-STD-1913 hexagonal dovetail profile)
+        const railShape = new THREE.Shape();
+        const halfW = width / 2;
+        const baseW = halfW * 0.75;
+        const midH = height * 0.45;
+        const topH = height;
 
-        // Segmented upper rail teeth
+        railShape.moveTo(-baseW, 0);
+        railShape.lineTo(-halfW, midH);
+        railShape.lineTo(-halfW, midH + height * 0.25);
+        railShape.lineTo(-halfW * 0.85, topH);
+        railShape.lineTo(halfW * 0.85, topH);
+        railShape.lineTo(halfW, midH + height * 0.25);
+        railShape.lineTo(halfW, midH);
+        railShape.lineTo(baseW, 0);
+        railShape.closePath();
+
+        // 2. Base Rail Spine Extrusion
+        const spineLength = length;
+        const spineSettings = {
+            depth: spineLength,
+            bevelEnabled: true,
+            bevelSegments: 1,
+            steps: 1,
+            bevelSize: 0.0008,
+            bevelThickness: 0.0008
+        };
+        const spineGeo = new THREE.ExtrudeGeometry(railShape, spineSettings);
+        spineGeo.translate(0, 0, -spineLength / 2);
+        const spineMesh = new THREE.Mesh(spineGeo, mat);
+        railGroup.add(spineMesh);
+
+        // 3. Segmented Upper Recoil Teeth & Grooves
         const numTeeth = Math.max(1, Math.floor(length / slotPitch));
         const toothLen = slotPitch - slotWidth;
-        const toothGeo = new THREE.BoxGeometry(width, height * 0.5, toothLen);
+        const toothGeo = new THREE.BoxGeometry(width * 0.98, height * 0.35, toothLen);
 
         for (let i = 0; i < numTeeth; i++) {
             const zPos = -length / 2 + (i + 0.5) * slotPitch;
             const tooth = new THREE.Mesh(toothGeo, mat);
-            tooth.position.set(0, height * 0.75, zPos);
+            tooth.position.set(0, height * 0.85, zPos);
             railGroup.add(tooth);
         }
 
         return railGroup;
+    }
+
+    function createPicatinnyTopRail(length, options) {
+        options = Object.assign({}, options, { name: 'picatinnyTopRail' });
+        return createPicatinnyRail(length, options);
+    }
+
+    function createPicatinnySideRail(length, options) {
+        options = Object.assign({}, options, { name: 'picatinnySideRail', width: 0.018, height: 0.007 });
+        return createPicatinnyRail(length, options);
     }
 
     /**
@@ -135,6 +171,8 @@
 
     const WeaponBase = {
         createPicatinnyRail,
+        createPicatinnyTopRail,
+        createPicatinnySideRail,
         createMuzzleDevice,
         getGunmetalMaterial,
         getPolymerMaterial,
