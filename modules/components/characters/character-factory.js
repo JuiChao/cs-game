@@ -58,6 +58,11 @@
     function createCharacter(options) {
         options = options || {};
         const faction = options.faction || 'CT';
+
+        if (typeof BotCharacterComponent !== 'undefined' && BotCharacterComponent.createBotMesh) {
+            return BotCharacterComponent.createBotMesh(Object.assign({ team: faction }, options));
+        }
+
         const palette = getFactionPalette(faction, options.isSource);
 
         const group = new THREE.Group();

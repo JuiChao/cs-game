@@ -1,77 +1,156 @@
 // #region Bot 生成与子弹系统
-// Procedural cartoon / tactical faces generated via HTML5 Canvas (100% offline & zero network latency)
+// Procedural high-fidelity tactical faces generated via HTML5 Canvas (100% offline & zero network latency)
 function createProceduralBotFaceTexture(team) {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
     
-    // Background / Head base
-    ctx.fillStyle = team === 'CT' ? '#2c3e50' : '#d35400';
-    ctx.fillRect(0, 0, 128, 128);
-    
     if (team === 'CT') {
-        // Counter-Terrorist: Tactical helmet & visor / Balaclava
-        ctx.fillStyle = '#1a252f';
-        ctx.fillRect(16, 16, 96, 96);
-        
-        // Eye slit / Visor area
-        ctx.fillStyle = '#34495e';
-        ctx.fillRect(24, 40, 80, 28);
-        
-        // High-tech Visor / Goggles (Cyan glow)
-        ctx.fillStyle = '#00d2d3';
-        ctx.fillRect(28, 44, 32, 20);
-        ctx.fillRect(68, 44, 32, 20);
-        
-        // Visor lens reflection
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.fillRect(32, 46, 10, 6);
-        ctx.fillRect(72, 46, 10, 6);
-        
-        // Tactical breathing filter / mask
-        ctx.fillStyle = '#2c3e50';
-        ctx.beginPath();
-        ctx.arc(64, 90, 16, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#7f8c8d';
-        ctx.fillRect(52, 88, 24, 4);
-        ctx.fillRect(52, 94, 24, 4);
+        // Counter-Terrorist: High-cut ballistic helmet, tactical balaclava & polarized goggles
+        ctx.fillStyle = '#161c24';
+        ctx.fillRect(0, 0, 128, 128);
 
-        // Helmet crest / strap
-        ctx.fillStyle = '#2980b9';
-        ctx.fillRect(16, 16, 96, 10);
+        // Nomex fire-retardant balaclava weave
+        ctx.fillStyle = '#1e2632';
+        ctx.fillRect(16, 20, 96, 92);
+        // Balaclava micro-weave lines
+        ctx.strokeStyle = 'rgba(10, 14, 20, 0.4)';
+        ctx.lineWidth = 1;
+        for (let y = 24; y < 112; y += 4) {
+            ctx.beginPath();
+            ctx.moveTo(16, y);
+            ctx.lineTo(112, y);
+            ctx.stroke();
+        }
+
+        // Helmet brow padding & ARC rail trim
+        ctx.fillStyle = '#12161c';
+        ctx.fillRect(12, 12, 104, 16);
+        ctx.fillStyle = '#2c3746';
+        ctx.fillRect(16, 24, 96, 4);
+
+        // Tactical Eyewear / Polarized Ballistic Goggles
+        // Goggle frame
+        ctx.fillStyle = '#0b0d10';
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(20, 36, 88, 32, 6) : ctx.rect(20, 36, 88, 32);
+        ctx.fill();
+
+        // Polarized smoked / iridescent lenses
+        const lensGrad1 = ctx.createLinearGradient(24, 38, 60, 64);
+        lensGrad1.addColorStop(0, '#102232');
+        lensGrad1.addColorStop(0.5, '#1e3c54');
+        lensGrad1.addColorStop(1, '#0a1824');
+        ctx.fillStyle = lensGrad1;
+        ctx.fillRect(24, 40, 36, 24);
+
+        const lensGrad2 = ctx.createLinearGradient(68, 38, 104, 64);
+        lensGrad2.addColorStop(0, '#102232');
+        lensGrad2.addColorStop(0.5, '#1e3c54');
+        lensGrad2.addColorStop(1, '#0a1824');
+        ctx.fillStyle = lensGrad2;
+        ctx.fillRect(68, 40, 36, 24);
+
+        // Anti-reflective specular glare streaks
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.beginPath();
+        ctx.moveTo(28, 42); ctx.lineTo(38, 42); ctx.lineTo(30, 60); ctx.lineTo(26, 60);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(72, 42); ctx.lineTo(82, 42); ctx.lineTo(74, 60); ctx.lineTo(70, 60);
+        ctx.fill();
+
+        // Goggle nose bridge
+        ctx.fillStyle = '#080a0c';
+        ctx.fillRect(60, 44, 8, 14);
+
+        // Low-profile tactical respirator / dust filter
+        ctx.fillStyle = '#1c222b';
+        ctx.beginPath();
+        ctx.arc(64, 88, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#2d3744';
+        ctx.fillRect(52, 84, 24, 3);
+        ctx.fillRect(50, 90, 28, 3);
+
+        // Peltor ComTac boom microphone extending across cheek
+        ctx.fillStyle = '#0a0c0e';
+        ctx.fillRect(16, 76, 24, 4);
+        ctx.beginPath();
+        ctx.arc(42, 82, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ballistic helmet chin strap
+        ctx.strokeStyle = '#222830';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(24, 28); ctx.lineTo(44, 106); ctx.lineTo(64, 114);
+        ctx.moveTo(104, 28); ctx.lineTo(84, 106); ctx.lineTo(64, 114);
+        ctx.stroke();
     } else {
-        // Terrorist: Desert Camo / Bandana & aviator glasses / mask
-        ctx.fillStyle = '#e0ae8b';
-        ctx.fillRect(20, 24, 88, 44);
-        
-        // Aviator sunglasses
+        // Terrorist: Weathered desert shemagh scarf, aviator ballistic glasses & tactical headband
+        ctx.fillStyle = '#3a2d20';
+        ctx.fillRect(0, 0, 128, 128);
+
+        // Weathered skin around eyes
+        ctx.fillStyle = '#c89d76';
+        ctx.fillRect(20, 26, 88, 44);
+
+        // Brow & facial stubble shadows
+        ctx.fillStyle = 'rgba(40, 28, 18, 0.45)';
+        ctx.fillRect(22, 28, 84, 6);
+        ctx.fillRect(56, 56, 16, 14);
+
+        // Aviator shooting glasses
         ctx.fillStyle = '#111111';
         ctx.beginPath();
-        ctx.arc(42, 46, 14, 0, Math.PI * 2);
+        ctx.arc(42, 46, 15, 0, Math.PI * 2);
+        ctx.arc(86, 46, 15, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillRect(54, 44, 20, 3);
+
+        // Amber / mirrored lens gradient
+        const lensGrad = ctx.createLinearGradient(0, 34, 0, 60);
+        lensGrad.addColorStop(0, '#5a4018');
+        lensGrad.addColorStop(0.5, '#7a5a25');
+        lensGrad.addColorStop(1, '#2c1e0a');
+        ctx.fillStyle = lensGrad;
         ctx.beginPath();
-        ctx.arc(86, 46, 14, 0, Math.PI * 2);
+        ctx.arc(42, 46, 13, 0, Math.PI * 2);
+        ctx.arc(86, 46, 13, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillRect(54, 44, 20, 4);
+
+        // Glass reflection highlights
         ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.fillRect(36, 40, 6, 6);
-        ctx.fillRect(80, 40, 6, 6);
-        
-        // Bandana / Shemagh covering lower face
-        ctx.fillStyle = '#c0392b';
-        ctx.fillRect(16, 68, 96, 44);
-        
-        // Bandana pattern / wrinkles
-        ctx.fillStyle = '#962d22';
-        ctx.fillRect(24, 76, 80, 4);
-        ctx.fillRect(20, 88, 88, 4);
-        ctx.fillRect(28, 100, 72, 4);
-        
-        // Headband
-        ctx.fillStyle = '#7f1d1d';
-        ctx.fillRect(16, 16, 96, 12);
+        ctx.fillRect(36, 39, 6, 7);
+        ctx.fillRect(80, 39, 6, 7);
+
+        // Desert Shemagh (Keffiyeh) draped over lower face
+        ctx.fillStyle = '#8f3322';
+        ctx.fillRect(14, 68, 100, 48);
+
+        // Traditional Shemagh woven diamond / houndstooth lattice pattern
+        ctx.fillStyle = '#2a120e';
+        for (let sy = 72; sy < 114; sy += 8) {
+            for (let sx = 18; sx < 110; sx += 8) {
+                if ((sx + sy) % 16 === 0) {
+                    ctx.fillRect(sx, sy, 4, 4);
+                }
+            }
+        }
+
+        // Scarf fold shadows
+        ctx.fillStyle = 'rgba(20, 8, 5, 0.4)';
+        ctx.fillRect(16, 78, 96, 4);
+        ctx.fillRect(20, 92, 88, 4);
+        ctx.fillRect(24, 104, 80, 3);
+
+        // Tactical combat headband / cap fold
+        ctx.fillStyle = '#611b14';
+        ctx.fillRect(14, 14, 100, 16);
+        ctx.fillStyle = '#3e100b';
+        ctx.fillRect(14, 26, 100, 4);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -93,23 +172,30 @@ if (typeof window !== 'undefined') {
 }
 
 function spawnBots(ctSpawns, tSpawns) {
-    const ctMat = new THREE.MeshStandardMaterial({ color: 0x3498db }); // Blue for CT
-    const tMat = new THREE.MeshStandardMaterial({ color: 0xe67e22 });  // Orange for T
+    // High-fidelity procedural PBR camouflage materials
+    let ctMat, tMat;
+    if (typeof proceduralTextureFactory !== 'undefined' && proceduralTextureFactory.getPBRMaterial) {
+        ctMat = proceduralTextureFactory.getPBRMaterial('camo_CT');
+        tMat = proceduralTextureFactory.getPBRMaterial('camo_T');
+    } else {
+        ctMat = new THREE.MeshStandardMaterial({ color: 0x243342, roughness: 0.85, metalness: 0.1 });
+        tMat = new THREE.MeshStandardMaterial({ color: 0x544332, roughness: 0.85, metalness: 0.1 });
+    }
     
-    // Procedural cartoon / tactical faces generated via HTML5 Canvas (100% offline & zero network latency)
+    // Procedural tactical faces generated via HTML5 Canvas (100% offline & zero network latency)
     const ctFaceTexture = getProceduralBotFaceTexture('CT');
     const tFaceTexture = getProceduralBotFaceTexture('T');
     
-    const ctFaceMat = new THREE.MeshStandardMaterial({ map: ctFaceTexture, color: 0xffffff });
-    const tFaceMat = new THREE.MeshStandardMaterial({ map: tFaceTexture, color: 0xffffff });
+    const ctFaceMat = new THREE.MeshStandardMaterial({ map: ctFaceTexture, roughness: 0.8 });
+    const tFaceMat = new THREE.MeshStandardMaterial({ map: tFaceTexture, roughness: 0.8 });
     
     let ctCount = 0;
     let tCount = 0;
     
     const spawnBot = (team, x, z) => {
-        const teamColor = team === 'CT' ? 0x3498db : 0xe67e22;
-        const bodyMat = (team === 'CT' ? ctMat : tMat).clone();
-        const faceMat = (team === 'CT' ? ctFaceMat : tFaceMat).clone();
+        const teamColor = team === 'CT' ? 0x243342 : 0x544332;
+        const bodyMat = (team === 'CT' ? ctMat : tMat);
+        const faceMat = (team === 'CT' ? ctFaceMat : tFaceMat);
 
         // Buy logic
         let money = team === 'T' ? matchState.botMoneyT[tCount] : matchState.botMoneyCT[ctCount];

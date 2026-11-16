@@ -530,6 +530,289 @@
         }
 
         /**
+         * Procedural Digital Camouflage & Ripstop Fabric:
+         * Generates pixelated tactical camouflage with ripstop crosshatch grid
+         * and tangent-space normal map via Sobel convolution.
+         * 
+         * @param {'CT'|'T'|'Zombie'} [faction='CT'] Faction designation
+         * @param {Object} [options={}] Additional MeshStandardMaterial parameters
+         * @returns {THREE.MeshStandardMaterial}
+         */
+        createCamoFabricMaterial(faction = 'CT', options = {}) {
+            if (typeof document === 'undefined' || typeof THREE === 'undefined') {
+                const fallbackColor = faction === 'CT' ? 0x243342 : (faction === 'T' ? 0x544332 : 0x1f2b1f);
+                return new THREE.MeshStandardMaterial(Object.assign({ color: fallbackColor, roughness: 0.85, metalness: 0.1 }, options));
+            }
+            const size = 256;
+            const diffCanvas = document.createElement('canvas');
+            diffCanvas.width = size;
+            diffCanvas.height = size;
+            const diffCtx = diffCanvas.getContext('2d', { willReadFrequently: true }) || diffCanvas.getContext('2d');
+
+            const heightCanvas = document.createElement('canvas');
+            heightCanvas.width = size;
+            heightCanvas.height = size;
+            const heightCtx = heightCanvas.getContext('2d', { willReadFrequently: true }) || heightCanvas.getContext('2d');
+
+            const isCT = (faction === 'CT');
+            const isZombie = (faction === 'Zombie');
+
+            // Camouflage color palette
+            let palette;
+            if (isCT) {
+                // Urban SWAT / SpecOps Navy digital camo
+                palette = [
+                    { r: 24, g: 35, b: 48 },   // Dark slate navy
+                    { r: 38, g: 52, b: 70 },   // Medium tactical blue
+                    { r: 18, g: 24, b: 32 },   // Deep midnight shadow
+                    { r: 58, g: 74, b: 94 }    // Steel blue highlight
+                ];
+            } else if (isZombie) {
+                palette = [
+                    { r: 28, g: 45, b: 28 },
+                    { r: 42, g: 68, b: 42 },
+                    { r: 20, g: 32, b: 20 },
+                    { r: 60, g: 90, b: 50 }
+                ];
+            } else {
+                // Guerrilla / Desert Coyote Tan digital camo
+                palette = [
+                    { r: 92, g: 78, b: 60 },   // Coyote tan
+                    { r: 122, g: 104, b: 80 }, // Desert khaki
+                    { r: 54, g: 44, b: 34 },   // Dark earth
+                    { r: 76, g: 84, b: 62 }    // Olive drab accent
+                ];
+            }
+
+            diffCtx.fillStyle = `rgb(${palette[0].r}, ${palette[0].g}, ${palette[0].b})`;
+            diffCtx.fillRect(0, 0, size, size);
+
+            heightCtx.fillStyle = '#808080';
+            heightCtx.fillRect(0, 0, size, size);
+
+            // Procedural digital camo blocks (pixelated multi-scale camouflage blotches)
+            const blockSize = 8;
+            const cols = size / blockSize;
+            const rows = size / blockSize;
+
+            for (let cy = 0; cy < rows; cy++) {
+                for (let cx = 0; cx < cols; cx++) {
+                    const n = Math.sin(cx * 0.45) * Math.cos(cy * 0.45) + Math.sin(cx * 1.2 + cy * 0.8) * 0.5 + ((Math.random() - 0.5) * 0.6);
+                    let colorIndex = 0;
+                    if (n > 0.45) colorIndex = 3;
+                    else if (n > 0.1) colorIndex = 1;
+                    else if (n < -0.3) colorIndex = 2;
+
+                    const col = palette[colorIndex];
+                    diffCtx.fillStyle = `rgb(${col.r}, ${col.g}, ${col.b})`;
+                    diffCtx.fillRect(cx * blockSize, cy * blockSize, blockSize, blockSize);
+
+                    const h = 120 + colorIndex * 8;
+                    heightCtx.fillStyle = `rgb(${h}, ${h}, ${h})`;
+                    heightCtx.fillRect(cx * blockSize, cy * blockSize, blockSize, blockSize);
+                }
+            }
+
+            // Ripstop crosshatch weave pattern and cloth fiber noise
+            const diffImg = diffCtx.getImageData(0, 0, size, size);
+            const heightImg = heightCtx.getImageData(0, 0, size, size);
+            const dData = diffImg.data;
+            const hData = heightImg.data;
+
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const idx = (y * size + x) * 4;
+                    const isRipstop = (x % 16 === 0 || y % 16 === 0);
+                    const weave = ((x + y) % 2 === 0 ? 6 : -6);
+                    const noise = (Math.random() - 0.5) * 12;
+                    const mod = (isRipstop ? 14 : 0) + weave + noise;
+
+                    dData[idx] = Math.max(0, Math.min(255, dData[idx] + mod));
+                    dData[idx + 1] = Math.max(0, Math.min(255, dData[idx + 1] + mod));
+                    dData[idx + 2] = Math.max(0, Math.min(255, dData[idx + 2] + mod));
+
+                    const hVal = Math.max(0, Math.min(255, hData[idx] + (isRipstop ? 20 : 0) + weave * 1.5));
+                    hData[idx] = hVal;
+                    hData[idx + 1] = hVal;
+                    hData[idx + 2] = hVal;
+                }
+            }
+
+            diffCtx.putImageData(diffImg, 0, 0);
+            heightCtx.putImageData(heightImg, 0, 0);
+
+            const diffTex = new THREE.CanvasTexture(diffCanvas);
+            diffTex.wrapS = THREE.RepeatWrapping;
+            diffTex.wrapT = THREE.RepeatWrapping;
+            diffTex.userData = { isShared: true };
+
+            const normTex = this.generateNormalMapFromCanvas(heightCanvas, 1.4);
+
+            const mat = new THREE.MeshStandardMaterial(Object.assign({
+                map: diffTex,
+                normalMap: normTex,
+                roughness: 0.85,
+                metalness: 0.05
+            }, options));
+            mat.userData = { isShared: true };
+            return mat;
+        }
+
+        /**
+         * Modular Plate Carrier & Ballistic Cordura Nylon:
+         * Heavy-duty woven fabric with horizontal MOLLE webbing and bar-tack stitching.
+         * 
+         * @param {'CT'|'T'} [faction='CT'] Faction designation
+         * @param {Object} [options={}] Additional MeshStandardMaterial parameters
+         * @returns {THREE.MeshStandardMaterial}
+         */
+        createPlateCarrierMaterial(faction = 'CT', options = {}) {
+            if (typeof document === 'undefined' || typeof THREE === 'undefined') {
+                return new THREE.MeshStandardMaterial(Object.assign({
+                    color: faction === 'CT' ? 0x181c20 : 0x383226,
+                    roughness: 0.88,
+                    metalness: 0.2
+                }, options));
+            }
+            const size = 256;
+            const diffCanvas = document.createElement('canvas');
+            diffCanvas.width = size;
+            diffCanvas.height = size;
+            const diffCtx = diffCanvas.getContext('2d', { willReadFrequently: true }) || diffCanvas.getContext('2d');
+
+            const heightCanvas = document.createElement('canvas');
+            heightCanvas.width = size;
+            heightCanvas.height = size;
+            const heightCtx = heightCanvas.getContext('2d', { willReadFrequently: true }) || heightCanvas.getContext('2d');
+
+            const isCT = (faction === 'CT');
+            const baseHex = isCT ? '#181c22' : '#342c22';
+            diffCtx.fillStyle = baseHex;
+            diffCtx.fillRect(0, 0, size, size);
+
+            heightCtx.fillStyle = '#808080';
+            heightCtx.fillRect(0, 0, size, size);
+
+            // Horizontal MOLLE webbing straps (every 32 pixels, 18px thick)
+            for (let y = 8; y < size; y += 32) {
+                diffCtx.fillStyle = isCT ? '#12151a' : '#29221a';
+                diffCtx.fillRect(0, y, size, 18);
+                diffCtx.fillStyle = isCT ? '#28303a' : '#4a3f32';
+                for (let x = 12; x < size; x += 24) {
+                    diffCtx.fillRect(x, y + 2, 3, 14);
+                }
+
+                heightCtx.fillStyle = '#b0b0b0';
+                heightCtx.fillRect(0, y, size, 18);
+            }
+
+            const dImg = diffCtx.getImageData(0, 0, size, size);
+            const hImg = heightCtx.getImageData(0, 0, size, size);
+            for (let i = 0; i < dImg.data.length; i += 4) {
+                const n = (Math.random() - 0.5) * 10;
+                dImg.data[i] = Math.max(0, Math.min(255, dImg.data[i] + n));
+                dImg.data[i + 1] = Math.max(0, Math.min(255, dImg.data[i + 1] + n));
+                dImg.data[i + 2] = Math.max(0, Math.min(255, dImg.data[i + 2] + n));
+                hImg.data[i] = Math.max(0, Math.min(255, hImg.data[i] + n * 1.2));
+                hImg.data[i + 1] = hImg.data[i];
+                hImg.data[i + 2] = hImg.data[i];
+            }
+            diffCtx.putImageData(dImg, 0, 0);
+            heightCtx.putImageData(hImg, 0, 0);
+
+            const diffTex = new THREE.CanvasTexture(diffCanvas);
+            diffTex.wrapS = THREE.RepeatWrapping;
+            diffTex.wrapT = THREE.RepeatWrapping;
+            diffTex.userData = { isShared: true };
+
+            const normTex = this.generateNormalMapFromCanvas(heightCanvas, 1.8);
+
+            const mat = new THREE.MeshStandardMaterial(Object.assign({
+                map: diffTex,
+                normalMap: normTex,
+                roughness: 0.88,
+                metalness: 0.15
+            }, options));
+            mat.userData = { isShared: true };
+            return mat;
+        }
+
+        /**
+         * Ballistic FAST Helmet Material:
+         * Matte composite Kevlar shell with anti-reflective finish.
+         * 
+         * @param {'CT'|'T'} [faction='CT'] Faction designation
+         * @param {Object} [options={}] Additional MeshStandardMaterial parameters
+         * @returns {THREE.MeshStandardMaterial}
+         */
+        createBallisticHelmetMaterial(faction = 'CT', options = {}) {
+            const isCT = (faction === 'CT');
+            const color = isCT ? 0x1c2126 : 0x2e2820;
+            const mat = new THREE.MeshStandardMaterial(Object.assign({
+                color: color,
+                roughness: 0.65,
+                metalness: 0.35
+            }, options));
+            mat.userData = { isShared: true };
+            return mat;
+        }
+
+        /**
+         * Ballistic Visor Material:
+         * Polycarbonate protective eyewear with specular highlights and tint.
+         * 
+         * @param {Object} [options={}] Additional MeshStandardMaterial parameters
+         * @returns {THREE.MeshStandardMaterial}
+         */
+        createBallisticVisorMaterial(options = {}) {
+            const mat = new THREE.MeshStandardMaterial(Object.assign({
+                color: 0x14202c,
+                roughness: 0.12,
+                metalness: 0.90,
+                transparent: true,
+                opacity: 0.85
+            }, options));
+            mat.userData = { isShared: true };
+            return mat;
+        }
+
+        /**
+         * Tactical Leather Material:
+         * Rugged leather for combat boots, utility belts, and holsters.
+         * 
+         * @param {Object} [options={}] Additional MeshStandardMaterial parameters
+         * @returns {THREE.MeshStandardMaterial}
+         */
+        createTacticalLeatherMaterial(options = {}) {
+            const mat = new THREE.MeshStandardMaterial(Object.assign({
+                color: 0x121416,
+                roughness: 0.75,
+                metalness: 0.15
+            }, options));
+            mat.userData = { isShared: true };
+            return mat;
+        }
+
+        /**
+         * Tactical Combat Glove Material:
+         * Reinforced assault gloves with carbon-fiber knuckle protection.
+         * 
+         * @param {'CT'|'T'} [faction='CT'] Faction designation
+         * @param {Object} [options={}] Additional MeshStandardMaterial parameters
+         * @returns {THREE.MeshStandardMaterial}
+         */
+        createTacticalGloveMaterial(faction = 'CT', options = {}) {
+            const isCT = (faction === 'CT');
+            const mat = new THREE.MeshStandardMaterial(Object.assign({
+                color: isCT ? 0x16181b : 0x24201a,
+                roughness: 0.55,
+                metalness: 0.40
+            }, options));
+            mat.userData = { isShared: true };
+            return mat;
+        }
+
+        /**
          * Cached PBR material pool avoiding duplicate allocations.
          * 
          * @param {string} type Material type name
@@ -695,6 +978,37 @@
                         roughness: 0.70,
                         metalness: 0.20
                     }, options));
+                    break;
+                case 'camo_CT':
+                    mat = this.createCamoFabricMaterial('CT', options);
+                    break;
+                case 'camo_T':
+                    mat = this.createCamoFabricMaterial('T', options);
+                    break;
+                case 'vest_CT':
+                    mat = this.createPlateCarrierMaterial('CT', options);
+                    break;
+                case 'vest_T':
+                    mat = this.createPlateCarrierMaterial('T', options);
+                    break;
+                case 'helmet_CT':
+                    mat = this.createBallisticHelmetMaterial('CT', options);
+                    break;
+                case 'helmet_T':
+                    mat = this.createBallisticHelmetMaterial('T', options);
+                    break;
+                case 'visor':
+                    mat = this.createBallisticVisorMaterial(options);
+                    break;
+                case 'tacticalLeather':
+                case 'leather':
+                    mat = this.createTacticalLeatherMaterial(options);
+                    break;
+                case 'gloves_CT':
+                    mat = this.createTacticalGloveMaterial('CT', options);
+                    break;
+                case 'gloves_T':
+                    mat = this.createTacticalGloveMaterial('T', options);
                     break;
                 default:
                     mat = new THREE.MeshStandardMaterial(options);
