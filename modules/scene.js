@@ -114,25 +114,29 @@ let playerDummyMesh = null;
 
 function createPlayerDummy() {
     if (playerDummyMesh) return;
-    
-    playerDummyMesh = new THREE.Group();
-    playerDummyMesh.name = 'playerDummy';
     const pd = activeDrones.find(d => d.isPlayer);
     if (!pd) return;
-    playerDummyMesh.position.copy(pd.playerPos);
     
-    const bodyGeo = new THREE.CylinderGeometry(1.2, 1.2, 4.4, 8);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: playerState.team === 'T' ? 0xd35400 : 0x2980b9 });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = -2.8; 
-    
-    const headGeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xf1c40f });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.y = 0; 
-    
-    playerDummyMesh.add(body);
-    playerDummyMesh.add(head);
+    if (typeof TacticalCharacterComponent !== 'undefined' && TacticalCharacterComponent.createPlayerDummyMesh) {
+        playerDummyMesh = TacticalCharacterComponent.createPlayerDummyMesh(pd.playerPos, playerState.team);
+    } else {
+        playerDummyMesh = new THREE.Group();
+        playerDummyMesh.name = 'playerDummy';
+        playerDummyMesh.position.copy(pd.playerPos);
+        
+        const bodyGeo = new THREE.CylinderGeometry(1.2, 1.2, 4.4, 8);
+        const bodyMat = new THREE.MeshStandardMaterial({ color: playerState.team === 'T' ? 0xd35400 : 0x2980b9 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = -2.8; 
+        
+        const headGeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xf1c40f });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 0; 
+        
+        playerDummyMesh.add(body);
+        playerDummyMesh.add(head);
+    }
     
     scene.add(playerDummyMesh);
 }

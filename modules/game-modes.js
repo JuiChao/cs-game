@@ -483,37 +483,46 @@ function setupShootingRangeTargets() {
     
     const distances = [25, 50, 100];
     distances.forEach((dist, i) => {
-        const group = new THREE.Group();
         const pos = new THREE.Vector3(0, 0, 0).add(lookDir.clone().multiplyScalar(dist));
         // Spread them out slightly side to side
         const right = new THREE.Vector3(1, 0, 0); 
         pos.add(right.clone().multiplyScalar((i - 1) * 5));
-        group.position.copy(pos);
-        
-        // Body (1.5 width, 2 height, 0.5 depth)
-        const bodyGeo = new THREE.BoxGeometry(1.5, 2, 0.5);
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
-        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-        bodyMesh.position.set(0, 1, 0); // Bottom at y=0
-        bodyMesh.name = 'rangeTargetBody';
-        group.add(bodyMesh);
-        
-        // Head (0.6 width, 0.6 height, 0.6 depth)
-        const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-        const headMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-        const headMesh = new THREE.Mesh(headGeo, headMat);
-        headMesh.position.set(0, 2 + 0.3, 0); // Above body
-        headMesh.name = 'rangeTargetHead';
-        group.add(headMesh);
-        
-        group.hp = Infinity;
-        group.burnStacks = 0;
-        group.burnTimer = 0;
-        group.isRed = false;
-        group.poisonTimer = 0;
-        group.poisonDelay = 0;
-        group.poisonDamageApplied = false;
-        group.isGreen = false;
+
+        let group, bodyMesh, headMesh;
+        if (typeof TargetProp !== 'undefined' && typeof TargetProp.createRangeTarget === 'function') {
+            const target = TargetProp.createRangeTarget(pos);
+            group = target.group;
+            bodyMesh = target.bodyMesh;
+            headMesh = target.headMesh;
+        } else {
+            group = new THREE.Group();
+            group.position.copy(pos);
+            
+            // Body (1.5 width, 2 height, 0.5 depth)
+            const bodyGeo = new THREE.BoxGeometry(1.5, 2, 0.5);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+            bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+            bodyMesh.position.set(0, 1, 0); // Bottom at y=0
+            bodyMesh.name = 'rangeTargetBody';
+            group.add(bodyMesh);
+            
+            // Head (0.6 width, 0.6 height, 0.6 depth)
+            const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            headMesh = new THREE.Mesh(headGeo, headMat);
+            headMesh.position.set(0, 2 + 0.3, 0); // Above body
+            headMesh.name = 'rangeTargetHead';
+            group.add(headMesh);
+            
+            group.hp = Infinity;
+            group.burnStacks = 0;
+            group.burnTimer = 0;
+            group.isRed = false;
+            group.poisonTimer = 0;
+            group.poisonDelay = 0;
+            group.poisonDamageApplied = false;
+            group.isGreen = false;
+        }
         
         scene.add(group);
         rangeTargets.push(group);

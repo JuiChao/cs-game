@@ -1,4 +1,21 @@
 // #region 投掷物系统
+function disposeGrenadeHierarchy(mesh) {
+    if (!mesh) return;
+    if (typeof mesh.dispose === 'function') {
+        mesh.dispose();
+    } else {
+        mesh.traverse(child => {
+            if (child.isMesh) {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) child.material.forEach(m => m && m.dispose());
+                    else child.material.dispose();
+                }
+            }
+        });
+    }
+}
+
 function updateGrenades(delta) {
     for (let i = grenades.length - 1; i >= 0; i--) {
         const g = grenades[i];
@@ -39,8 +56,7 @@ function updateGrenades(delta) {
             }
             if (attachPos) {
                 scene.remove(g.mesh);
-                g.mesh.geometry.dispose();
-                g.mesh.material.dispose();
+                disposeGrenadeHierarchy(g.mesh);
                 grenades.splice(i, 1);
                 deployMine(attachPos, attachNormal, g.team, g.isPlayer);
                 continue;
@@ -88,11 +104,7 @@ function updateGrenades(delta) {
         if (g.life <= 0 || ((g.type === 'molotov' || g.type === 'cryo') && hitFloor)) {
             triggerGrenadeExplosion(g);
             scene.remove(g.mesh);
-            if (g.mesh.geometry) g.mesh.geometry.dispose();
-            if (g.mesh.material) {
-                if (Array.isArray(g.mesh.material)) g.mesh.material.forEach(m => m.dispose());
-                else g.mesh.material.dispose();
-            }
+            disposeGrenadeHierarchy(g.mesh);
             if (g.circleMesh) {
                 scene.remove(g.circleMesh);
                 if (g.circleMesh.geometry) g.circleMesh.geometry.dispose();
@@ -373,10 +385,15 @@ function isSegmentBlockedBySmoke(a, b) {
 }
 
 function createGrenade(start, direction, type, team, isFromDrone = false, isPlayer = false) {
-    const geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    const color = type === 'hegrenade' ? 0x005500 : (type === 'flashbang' ? 0xaaaaaa : (type === 'molotov' ? 0xaa4400 : (type === 'smoke' ? 0x9aa0a6 : (type === 'mine' ? 0x2a3a2a : (type === 'cryo' ? 0x00d4ff : 0xaa8844)))));
-    const mat = new THREE.MeshStandardMaterial({ color });
-    const mesh = new THREE.Mesh(geo, mat);
+    let mesh;
+    if (typeof TacticalGrenadeComponent !== 'undefined' && typeof TacticalGrenadeComponent.createProceduralGrenade === 'function') {
+        mesh = TacticalGrenadeComponent.createProceduralGrenade(type);
+    } else {
+        const geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const color = type === 'hegrenade' ? 0x005500 : (type === 'flashbang' ? 0xaaaaaa : (type === 'molotov' ? 0xaa4400 : (type === 'smoke' ? 0x9aa0a6 : (type === 'mine' ? 0x2a3a2a : (type === 'cryo' ? 0x00d4ff : 0xaa8844)))));
+        const mat = new THREE.MeshStandardMaterial({ color });
+        mesh = new THREE.Mesh(geo, mat);
+    }
     mesh.position.copy(start);
     scene.add(mesh);
 

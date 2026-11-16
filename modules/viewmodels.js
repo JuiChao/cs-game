@@ -1,5 +1,8 @@
 // #region 武器视图模型
 function createC4() {
+    if (typeof TacticalC4Component !== 'undefined' && typeof TacticalC4Component.createC4 === 'function') {
+        return TacticalC4Component.createC4();
+    }
     const group = new THREE.Group();
     // Base block (Olive green C4 explosive)
     const blockGeo = new THREE.BoxGeometry(0.8, 0.2, 0.5);
@@ -345,25 +348,43 @@ function buildViewModel() {
     const w = getCurrentWeapon();
     
     if (w.id === 'knife') {
-        playerState.viewModel = createKarambit();
+        playerState.viewModel = (typeof TacticalKnifeComponent !== 'undefined' && TacticalKnifeComponent.createKarambit)
+            ? TacticalKnifeComponent.createKarambit()
+            : createKarambit();
     } else if (w.id === 'kukri') {
-        playerState.viewModel = createKukri();
+        playerState.viewModel = (typeof TacticalKnifeComponent !== 'undefined' && TacticalKnifeComponent.createKukri)
+            ? TacticalKnifeComponent.createKukri()
+            : createKukri();
     } else if (w.id === 'switchblade') {
-        playerState.viewModel = createSwitchblade();
+        playerState.viewModel = (typeof TacticalKnifeComponent !== 'undefined' && TacticalKnifeComponent.createSwitchblade)
+            ? TacticalKnifeComponent.createSwitchblade()
+            : createSwitchblade();
     } else if (w.id === 'zombieClaw') {
-        playerState.viewModel = createZombieClaw();
+        playerState.viewModel = (typeof TacticalKnifeComponent !== 'undefined' && TacticalKnifeComponent.createZombieClaw)
+            ? TacticalKnifeComponent.createZombieClaw()
+            : createZombieClaw();
     } else {
-        const geo = new THREE.BoxGeometry(0.1, 0.1, w.length);
-        const mat = new THREE.MeshStandardMaterial({ color: w.color });
-        playerState.viewModel = new THREE.Mesh(geo, mat);
-        
-        // Magazine
-        const magGeo = new THREE.BoxGeometry(0.08, 0.15, 0.08);
-        const magMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        const magMesh = new THREE.Mesh(magGeo, magMat);
-        magMesh.position.set(0, -0.1, 0.1);
-        magMesh.name = 'magazine';
-        playerState.viewModel.add(magMesh);
+        if (w.id === 'rifle' && typeof AK47Component !== 'undefined' && AK47Component.createAK47ViewModel) {
+            playerState.viewModel = AK47Component.createAK47ViewModel(w);
+        } else if (w.id === 'sniper' && typeof AWPComponent !== 'undefined' && AWPComponent.createAWPViewModel) {
+            playerState.viewModel = AWPComponent.createAWPViewModel(w);
+        } else if (w.id === 'shotgun' && typeof TacticalHeavyWeapons !== 'undefined' && TacticalHeavyWeapons.createShotgunMesh) {
+            playerState.viewModel = TacticalHeavyWeapons.createShotgunMesh(w);
+        } else if (w.id === 'gatling' && typeof TacticalHeavyWeapons !== 'undefined' && TacticalHeavyWeapons.createMinigunMesh) {
+            playerState.viewModel = TacticalHeavyWeapons.createMinigunMesh(w);
+        } else {
+            const geo = new THREE.BoxGeometry(0.1, 0.1, w.length);
+            const mat = new THREE.MeshStandardMaterial({ color: w.color });
+            playerState.viewModel = new THREE.Mesh(geo, mat);
+            
+            // Magazine
+            const magGeo = new THREE.BoxGeometry(0.08, 0.15, 0.08);
+            const magMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            const magMesh = new THREE.Mesh(magGeo, magMat);
+            magMesh.position.set(0, -0.1, 0.1);
+            magMesh.name = 'magazine';
+            playerState.viewModel.add(magMesh);
+        }
 
         if (w.id === 'shotgun') {
             const fireGroup = new THREE.Group();
@@ -618,64 +639,69 @@ function buildViewModel() {
         // Laser Sight 3D Attachment (if purchased and weapon is a firearm)
         const hasLaser = Boolean(playerState.hasLaserSight || (typeof laserSightPurchased !== 'undefined' && laserSightPurchased));
         if (hasLaser && !['knife', 'kukri', 'switchblade', 'zombieClaw', 'c4', 'hegrenade', 'flashbang', 'molotov', 'smoke', 'sandbag', 'mine', 'drone', 'cryo', 'mortar'].includes(w.id)) {
-            const laserGroup = new THREE.Group();
-            laserGroup.name = 'laserSight';
+            if (typeof TacticalLaserComponent !== 'undefined' && typeof TacticalLaserComponent.createLaserSightModule === 'function') {
+                const laserGroup = TacticalLaserComponent.createLaserSightModule(w.length);
+                playerState.viewModel.add(laserGroup);
+            } else {
+                const laserGroup = new THREE.Group();
+                laserGroup.name = 'laserSight';
 
-            const mZ = -w.length * 0.25;
+                const mZ = -w.length * 0.25;
 
-            // 1. Tactical Box Module (mounted on the right rail of gun)
-            const boxGeo = new THREE.BoxGeometry(0.025, 0.025, 0.08);
-            const boxMat = new THREE.MeshStandardMaterial({ color: 0x1f1f1f, metalness: 0.8, roughness: 0.2 });
-            const boxMesh = new THREE.Mesh(boxGeo, boxMat);
-            boxMesh.name = 'laserSightModule';
-            boxMesh.position.set(0.065, -0.015, mZ);
-            laserGroup.add(boxMesh);
+                // 1. Tactical Box Module (mounted on the right rail of gun)
+                const boxGeo = new THREE.BoxGeometry(0.025, 0.025, 0.08);
+                const boxMat = new THREE.MeshStandardMaterial({ color: 0x1f1f1f, metalness: 0.8, roughness: 0.2 });
+                const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+                boxMesh.name = 'laserSightModule';
+                boxMesh.position.set(0.065, -0.015, mZ);
+                laserGroup.add(boxMesh);
 
-            // 2. Front Lens / Emitter Ring
-            const emitterGeo = new THREE.CylinderGeometry(0.006, 0.007, 0.015, 8);
-            emitterGeo.rotateX(Math.PI / 2);
-            const emitterMat = new THREE.MeshStandardMaterial({ color: 0x050505, metalness: 0.9, roughness: 0.1 });
-            const emitterMesh = new THREE.Mesh(emitterGeo, emitterMat);
-            emitterMesh.position.set(0.065, -0.015, mZ - 0.045);
-            laserGroup.add(emitterMesh);
+                // 2. Front Lens / Emitter Ring
+                const emitterGeo = new THREE.CylinderGeometry(0.006, 0.007, 0.015, 8);
+                emitterGeo.rotateX(Math.PI / 2);
+                const emitterMat = new THREE.MeshStandardMaterial({ color: 0x050505, metalness: 0.9, roughness: 0.1 });
+                const emitterMesh = new THREE.Mesh(emitterGeo, emitterMat);
+                emitterMesh.position.set(0.065, -0.015, mZ - 0.045);
+                laserGroup.add(emitterMesh);
 
-            // 3. Glowing Red Diode / Emitter Dot
-            const diodeGeo = new THREE.CircleGeometry(0.004, 8);
-            const diodeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
-            const diodeMesh = new THREE.Mesh(diodeGeo, diodeMat);
-            diodeMesh.position.set(0.065, -0.015, mZ - 0.053);
-            laserGroup.add(diodeMesh);
+                // 3. Glowing Red Diode / Emitter Dot
+                const diodeGeo = new THREE.CircleGeometry(0.004, 8);
+                const diodeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
+                const diodeMesh = new THREE.Mesh(diodeGeo, diodeMat);
+                diodeMesh.position.set(0.065, -0.015, mZ - 0.053);
+                laserGroup.add(diodeMesh);
 
-            // 4. Visible Red Laser Beam (projecting forward)
-            const beamLength = 40;
-            const beamGeo = new THREE.CylinderGeometry(0.0012, 0.002, beamLength, 6);
-            beamGeo.rotateX(Math.PI / 2);
-            const beamMat = new THREE.MeshBasicMaterial({
-                color: 0xff0022,
-                transparent: true,
-                opacity: 0.45,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-            const beamMesh = new THREE.Mesh(beamGeo, beamMat);
-            beamMesh.name = 'laserBeam';
-            beamMesh.position.set(0.065, -0.015, mZ - 0.053 - beamLength / 2);
-            laserGroup.add(beamMesh);
+                // 4. Visible Red Laser Beam (projecting forward)
+                const beamLength = 40;
+                const beamGeo = new THREE.CylinderGeometry(0.0012, 0.002, beamLength, 6);
+                beamGeo.rotateX(Math.PI / 2);
+                const beamMat = new THREE.MeshBasicMaterial({
+                    color: 0xff0022,
+                    transparent: true,
+                    opacity: 0.45,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                const beamMesh = new THREE.Mesh(beamGeo, beamMat);
+                beamMesh.name = 'laserBeam';
+                beamMesh.position.set(0.065, -0.015, mZ - 0.053 - beamLength / 2);
+                laserGroup.add(beamMesh);
 
-            // 5. Laser Dot at distance
-            const dotGeo = new THREE.SphereGeometry(0.015, 8, 8);
-            const dotMat = new THREE.MeshBasicMaterial({
-                color: 0xff0000,
-                transparent: true,
-                opacity: 0.85,
-                blending: THREE.AdditiveBlending
-            });
-            const dotMesh = new THREE.Mesh(dotGeo, dotMat);
-            dotMesh.name = 'laserDot';
-            dotMesh.position.set(0.065, -0.015, mZ - 0.053 - beamLength);
-            laserGroup.add(dotMesh);
+                // 5. Laser Dot at distance
+                const dotGeo = new THREE.SphereGeometry(0.015, 8, 8);
+                const dotMat = new THREE.MeshBasicMaterial({
+                    color: 0xff0000,
+                    transparent: true,
+                    opacity: 0.85,
+                    blending: THREE.AdditiveBlending
+                });
+                const dotMesh = new THREE.Mesh(dotGeo, dotMat);
+                dotMesh.name = 'laserDot';
+                dotMesh.position.set(0.065, -0.015, mZ - 0.053 - beamLength);
+                laserGroup.add(dotMesh);
 
-            playerState.viewModel.add(laserGroup);
+                playerState.viewModel.add(laserGroup);
+            }
         }
     }
     

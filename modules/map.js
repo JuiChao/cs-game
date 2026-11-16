@@ -414,15 +414,25 @@ function rebuildMap() {
     // Remove old map meshes
     for (let i = scene.children.length - 1; i >= 0; i--) {
         let child = scene.children[i];
-        if (child.name === 'wall' || child.name === 'floor' || child.name === 'roof' || child.name === 'bombSite' || child.name === 'navGrid') {
+        if (child.name === 'wall' || child.name === 'floor' || child.name === 'roof' || child.name === 'bombSite' || child.name === 'navGrid' || (child.name && child.name.startsWith('visual_'))) {
             scene.remove(child);
             if (child.geometry) child.geometry.dispose();
             if (child.material) {
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(m => { if (m.map) m.map.dispose(); m.dispose(); });
-                } else {
-                    if (child.material.map) child.material.map.dispose();
-                    child.material.dispose();
+                const isShared = child.material.userData && child.material.userData.isShared;
+                if (!isShared) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => {
+                            if (!m.userData || !m.userData.isShared) {
+                                if (m.map && (!m.map.userData || !m.map.userData.isShared)) m.map.dispose();
+                                m.dispose();
+                            }
+                        });
+                    } else {
+                        if (child.material.map && (!child.material.map.userData || !child.material.map.userData.isShared)) {
+                            child.material.map.dispose();
+                        }
+                        child.material.dispose();
+                    }
                 }
             }
         }
@@ -452,7 +462,7 @@ function rebuildMap() {
         }
         if (child.name === 'floor') {
             child.receiveShadow = true;
-        } else if (child.name === 'wall' || child.name === 'roof' || child.name === 'bombSite' || child.name === 'box' || child.name === 'door') {
+        } else if (child.name === 'wall' || child.name === 'roof' || child.name === 'bombSite' || child.name === 'box' || child.name === 'door' || (child.name && child.name.startsWith('visual_'))) {
             child.castShadow = true;
             child.receiveShadow = true;
         }
@@ -931,6 +941,43 @@ function createProceduralTexture(type) {
     return texture;
 }
 
+// Helper for scaling BoxGeometry UVs face-by-face before geometry merging
+function createScaledWallGeometry(w, h, d, x, y, z) {
+    const geo = new THREE.BoxGeometry(w, h, d).toNonIndexed();
+    const uvs = geo.attributes.uv.array;
+    // BoxGeometry face order in Three.js:
+    // Face 0 (+X, right):  u along d, v along h
+    // Face 1 (-X, left):   u along d, v along h
+    // Face 2 (+Y, top):    u along w, v along d
+    // Face 3 (-Y, bottom): u along w, v along d
+    // Face 4 (+Z, front):  u along w, v along h
+    // Face 5 (-Z, back):   u along w, v along h
+    const scales = [
+        [d / 20.0, h / 20.0],
+        [d / 20.0, h / 20.0],
+        [w / 20.0, d / 20.0],
+        [w / 20.0, d / 20.0],
+        [w / 20.0, h / 20.0],
+        [w / 20.0, h / 20.0]
+    ];
+    for (let f = 0; f < 6; f++) {
+        const su = scales[f][0];
+        const sv = scales[f][1];
+        const start = f * 6;
+        for (let i = 0; i < 6; i++) {
+            const idx = (start + i) * 2;
+            uvs[idx] *= su;
+            uvs[idx + 1] *= sv;
+        }
+    }
+    geo.attributes.uv.needsUpdate = true;
+    if (x !== undefined && y !== undefined && z !== undefined) {
+        const matrix = new THREE.Matrix4().makeTranslation(x, y, z);
+        geo.applyMatrix4(matrix);
+    }
+    return geo;
+}
+
 function buildLargeMap() {
     // Floor Texture (procedural sand)
     const floorTex = createProceduralTexture('sand');
@@ -943,43 +990,55 @@ function buildLargeMap() {
     floor.name = 'floor';
     scene.add(floor);
 
-    // Wall Texture (procedural stone)
-    let clonedWallMaterials = [];
-    const wallTex = createProceduralTexture('stone');
-    wallTex.wrapS = THREE.RepeatWrapping;
-    wallTex.wrapT = THREE.RepeatWrapping;
-    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 }); 
-    const boxMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 }); 
+    // Wall Material from proceduralTextureFactory
+    const wallMat = proceduralTextureFactory.getPBRMaterial('stone');
+    const boxMat = proceduralTextureFactory.getPBRMaterial('box');
+    const sharedDoorMat = proceduralTextureFactory.getPBRMaterial('door');
+    const sharedBoxGeo = new THREE.BoxGeometry(10, 10, 10);
+    const sharedColliderMat = new THREE.MeshBasicMaterial({ visible: false });
+    sharedColliderMat.userData = { isShared: true };
+
+    const wallGeometries = [];
 
     const createWall = (x, z, w, d, h = 30) => {
-        const geo = new THREE.BoxGeometry(w, h, d);
-        const mat = wallMat.clone();
-        mat.map = wallTex.clone();
-        mat.map.repeat.set(Math.max(w, d) / 20, h / 20);
-        clonedWallMaterials.push(mat);
-        
-        const wall = new THREE.Mesh(geo, mat);
-        wall.position.set(x, h/2, z);
-        wall.name = 'wall';
-        scene.add(wall);
+        // 1. Invisible Box Collider
+        const colliderGeo = new THREE.BoxGeometry(w, h, d);
+        const collider = new THREE.Mesh(colliderGeo, sharedColliderMat);
+        collider.position.set(x, h / 2, z);
+        collider.name = 'wall';
+        collider.visible = false;
+        collider.castShadow = true;
+        collider.receiveShadow = true;
+        scene.add(collider);
+
+        // 2. Scaled Visual Geometry
+        const visualGeo = createScaledWallGeometry(w, h, d, x, h / 2, z);
+        wallGeometries.push(visualGeo);
     };
     
     // Shared geometry and materials for boxes and doors (reduces draw calls and memory)
-    const sharedBoxGeo = new THREE.BoxGeometry(10, 10, 10);
-    const sharedDoorMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
-    
+    const boxPositions = [];
     const createBox = (x, z) => {
-        const box = new THREE.Mesh(sharedBoxGeo, boxMat);
-        box.position.set(x, 5, z);
-        box.name = 'wall';
-        scene.add(box);
-    }
+        boxPositions.push({ x, y: 5, z });
+    };
     
     const createDoor = (x, z, w, d) => {
         const geo = new THREE.BoxGeometry(w, 40, d);
+        // 1. Invisible Box Collider
+        const collider = new THREE.Mesh(geo, sharedColliderMat);
+        collider.position.set(x, 20, z);
+        collider.name = 'wall';
+        collider.visible = false;
+        collider.castShadow = true;
+        collider.receiveShadow = true;
+        scene.add(collider);
+
+        // 2. Visual Mesh
         const door = new THREE.Mesh(geo, sharedDoorMat);
         door.position.set(x, 20, z);
-        door.name = 'wall';
+        door.name = 'visual_door';
+        door.castShadow = true;
+        door.receiveShadow = true;
         scene.add(door);
     };
 
@@ -1065,6 +1124,46 @@ function buildLargeMap() {
     createBox(0, 50);   // Mid doors extra cover
     createBox(-20, 200); // Top mid extra cover
 
+    // Batch static cover crates via InstancedMesh while keeping collidableMeshList proxy colliders
+    if (typeof CrateProp !== 'undefined' && typeof CrateProp.createBatchedCrates === 'function') {
+        CrateProp.createBatchedCrates(boxPositions, { size: 10, targetScene: scene, targetCollidableList: collidableMeshList, colliderMaterial: sharedColliderMat });
+    } else {
+        for (let i = 0; i < boxPositions.length; i++) {
+            const p = boxPositions[i];
+            const collider = new THREE.Mesh(sharedBoxGeo, sharedColliderMat);
+            collider.position.set(p.x, p.y, p.z);
+            collider.name = 'wall';
+            collider.visible = false;
+            collider.castShadow = true;
+            collider.receiveShadow = true;
+            collider.updateMatrixWorld(true);
+            collider.worldBox = new THREE.Box3().setFromObject(collider);
+            collidableMeshList.push(collider);
+            scene.add(collider);
+
+            const box = new THREE.Mesh(sharedBoxGeo, boxMat);
+            box.position.set(p.x, p.y, p.z);
+            box.name = 'visual_box';
+            box.castShadow = true;
+            box.receiveShadow = true;
+            scene.add(box);
+        }
+    }
+
+    // Merge static wall visual geometries into a single mesh
+    if (wallGeometries.length > 0) {
+        const mergedWallGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries);
+        const visualWalls = new THREE.Mesh(mergedWallGeo, wallMat);
+        visualWalls.name = 'visual_walls';
+        visualWalls.visible = true;
+        visualWalls.castShadow = true;
+        visualWalls.receiveShadow = true;
+        scene.add(visualWalls);
+        for (let i = 0; i < wallGeometries.length; i++) {
+            wallGeometries[i].dispose();
+        }
+    }
+
     // Bomb Zones
     bombZones = [];
     platformSpots = [];
@@ -1099,38 +1198,54 @@ function buildInfernoMap() {
     floor.name = 'floor';
     scene.add(floor);
 
-    // Wall texture (plaster for Mediterranean feel)
-    const wallTex = createProceduralTexture('plaster');
-    wallTex.wrapS = THREE.RepeatWrapping;
-    wallTex.wrapT = THREE.RepeatWrapping;
-    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
-    const boxMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+    // Wall material from proceduralTextureFactory
+    const wallMat = proceduralTextureFactory.getPBRMaterial('plaster');
+    const boxMat = proceduralTextureFactory.getPBRMaterial('box');
+    const sharedBoxGeo = new THREE.BoxGeometry(10, 10, 10);
+    const sharedDoorMat = proceduralTextureFactory.getPBRMaterial('door');
+    const sharedColliderMat = new THREE.MeshBasicMaterial({ visible: false });
+    sharedColliderMat.userData = { isShared: true };
+
+    const wallGeometries = [];
 
     const createWall = (x, z, w, d, h = 30) => {
-        const geo = new THREE.BoxGeometry(w, h, d);
-        const mat = wallMat.clone();
-        mat.map = wallTex.clone();
-        mat.map.repeat.set(Math.max(w, d) / 20, h / 20);
-        const wall = new THREE.Mesh(geo, mat);
-        wall.position.set(x, h / 2, z);
-        wall.name = 'wall';
-        scene.add(wall);
+        // 1. Invisible Box Collider
+        const colliderGeo = new THREE.BoxGeometry(w, h, d);
+        const collider = new THREE.Mesh(colliderGeo, sharedColliderMat);
+        collider.position.set(x, h / 2, z);
+        collider.name = 'wall';
+        collider.visible = false;
+        collider.castShadow = true;
+        collider.receiveShadow = true;
+        scene.add(collider);
+
+        // 2. Scaled Visual Geometry
+        const visualGeo = createScaledWallGeometry(w, h, d, x, h / 2, z);
+        wallGeometries.push(visualGeo);
     };
 
-    const sharedBoxGeo = new THREE.BoxGeometry(10, 10, 10);
+    const boxPositions = [];
     const createBox = (x, z) => {
-        const box = new THREE.Mesh(sharedBoxGeo, boxMat);
-        box.position.set(x, 5, z);
-        box.name = 'wall';
-        scene.add(box);
+        boxPositions.push({ x, y: 5, z });
     };
 
-    const sharedDoorMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
     const createDoor = (x, z, w, d) => {
         const geo = new THREE.BoxGeometry(w, 40, d);
+        // 1. Invisible Box Collider
+        const collider = new THREE.Mesh(geo, sharedColliderMat);
+        collider.position.set(x, 20, z);
+        collider.name = 'wall';
+        collider.visible = false;
+        collider.castShadow = true;
+        collider.receiveShadow = true;
+        scene.add(collider);
+
+        // 2. Visual Mesh
         const door = new THREE.Mesh(geo, sharedDoorMat);
         door.position.set(x, 20, z);
-        door.name = 'wall';
+        door.name = 'visual_door';
+        door.castShadow = true;
+        door.receiveShadow = true;
         scene.add(door);
     };
 
@@ -1227,6 +1342,46 @@ function buildInfernoMap() {
     createBox(-30, -320);   // CT掩体
     createBox(30, -320);    // CT掩体
 
+    // Batch static cover crates via InstancedMesh while keeping collidableMeshList proxy colliders
+    if (typeof CrateProp !== 'undefined' && typeof CrateProp.createBatchedCrates === 'function') {
+        CrateProp.createBatchedCrates(boxPositions, { size: 10, targetScene: scene, targetCollidableList: collidableMeshList, colliderMaterial: sharedColliderMat });
+    } else {
+        for (let i = 0; i < boxPositions.length; i++) {
+            const p = boxPositions[i];
+            const collider = new THREE.Mesh(sharedBoxGeo, sharedColliderMat);
+            collider.position.set(p.x, p.y, p.z);
+            collider.name = 'wall';
+            collider.visible = false;
+            collider.castShadow = true;
+            collider.receiveShadow = true;
+            collider.updateMatrixWorld(true);
+            collider.worldBox = new THREE.Box3().setFromObject(collider);
+            collidableMeshList.push(collider);
+            scene.add(collider);
+
+            const box = new THREE.Mesh(sharedBoxGeo, boxMat);
+            box.position.set(p.x, p.y, p.z);
+            box.name = 'visual_box';
+            box.castShadow = true;
+            box.receiveShadow = true;
+            scene.add(box);
+        }
+    }
+
+    // Merge static wall visual geometries into a single mesh
+    if (wallGeometries.length > 0) {
+        const mergedWallGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries);
+        const visualWalls = new THREE.Mesh(mergedWallGeo, wallMat);
+        visualWalls.name = 'visual_walls';
+        visualWalls.visible = true;
+        visualWalls.castShadow = true;
+        visualWalls.receiveShadow = true;
+        scene.add(visualWalls);
+        for (let i = 0; i < wallGeometries.length; i++) {
+            wallGeometries[i].dispose();
+        }
+    }
+
     // ── 爆破区 ──
     bombZones = [];
     const zoneMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.3 });
@@ -1263,37 +1418,51 @@ function buildBiolabMap() {
     scene.add(floor);
 
     // Materials
-    let clonedWallMaterials = [];
-    const wallTex = createProceduralTexture('stone');
-    wallTex.wrapS = THREE.RepeatWrapping;
-    wallTex.wrapT = THREE.RepeatWrapping;
-    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
-    const platformMat = new THREE.MeshStandardMaterial({ color: 0x4a5548, roughness: 0.85 });
-    const metalMat = new THREE.MeshStandardMaterial({ color: 0x5a6a5a, roughness: 0.6, metalness: 0.3 });
-    const railMat = new THREE.MeshStandardMaterial({ color: 0x2a8a3a, roughness: 0.5, emissive: 0x002a08 });
+    const wallMat = proceduralTextureFactory.getPBRMaterial('stone');
+    const platformMat = proceduralTextureFactory.getPBRMaterial('platform');
+    const metalMat = proceduralTextureFactory.getPBRMaterial('metal');
+    const railMat = proceduralTextureFactory.getPBRMaterial('rail');
+    const sharedColliderMat = new THREE.MeshBasicMaterial({ visible: false });
+    sharedColliderMat.userData = { isShared: true };
+
+    const wallGeometries = [];
+    const metalGeometries = [];
+    const platformGeometries = [];
 
     // 墙体: yBase 支持悬空护栏 (护栏建在高台面上)
     const createWall = (x, z, w, d, h = 30, yBase = 0, mat = null) => {
-        const geo = new THREE.BoxGeometry(w, h, d);
-        const useMat = mat || wallMat.clone();
-        if (!mat) {
-            useMat.map = wallTex.clone();
-            useMat.map.repeat.set(Math.max(w, d) / 20, h / 20);
-            clonedWallMaterials.push(useMat);
+        // 1. Invisible Box Collider
+        const colliderGeo = new THREE.BoxGeometry(w, h, d);
+        const collider = new THREE.Mesh(colliderGeo, sharedColliderMat);
+        collider.position.set(x, yBase + h / 2, z);
+        collider.name = 'wall';
+        collider.visible = false;
+        collider.castShadow = true;
+        collider.receiveShadow = true;
+        scene.add(collider);
+
+        // 2. Scaled Visual Geometry
+        const visualGeo = createScaledWallGeometry(w, h, d, x, yBase + h / 2, z);
+        if (mat === metalMat) {
+            metalGeometries.push(visualGeo);
+        } else {
+            wallGeometries.push(visualGeo);
         }
-        const wall = new THREE.Mesh(geo, useMat);
-        wall.position.set(x, yBase + h / 2, z);
-        wall.name = 'wall';
-        scene.add(wall);
     };
 
     // 高台平台 (实心, 从地面起)
     const createPlatform = (x, z, w, d, h) => {
-        const geo = new THREE.BoxGeometry(w, h, d);
-        const wall = new THREE.Mesh(geo, platformMat);
-        wall.position.set(x, h / 2, z);
-        wall.name = 'wall';
-        scene.add(wall);
+        const colliderGeo = new THREE.BoxGeometry(w, h, d);
+        const collider = new THREE.Mesh(colliderGeo, sharedColliderMat);
+        collider.position.set(x, h / 2, z);
+        collider.name = 'wall';
+        collider.visible = false;
+        collider.castShadow = true;
+        collider.receiveShadow = true;
+        scene.add(collider);
+
+        const visualGeo = createScaledWallGeometry(w, h, d, x, h / 2, z);
+        platformGeometries.push(visualGeo);
     };
 
     // 直跑台阶: 每级高2(≤step-up 2.6), 从地面逐级升到台面高度
@@ -1315,20 +1484,36 @@ function buildBiolabMap() {
 
     // 台上护栏: 高1.2, 不挡玩家视线(眼高在护栏上方), 标记 noClimb 不可攀爬
     const createRail = (x, z, w, d, yBase) => {
-        const geo = new THREE.BoxGeometry(w, 1.2, d);
-        const rail = new THREE.Mesh(geo, railMat);
+        const colliderGeo = new THREE.BoxGeometry(w, 1.2, d);
+        const collider = new THREE.Mesh(colliderGeo, sharedColliderMat);
+        collider.position.set(x, yBase + 0.6, z);
+        collider.name = 'wall';
+        collider.visible = false;
+        collider.userData.noClimb = true;
+        collider.castShadow = true;
+        collider.receiveShadow = true;
+        scene.add(collider);
+
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(w, 1.2, d), railMat);
         rail.position.set(x, yBase + 0.6, z);
-        rail.name = 'wall';
-        rail.userData.noClimb = true;
+        rail.name = 'visual_rail';
+        rail.castShadow = true;
+        rail.receiveShadow = true;
         scene.add(rail);
     };
 
     const createBox = (x, z, h = 10) => {
-        const geo = new THREE.BoxGeometry(10, h, 10);
-        const box = new THREE.Mesh(geo, metalMat);
-        box.position.set(x, h / 2, z);
-        box.name = 'wall';
-        scene.add(box);
+        const colliderGeo = new THREE.BoxGeometry(10, h, 10);
+        const collider = new THREE.Mesh(colliderGeo, sharedColliderMat);
+        collider.position.set(x, h / 2, z);
+        collider.name = 'wall';
+        collider.visible = false;
+        collider.castShadow = true;
+        collider.receiveShadow = true;
+        scene.add(collider);
+
+        const visualGeo = createScaledWallGeometry(10, h, 10, x, h / 2, z);
+        metalGeometries.push(visualGeo);
     };
 
     // ── 外围墙 ──
@@ -1453,6 +1638,38 @@ function buildBiolabMap() {
     // 脚手架周边掩体
     createBox(290, -240);
     createBox(200, -250);
+
+    // Merge visual geometries into single meshes per material
+    if (wallGeometries.length > 0) {
+        const mergedWallGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(wallGeometries);
+        const visualWalls = new THREE.Mesh(mergedWallGeo, wallMat);
+        visualWalls.name = 'visual_walls';
+        visualWalls.visible = true;
+        visualWalls.castShadow = true;
+        visualWalls.receiveShadow = true;
+        scene.add(visualWalls);
+        for (let i = 0; i < wallGeometries.length; i++) wallGeometries[i].dispose();
+    }
+    if (metalGeometries.length > 0) {
+        const mergedMetalGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(metalGeometries);
+        const visualMetal = new THREE.Mesh(mergedMetalGeo, metalMat);
+        visualMetal.name = 'visual_metal';
+        visualMetal.visible = true;
+        visualMetal.castShadow = true;
+        visualMetal.receiveShadow = true;
+        scene.add(visualMetal);
+        for (let i = 0; i < metalGeometries.length; i++) metalGeometries[i].dispose();
+    }
+    if (platformGeometries.length > 0) {
+        const mergedPlatformGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(platformGeometries);
+        const visualPlatforms = new THREE.Mesh(mergedPlatformGeo, platformMat);
+        visualPlatforms.name = 'visual_platforms';
+        visualPlatforms.visible = true;
+        visualPlatforms.castShadow = true;
+        visualPlatforms.receiveShadow = true;
+        scene.add(visualPlatforms);
+        for (let i = 0; i < platformGeometries.length; i++) platformGeometries[i].dispose();
+    }
 
     // 生化模式无爆破区; 若在爆破模式下运行生化实验室, 提供保底爆破点A与B
     bombZones = [];

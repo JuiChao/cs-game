@@ -13,15 +13,21 @@ function createBarrier(pos) {
     if (gameMode !== 'zombie' || !scene) return;
     if (barriers.length >= ZOMBIE.barrierMax) removeBarrier(barriers[0]);
 
-    const geo = new THREE.BoxGeometry(14, 5, 5);
-    const mat = new THREE.MeshStandardMaterial({ color: 0xc2b280, roughness: 0.9 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(pos.x, 2.5, pos.z);
-    mesh.rotation.y = Math.random() * Math.PI;
-    mesh.name = 'wall';
-    mesh.userData.noClimb = true;   // 不可攀爬: 玩家/Bot/僵尸都无法跨越, 必须绕行或摧毁
-    mesh.userData.isBarrier = true;
+    let mesh;
+    if (typeof BarricadeProp !== 'undefined' && typeof BarricadeProp.createBarricadeMesh === 'function') {
+        mesh = BarricadeProp.createBarricadeMesh(pos);
+    } else {
+        const geo = new THREE.BoxGeometry(14, 5, 5);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xc2b280, roughness: 0.9 });
+        mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(pos.x, 2.5, pos.z);
+        mesh.rotation.y = Math.random() * Math.PI;
+        mesh.name = 'wall';
+        mesh.userData.noClimb = true;   // 不可攀爬: 玩家/Bot/僵尸都无法跨越, 必须绕行或摧毁
+        mesh.userData.isBarrier = true;
+    }
     scene.add(mesh);
+    mesh.updateMatrixWorld(true);
     mesh.worldBox = new THREE.Box3().setFromObject(mesh);
     collidableMeshList.push(mesh);
     barriers.push({ mesh: mesh, hp: ZOMBIE.barrierHp });
@@ -41,6 +47,9 @@ function removeBarrier(bar) {
 function damageBarrier(bar, dmg) {
     bar.hp -= dmg;
     createHitEffect(bar.mesh.position.clone(), true);
+    if (bar.mesh.userData && typeof bar.mesh.userData.applyDamageFeedback === 'function') {
+        bar.mesh.userData.applyDamageFeedback(bar.hp, ZOMBIE.barrierHp);
+    }
     if (bar.hp <= 0) {
         createHitEffect(bar.mesh.position.clone().add(new THREE.Vector3(0, 3, 0)), true);
         removeBarrier(bar);
@@ -63,28 +72,38 @@ function spawnAirdrop() {
     const pos = findAirdropSpot();
 
     // 落点光柱
-    const beamGeo = new THREE.CylinderGeometry(2.5, 2.5, 240, 12, 1, true);
-    const beamMat = new THREE.MeshBasicMaterial({ color: 0x33ff66, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
-    const beam = new THREE.Mesh(beamGeo, beamMat);
-    beam.position.set(pos.x, 120, pos.z);
+    let beam;
+    if (typeof AirdropProp !== 'undefined' && typeof AirdropProp.createAirdropBeam === 'function') {
+        beam = AirdropProp.createAirdropBeam(pos);
+    } else {
+        const beamGeo = new THREE.CylinderGeometry(2.5, 2.5, 240, 12, 1, true);
+        const beamMat = new THREE.MeshBasicMaterial({ color: 0x33ff66, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+        beam = new THREE.Mesh(beamGeo, beamMat);
+        beam.position.set(pos.x, 120, pos.z);
+    }
     scene.add(beam);
 
-    // 箱体 + 降落伞
-    const group = new THREE.Group();
-    const crate = new THREE.Mesh(
-        new THREE.BoxGeometry(10, 8, 10),
-        new THREE.MeshStandardMaterial({ color: 0x4a5d3a })
-    );
-    crate.name = 'crate';
-    group.add(crate);
-    const chute = new THREE.Mesh(
-        new THREE.ConeGeometry(14, 10, 8, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0xff7722, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
-    );
-    chute.name = 'chute';
-    chute.position.y = 14;
-    group.add(chute);
-    group.position.set(pos.x, 240, pos.z);
+    // 箱体 + 降落伞 (Strict names: 'crate' and 'chute')
+    let group;
+    if (typeof AirdropProp !== 'undefined' && typeof AirdropProp.createAirdropMesh === 'function') {
+        group = AirdropProp.createAirdropMesh(pos);
+    } else {
+        group = new THREE.Group();
+        const crate = new THREE.Mesh(
+            new THREE.BoxGeometry(10, 8, 10),
+            new THREE.MeshStandardMaterial({ color: 0x4a5d3a })
+        );
+        crate.name = 'crate';
+        group.add(crate);
+        const chute = new THREE.Mesh(
+            new THREE.ConeGeometry(14, 10, 8, 1, true),
+            new THREE.MeshBasicMaterial({ color: 0xff7722, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+        );
+        chute.name = 'chute';
+        chute.position.y = 14;
+        group.add(chute);
+        group.position.set(pos.x, 240, pos.z);
+    }
     scene.add(group);
 
     const roll = Math.random();

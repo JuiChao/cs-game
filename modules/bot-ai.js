@@ -588,7 +588,7 @@ function botAI(delta) {
                         bombState.timer = 60;
                         b.actionProgress = 0;
                         
-                        bombState.mesh = createC4();
+                        bombState.mesh = (typeof TacticalC4Component !== 'undefined' && TacticalC4Component.createC4) ? TacticalC4Component.createC4() : createC4();
                         bombState.mesh.position.copy(b.mesh.position);
                         bombState.mesh.position.y = 0.1;
                         

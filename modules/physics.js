@@ -343,6 +343,9 @@ function animate() {
         if (frameCount % 60 === 0) {
             bombState.timer--;
             updateHUD();
+            if (bombState.mesh && typeof bombState.mesh.updateTimerDisplay === 'function') {
+                bombState.mesh.updateTimerDisplay(bombState.timer);
+            }
             
             if (bombState.timer <= 0) {
                 if (typeof detonateC4 === 'function') {

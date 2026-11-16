@@ -2,15 +2,20 @@
 function createDrone(start, direction, team, isPlayer = true, ownerId = null) {
     if (isPlayer && activeDrones.some(d => d.isPlayer)) return false; // Only 1 player drone
     
-    // Create Drone Mesh (Small cross with center)
-    const droneGroup = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color: team === 'T' ? 0xd35400 : 0x2980b9 });
-    const center = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.6), mat);
-    const arm1 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.1, 0.2), mat);
-    const arm2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 1.4), mat);
-    droneGroup.add(center);
-    droneGroup.add(arm1);
-    droneGroup.add(arm2);
+    // Create Drone Mesh
+    let droneGroup;
+    if (typeof TacticalDroneComponent !== 'undefined' && typeof TacticalDroneComponent.createDroneMesh === 'function') {
+        droneGroup = TacticalDroneComponent.createDroneMesh(team);
+    } else {
+        droneGroup = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color: team === 'T' ? 0xd35400 : 0x2980b9 });
+        const center = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.6), mat);
+        const arm1 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.1, 0.2), mat);
+        const arm2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 1.4), mat);
+        droneGroup.add(center);
+        droneGroup.add(arm1);
+        droneGroup.add(arm2);
+    }
     
     droneGroup.position.copy(start).add(direction.clone().multiplyScalar(2));
     scene.add(droneGroup);
@@ -100,6 +105,9 @@ function triggerDroneExplosion(drone) {
 function updateDronePhysics(delta) {
     for (let index = activeDrones.length - 1; index >= 0; index--) {
         let drone = activeDrones[index];
+        if (drone.mesh && typeof drone.mesh.updatePropellers === 'function') {
+            drone.mesh.updatePropellers(delta);
+        }
         // Indicator
         raycaster.set(drone.mesh.position, new THREE.Vector3(0, -1, 0));
         let targets = bots.map(b => b.mesh).concat(collidableMeshList);

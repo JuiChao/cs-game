@@ -129,7 +129,7 @@ function handleBomb() {
                     const _hs2 = document.getElementById('hud-score');
                     if (_hs2) _hs2.innerText = playerScore;
                     
-                    bombState.mesh = createC4();
+                    bombState.mesh = (typeof TacticalC4Component !== 'undefined' && TacticalC4Component.createC4) ? TacticalC4Component.createC4() : createC4();
                     bombState.mesh.position.copy(camera.position);
                     bombState.mesh.position.y = 0.1;
                     
