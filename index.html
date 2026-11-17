@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>反恐行动：3D 爆破</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/fonts/fonts.css">
     <link rel="stylesheet" href="style.css">
     <script>
         (function() {
@@ -466,20 +466,20 @@
         <button class="deploy-btn glass-btn tactical-deploy-btn" onclick="toggleScopePanel()">关闭<span class="key-hint"> (按 T)</span></button>
     </div>
 
-    <!-- Three.js and Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+    <!-- Three.js and Core Libraries (Local Zero-Latency Loading) -->
+    <script src="libs/three.min.js"></script>
+    <script src="libs/PointerLockControls.js"></script>
+    <script src="libs/GLTFLoader.js"></script>
+    <script src="libs/nipplejs.min.js"></script>
 
     <!-- Three.js Postprocessing Libraries (r128) -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/Pass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="libs/Pass.js"></script>
+    <script src="libs/CopyShader.js"></script>
+    <script src="libs/LuminosityHighPassShader.js"></script>
+    <script src="libs/ShaderPass.js"></script>
+    <script src="libs/RenderPass.js"></script>
+    <script src="libs/EffectComposer.js"></script>
+    <script src="libs/UnrealBloomPass.js"></script>
 
     <!-- Game Modules (load order = dependency order) -->
     <script src="modules/postprocessing.js"></script>
