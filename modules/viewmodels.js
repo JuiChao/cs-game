@@ -378,6 +378,20 @@ function buildViewModel() {
         playerState.viewModel = TacticalHeavyWeapons.createFlamethrowerMesh(w);
     } else if (w.id === 'mortar' && typeof TacticalHeavyWeapons !== 'undefined' && TacticalHeavyWeapons.createMortarMesh) {
         playerState.viewModel = TacticalHeavyWeapons.createMortarMesh(w);
+    } else if ((w.id === 'pistol' || w.id === 'glock') && typeof TacticalPistolComponents !== 'undefined' && TacticalPistolComponents.createGlockViewModel) {
+        playerState.viewModel = TacticalPistolComponents.createGlockViewModel(w);
+    } else if (w.id === 'deagle' && typeof TacticalPistolComponents !== 'undefined' && TacticalPistolComponents.createDeagleViewModel) {
+        playerState.viewModel = TacticalPistolComponents.createDeagleViewModel(w);
+    } else if (w.id === 'smg' && typeof TacticalFirearmsComponents !== 'undefined' && TacticalFirearmsComponents.createP90ViewModel) {
+        playerState.viewModel = TacticalFirearmsComponents.createP90ViewModel(w);
+    } else if (w.id === 'mk4' && typeof TacticalFirearmsComponents !== 'undefined' && TacticalFirearmsComponents.createMK4ViewModel) {
+        playerState.viewModel = TacticalFirearmsComponents.createMK4ViewModel(w);
+    } else if (w.id === 'marksman' && typeof TacticalFirearmsComponents !== 'undefined' && TacticalFirearmsComponents.createMarksmanViewModel) {
+        playerState.viewModel = TacticalFirearmsComponents.createMarksmanViewModel(w);
+    } else if (w.id === 'm249' && typeof TacticalFirearmsComponents !== 'undefined' && TacticalFirearmsComponents.createM249ViewModel) {
+        playerState.viewModel = TacticalFirearmsComponents.createM249ViewModel(w);
+    } else if (w.id === 'ash12' && typeof TacticalFirearmsComponents !== 'undefined' && TacticalFirearmsComponents.createASH12ViewModel) {
+        playerState.viewModel = TacticalFirearmsComponents.createASH12ViewModel(w);
     } else {
         const geo = new THREE.BoxGeometry(0.1, 0.1, w.length);
         const mat = new THREE.MeshStandardMaterial({ color: w.color });

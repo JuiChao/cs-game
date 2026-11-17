@@ -813,6 +813,285 @@
         }
 
         /**
+         * Tactical Double / Blast Door PBR Material:
+         * Heavy industrial reinforced door with timber plank texture, steel framing,
+         * diagonal cross-braces, heavy rivet fasteners, central door seam, and Sobel normal map.
+         * 
+         * @param {Object} [options={}] Additional MeshStandardMaterial parameters
+         * @returns {THREE.MeshStandardMaterial}
+         */
+        createTacticalDoorMaterial(options = {}) {
+            const size = 512;
+            const diffCanvas = document.createElement('canvas');
+            diffCanvas.width = size;
+            diffCanvas.height = size;
+            const diffCtx = diffCanvas.getContext('2d', { willReadFrequently: true }) || diffCanvas.getContext('2d');
+
+            const heightCanvas = document.createElement('canvas');
+            heightCanvas.width = size;
+            heightCanvas.height = size;
+            const heightCtx = heightCanvas.getContext('2d', { willReadFrequently: true }) || heightCanvas.getContext('2d');
+
+            // 1. Dark weathered wood plank base
+            diffCtx.fillStyle = '#4a3728';
+            diffCtx.fillRect(0, 0, size, size);
+            heightCtx.fillStyle = '#808080';
+            heightCtx.fillRect(0, 0, size, size);
+
+            // Wood plank vertical grooves
+            const plankCount = 8;
+            const plankWidth = size / plankCount;
+            for (let i = 0; i < plankCount; i++) {
+                const px = i * plankWidth;
+                const shade = ((i * 19) % 30) - 15;
+                diffCtx.fillStyle = `rgb(${74 + shade}, ${55 + Math.round(shade * 0.8)}, ${40 + Math.round(shade * 0.6)})`;
+                diffCtx.fillRect(px + 2, 0, plankWidth - 4, size);
+
+                // Plank seam recess
+                diffCtx.fillStyle = '#1a140e';
+                diffCtx.fillRect(px, 0, 2, size);
+                heightCtx.fillStyle = '#303030';
+                heightCtx.fillRect(px, 0, 3, size);
+            }
+
+            // Central vertical door seam (double door)
+            diffCtx.fillStyle = '#0f0e0c';
+            diffCtx.fillRect(size / 2 - 4, 0, 8, size);
+            heightCtx.fillStyle = '#101010';
+            heightCtx.fillRect(size / 2 - 4, 0, 8, size);
+
+            // 2. Heavy steel perimeter frame (top, bottom, left, right)
+            const frameWidth = 24;
+            diffCtx.fillStyle = '#2d3033'; // Gunmetal steel
+            heightCtx.fillStyle = '#d0d0d0'; // Raised border
+            // Top & bottom
+            diffCtx.fillRect(0, 0, size, frameWidth);
+            diffCtx.fillRect(0, size - frameWidth, size, frameWidth);
+            heightCtx.fillRect(0, 0, size, frameWidth);
+            heightCtx.fillRect(0, size - frameWidth, size, frameWidth);
+            // Left & right
+            diffCtx.fillRect(0, 0, frameWidth, size);
+            diffCtx.fillRect(size - frameWidth, 0, frameWidth, size);
+            heightCtx.fillRect(0, 0, frameWidth, size);
+            heightCtx.fillRect(size - frameWidth, 0, frameWidth, size);
+
+            // Horizontal steel reinforcing bands (top, middle, bottom)
+            const bandHeight = 28;
+            const bandYs = [frameWidth + 40, size / 2 - bandHeight / 2, size - frameWidth - 40 - bandHeight];
+            bandYs.forEach(by => {
+                diffCtx.fillStyle = '#32363a';
+                diffCtx.fillRect(frameWidth, by, size - frameWidth * 2, bandHeight);
+                heightCtx.fillStyle = '#c0c0c0';
+                heightCtx.fillRect(frameWidth, by, size - frameWidth * 2, bandHeight);
+
+                // Steel plate edge highlights and bevels
+                diffCtx.fillStyle = '#1e2022';
+                diffCtx.fillRect(frameWidth, by + bandHeight - 2, size - frameWidth * 2, 2);
+                heightCtx.fillStyle = '#202020';
+                heightCtx.fillRect(frameWidth, by + bandHeight - 2, size - frameWidth * 2, 2);
+            });
+
+            // 3. Heavy steel rivets along frame and bands
+            const drawRivet = (cx, cy) => {
+                diffCtx.beginPath();
+                diffCtx.arc(cx, cy, 4, 0, Math.PI * 2);
+                diffCtx.fillStyle = '#555b62';
+                diffCtx.fill();
+                diffCtx.beginPath();
+                diffCtx.arc(cx - 1, cy - 1, 2, 0, Math.PI * 2);
+                diffCtx.fillStyle = '#8b939c';
+                diffCtx.fill();
+
+                heightCtx.beginPath();
+                heightCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+                heightCtx.fillStyle = '#f0f0f0';
+                heightCtx.fill();
+            };
+
+            // Rivets around border frame
+            for (let y = frameWidth / 2; y < size; y += 40) {
+                drawRivet(frameWidth / 2, y);
+                drawRivet(size - frameWidth / 2, y);
+            }
+            for (let x = frameWidth / 2; x < size; x += 40) {
+                drawRivet(x, frameWidth / 2);
+                drawRivet(x, size - frameWidth / 2);
+            }
+            // Rivets along horizontal bands
+            bandYs.forEach(by => {
+                const cy = by + bandHeight / 2;
+                for (let x = frameWidth + 24; x < size - frameWidth; x += 48) {
+                    if (Math.abs(x - size / 2) > 16) {
+                        drawRivet(x, cy);
+                    }
+                }
+            });
+
+            // 4. Door Handles / Heavy Iron Pulls near center seam
+            const handleY = size / 2 - 20;
+            // Left handle plate
+            diffCtx.fillStyle = '#1b1d1f';
+            diffCtx.fillRect(size / 2 - 26, handleY, 14, 40);
+            heightCtx.fillStyle = '#e0e0e0';
+            heightCtx.fillRect(size / 2 - 26, handleY, 14, 40);
+            // Left pull bar
+            diffCtx.fillStyle = '#50565e';
+            diffCtx.fillRect(size / 2 - 22, handleY + 6, 6, 28);
+            // Right handle plate
+            diffCtx.fillStyle = '#1b1d1f';
+            diffCtx.fillRect(size / 2 + 12, handleY, 14, 40);
+            heightCtx.fillStyle = '#e0e0e0';
+            heightCtx.fillRect(size / 2 + 12, handleY, 14, 40);
+            // Right pull bar
+            diffCtx.fillStyle = '#50565e';
+            diffCtx.fillRect(size / 2 + 16, handleY + 6, 6, 28);
+
+            // 5. Add micro-grain noise and scratches
+            const dImg = diffCtx.getImageData(0, 0, size, size);
+            const hImg = heightCtx.getImageData(0, 0, size, size);
+            const dData = dImg.data;
+            const hData = hImg.data;
+            for (let i = 0; i < dData.length; i += 4) {
+                const noise = (Math.random() - 0.5) * 16;
+                dData[i] = Math.max(0, Math.min(255, dData[i] + noise));
+                dData[i + 1] = Math.max(0, Math.min(255, dData[i + 1] + noise));
+                dData[i + 2] = Math.max(0, Math.min(255, dData[i + 2] + noise));
+
+                hData[i] = Math.max(0, Math.min(255, hData[i] + noise * 0.8));
+                hData[i + 1] = hData[i];
+                hData[i + 2] = hData[i];
+            }
+            diffCtx.putImageData(dImg, 0, 0);
+            heightCtx.putImageData(hImg, 0, 0);
+
+            const diffTex = new THREE.CanvasTexture(diffCanvas);
+            diffTex.wrapS = THREE.RepeatWrapping;
+            diffTex.wrapT = THREE.RepeatWrapping;
+            diffTex.userData = { isShared: true };
+
+            const normalTex = this.generateNormalMapFromCanvas(heightCanvas, 2.0);
+
+            const mat = new THREE.MeshStandardMaterial(Object.assign({
+                map: diffTex,
+                normalMap: normalTex,
+                roughness: 0.68,
+                metalness: 0.22
+            }, options));
+            mat.userData = { isShared: true };
+            return mat;
+        }
+
+        /**
+         * Tactical Shooting Range Acoustic Baffle Wall PBR Material:
+         * Reinforced concrete with acoustic absorption horizontal panels,
+         * hazard caution stripe accent band, distance reference lines, and Sobel normal map.
+         * 
+         * @param {Object} [options={}] Additional MeshStandardMaterial parameters
+         * @returns {THREE.MeshStandardMaterial}
+         */
+        createShootingRangeWallMaterial(options = {}) {
+            const size = 512;
+            const diffCanvas = document.createElement('canvas');
+            diffCanvas.width = size;
+            diffCanvas.height = size;
+            const diffCtx = diffCanvas.getContext('2d', { willReadFrequently: true }) || diffCanvas.getContext('2d');
+
+            const heightCanvas = document.createElement('canvas');
+            heightCanvas.width = size;
+            heightCanvas.height = size;
+            const heightCtx = heightCanvas.getContext('2d', { willReadFrequently: true }) || heightCanvas.getContext('2d');
+
+            // 1. Reinforced ballistic concrete base (cool charcoal grey)
+            diffCtx.fillStyle = '#2c2e33';
+            diffCtx.fillRect(0, 0, size, size);
+            heightCtx.fillStyle = '#808080';
+            heightCtx.fillRect(0, 0, size, size);
+
+            // 2. Horizontal acoustic baffle slats
+            const slatH = 32;
+            const slatGap = 4;
+            const slatCount = Math.floor(size / slatH);
+            for (let i = 0; i < slatCount; i++) {
+                const sy = i * slatH;
+                const shade = ((i * 17) % 20) - 10;
+                diffCtx.fillStyle = `rgb(${48 + shade}, ${50 + shade}, ${55 + shade})`;
+                diffCtx.fillRect(0, sy + slatGap, size, slatH - slatGap);
+
+                // Deep acoustic absorption recess
+                diffCtx.fillStyle = '#141518';
+                diffCtx.fillRect(0, sy, size, slatGap);
+                heightCtx.fillStyle = '#202020';
+                heightCtx.fillRect(0, sy, size, slatGap);
+
+                heightCtx.fillStyle = '#b0b0b0';
+                heightCtx.fillRect(0, sy + slatGap, size, slatH - slatGap);
+            }
+
+            // 3. Tactical yellow/black hazard chevron or caution stripe band at mid-level
+            const stripeBandY = Math.floor(size * 0.45);
+            const stripeBandH = 48;
+            diffCtx.fillStyle = '#18191c';
+            diffCtx.fillRect(0, stripeBandY, size, stripeBandH);
+            heightCtx.fillStyle = '#909090';
+            heightCtx.fillRect(0, stripeBandY, size, stripeBandH);
+
+            const stripeW = 32;
+            const numStripes = Math.ceil(size / stripeW) + 2;
+            diffCtx.fillStyle = '#e6ad12'; // Safety yellow
+            for (let i = -1; i < numStripes; i++) {
+                diffCtx.beginPath();
+                diffCtx.moveTo(i * stripeW, stripeBandY + stripeBandH);
+                diffCtx.lineTo(i * stripeW + stripeW * 0.5, stripeBandY);
+                diffCtx.lineTo(i * stripeW + stripeW * 0.9, stripeBandY);
+                diffCtx.lineTo(i * stripeW + stripeW * 0.4, stripeBandY + stripeBandH);
+                diffCtx.closePath();
+                diffCtx.fill();
+            }
+
+            // Top and bottom borders for caution band
+            diffCtx.fillStyle = '#ffcc00';
+            diffCtx.fillRect(0, stripeBandY, size, 2);
+            diffCtx.fillRect(0, stripeBandY + stripeBandH - 2, size, 2);
+            heightCtx.fillStyle = '#e0e0e0';
+            heightCtx.fillRect(0, stripeBandY, size, 2);
+            heightCtx.fillRect(0, stripeBandY + stripeBandH - 2, size, 2);
+
+            // 4. Concrete pores & micro-grain noise
+            const dImg = diffCtx.getImageData(0, 0, size, size);
+            const hImg = heightCtx.getImageData(0, 0, size, size);
+            const dData = dImg.data;
+            const hData = hImg.data;
+            for (let i = 0; i < dData.length; i += 4) {
+                const noise = (Math.random() - 0.5) * 22;
+                dData[i] = Math.max(0, Math.min(255, dData[i] + noise));
+                dData[i + 1] = Math.max(0, Math.min(255, dData[i + 1] + noise));
+                dData[i + 2] = Math.max(0, Math.min(255, dData[i + 2] + noise));
+
+                hData[i] = Math.max(0, Math.min(255, hData[i] + noise * 1.2));
+                hData[i + 1] = hData[i];
+                hData[i + 2] = hData[i];
+            }
+            diffCtx.putImageData(dImg, 0, 0);
+            heightCtx.putImageData(hImg, 0, 0);
+
+            const diffTex = new THREE.CanvasTexture(diffCanvas);
+            diffTex.wrapS = THREE.RepeatWrapping;
+            diffTex.wrapT = THREE.RepeatWrapping;
+            diffTex.userData = { isShared: true };
+
+            const normalTex = this.generateNormalMapFromCanvas(heightCanvas, 2.2);
+
+            const mat = new THREE.MeshStandardMaterial(Object.assign({
+                map: diffTex,
+                normalMap: normalTex,
+                roughness: 0.82,
+                metalness: 0.18
+            }, options));
+            mat.userData = { isShared: true };
+            return mat;
+        }
+
+        /**
          * Cached PBR material pool avoiding duplicate allocations.
          * 
          * @param {string} type Material type name
@@ -973,11 +1252,10 @@
                     }, options));
                     break;
                 case 'door':
-                    mat = new THREE.MeshStandardMaterial(Object.assign({
-                        color: 0x4a4a4a,
-                        roughness: 0.70,
-                        metalness: 0.20
-                    }, options));
+                    mat = this.createTacticalDoorMaterial(options);
+                    break;
+                case 'shootingRangeWall':
+                    mat = this.createShootingRangeWallMaterial(options);
                     break;
                 case 'camo_CT':
                     mat = this.createCamoFabricMaterial('CT', options);

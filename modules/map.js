@@ -485,8 +485,8 @@ function buildShootingRangeMap() {
     floor.name = 'floor';
     scene.add(floor);
 
-    // Wall Material
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 }); 
+    // Wall Material - High-fidelity acoustic baffle shooting range wall
+    const wallMat = proceduralTextureFactory.getPBRMaterial('shootingRangeWall'); 
 
     const createWall = (x, z, w, d, h = 10) => {
         const geo = new THREE.BoxGeometry(w, h, d);
@@ -545,6 +545,7 @@ function getValidSpawnPoint(existingPoints, minDist = 80, area = null) {
 }
 
 function resetRound() {
+    isShooting = false;
     isReloading = false;
     if (typeof reloadTimer !== 'undefined' && reloadTimer) {
         clearTimeout(reloadTimer);
@@ -638,6 +639,8 @@ function resetRound() {
     activeFires = [];
     particles = [];
     playerState.killStreak = 0; // 新回合清零连杀
+    roundStartFrame = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    if (typeof window !== 'undefined') window.roundStartFrame = roundStartFrame;
     // 清理无人机与玩家傀儡模型
     if (typeof removePlayerDummy === 'function') removePlayerDummy();
     if (typeof activeDrones !== 'undefined' && activeDrones.length > 0) {

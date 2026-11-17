@@ -379,6 +379,7 @@ document.addEventListener('keyup', (e) => {
     }
 });
 document.addEventListener('mousedown', (e) => { 
+    if (e.target && e.target.closest('#start-overlay, #start-btn, button, input, select, textarea, .modal, .ui-panel, #buy-menu, #scope-panel, #touch-ui, #custom-touch-zone')) return;
     if (e.button === 0) {
         const canLock = (typeof shouldAutoLockPointer === 'function') ? shouldAutoLockPointer() : !isTouchDevice;
         if (!canLock) {

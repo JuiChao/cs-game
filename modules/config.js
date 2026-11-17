@@ -48,6 +48,9 @@ function shouldAutoLockPointer() {
 }
 if (typeof window !== 'undefined') window.shouldAutoLockPointer = shouldAutoLockPointer;
 
+var roundStartFrame = 0;
+if (typeof window !== 'undefined') window.roundStartFrame = roundStartFrame;
+
 function updateAdaptivePrompts() {
     if (typeof document === 'undefined') return;
     var isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));

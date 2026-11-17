@@ -458,8 +458,9 @@ function botAI(delta) {
             // Reaction time: bot must see enemy for reactionFrames before first shot
             if (!b.enemySpotFrame) b.enemySpotFrame = frameCount;
             const reacted = (frameCount - b.enemySpotFrame) >= diff.reactionFrames;
+            const isRoundStartGrace = (typeof roundStartFrame !== 'undefined') && (frameCount - roundStartFrame < 90);
             
-            if (reacted && frameCount - b.lastShot > fireCooldown) {
+            if (!isRoundStartGrace && reacted && frameCount - b.lastShot > fireCooldown) {
                 b.lastShot = frameCount;
                 
                 const dir = new THREE.Vector3().subVectors(nearestEnemy, botEye).normalize();
