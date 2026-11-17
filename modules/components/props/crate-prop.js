@@ -177,16 +177,20 @@
         for (let i = 0; i < positions.length; i++) {
             const p = positions[i];
             const posY = (p.y !== undefined) ? p.y : (crateSize * 0.5);
+            const rotY = (p.rotY !== undefined) ? p.rotY : 0;
 
             // Set instance transform
             dummy.position.set(p.x, posY, p.z);
-            dummy.rotation.set(0, (i * 0.15) % (Math.PI * 2), 0); // Subtle natural rotation variation
+            dummy.rotation.set(0, rotY, 0);
             dummy.updateMatrix();
             instancedMesh.setMatrixAt(i, dummy.matrix);
 
             // 2. Decoupled invisible proxy collider for precise raycast / physics
             const collider = new THREE.Mesh(boxGeo, colliderMat);
             collider.position.set(p.x, posY, p.z);
+            if (rotY !== 0) {
+                collider.rotation.set(0, rotY, 0);
+            }
             collider.name = 'wall';
             collider.visible = false;
             collider.castShadow = true;

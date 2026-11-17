@@ -1107,7 +1107,7 @@ function buildLargeMap() {
     createBox(280, -265);
     createBox(220, -150); // Goose
     createBox(250, -220); // Extra A Site Cover
-    createBox(270, -200); // Extra A Cross Cover
+    createBox(270, -190); // Extra A Cross Cover (offset to prevent clipping into A cross wall)
     createBox(300, -100); // Long A Pit Cover
     
     // Cover boxes in B
@@ -1329,7 +1329,7 @@ function buildInfernoMap() {
     createBox(0, -120);     // Mid北侧
 
     // 香蕉道掩体
-    createBox(-180, 250);   // 香蕉道掩体
+    createBox(-180, 238);   // 香蕉道掩体 (offset to prevent clipping into banana turn wall)
     createBox(-200, 100);   // 香蕉道中段
 
     // 公寓掩体
@@ -1502,17 +1502,17 @@ function buildBiolabMap() {
         scene.add(rail);
     };
 
-    const createBox = (x, z, h = 10) => {
+    const createBox = (x, z, h = 10, yBase = 0) => {
         const colliderGeo = new THREE.BoxGeometry(10, h, 10);
         const collider = new THREE.Mesh(colliderGeo, sharedColliderMat);
-        collider.position.set(x, h / 2, z);
+        collider.position.set(x, yBase + h / 2, z);
         collider.name = 'wall';
         collider.visible = false;
         collider.castShadow = true;
         collider.receiveShadow = true;
         scene.add(collider);
 
-        const visualGeo = createScaledWallGeometry(10, h, 10, x, h / 2, z);
+        const visualGeo = createScaledWallGeometry(10, h, 10, x, yBase + h / 2, z);
         metalGeometries.push(visualGeo);
     };
 
@@ -1533,8 +1533,8 @@ function buildBiolabMap() {
     createRail(-27, -25.6, 16, 1.2, 10);
     createRail(27, -25.6, 16, 1.2, 10);
     // 台上掩体
-    createBox(-20, -75);
-    createBox(18, -50, 10);
+    createBox(-20, -75, 10, 10);
+    createBox(18, -50, 10, 10);
 
     // ═══ 守点2: 西南货柜平台 (高8, 激进输出位) ═══
     // 台面 x∈[-260,-220], z∈[160,200]
