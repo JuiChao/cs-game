@@ -8,8 +8,22 @@
     <link rel="stylesheet" href="style.css">
     <script>
         (function() {
-            var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-            if (isTouch) {
+            function checkTouch() {
+                var ua = navigator.userAgent || '';
+                var maxTouch = navigator.maxTouchPoints || 0;
+                var hasTouch = maxTouch > 0 || ('ontouchstart' in window);
+                if (!hasTouch) return false;
+                var isMobileOS = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+                var isIPadOS = ua.includes('Macintosh') && hasTouch;
+                if (isMobileOS || isIPadOS) return true;
+                var hasFine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+                var hasCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+                var isSmallScreen = Math.min(window.innerWidth, window.innerHeight) <= 1024;
+                if (hasFine && !isMobileOS) return false;
+                if (hasCoarse && !hasFine && isSmallScreen) return true;
+                return false;
+            }
+            if (checkTouch()) {
                 document.documentElement.classList.add('touch-device');
                 if (document.body) {
                     document.body.classList.add('touch-device');

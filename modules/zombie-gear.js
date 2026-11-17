@@ -252,8 +252,8 @@ function updateAdrenalineHud() {
     }
     el.style.display = '';
     const isTouch = (typeof window !== 'undefined' && (
-        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
-        document.body.classList.contains('touch-device')
+        (typeof isTouchDevice !== 'undefined' ? isTouchDevice : false) ||
+        (document.body && document.body.classList.contains('touch-device'))
     ));
     const hint = isTouch ? '' : ' (按Q)';
     el.innerText = adrenalineFrames > 0

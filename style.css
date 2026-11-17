@@ -2346,7 +2346,9 @@ h1, h2, h3, h4 {
    FEATURE F11: MOBILE TOUCH UI & ERGONOMIC VIRTUAL CONTROLS
    ========================================================================== */
 
-.hidden-on-desktop {
+.hidden-on-desktop,
+html:not(.touch-device) .hidden-on-desktop,
+body:not(.touch-device) .hidden-on-desktop {
     display: none !important;
 }
 
@@ -2398,18 +2400,29 @@ body.touch-device #spectator-prompt {
     cursor: pointer;
 }
 
-@media (pointer: coarse) {
-    .hidden-on-desktop {
+@media (hover: none) and (pointer: coarse) {
+    html.touch-device .hidden-on-desktop,
+    body.touch-device .hidden-on-desktop {
         display: block !important;
     }
-    .mobile-prompt-hint { display: inline !important; }
-    .desktop-prompt-hint { display: none !important; }
-    .key-hint { display: none !important; }
-    #pointer-lock-prompt, .pointer-lock-prompt { display: none !important; }
-    #btn-quick-grenade-hint { display: none !important; }
-    #controls-hint { display: none !important; }
-    #buy-prompt { display: none !important; }
-    #spectator-prompt { pointer-events: auto !important; cursor: pointer; }
+    html.touch-device .mobile-prompt-hint,
+    body.touch-device .mobile-prompt-hint { display: inline !important; }
+    html.touch-device .desktop-prompt-hint,
+    body.touch-device .desktop-prompt-hint { display: none !important; }
+    html.touch-device .key-hint,
+    body.touch-device .key-hint { display: none !important; }
+    html.touch-device #pointer-lock-prompt,
+    body.touch-device #pointer-lock-prompt,
+    html.touch-device .pointer-lock-prompt,
+    body.touch-device .pointer-lock-prompt { display: none !important; }
+    html.touch-device #btn-quick-grenade-hint,
+    body.touch-device #btn-quick-grenade-hint { display: none !important; }
+    html.touch-device #controls-hint,
+    body.touch-device #controls-hint { display: none !important; }
+    html.touch-device #buy-prompt,
+    body.touch-device #buy-prompt { display: none !important; }
+    html.touch-device #spectator-prompt,
+    body.touch-device #spectator-prompt { pointer-events: auto !important; cursor: pointer; }
 }
 
 #touch-ui {

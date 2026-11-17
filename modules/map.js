@@ -145,7 +145,7 @@ function init3DGame() {
         dirLight = new THREE.DirectionalLight(0xfffaed, 0.85);
         dirLight.position.set(120, 220, 80);
         dirLight.castShadow = true;
-        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+        const isTouch = (typeof checkIsTouchDevice === 'function') ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice);
         const shadowRes = isTouch ? 512 : 1024;
         dirLight.shadow.mapSize.width = shadowRes;
         dirLight.shadow.mapSize.height = shadowRes;
@@ -330,7 +330,7 @@ function init3DGame() {
             updatePointerLockPrompt();
         });
         
-        isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia("(pointer: coarse)").matches;
+        isTouchDevice = (typeof checkIsTouchDevice === 'function') ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice);
         
         function tryLockPointer() {
             if (!roundActive || playerState.isSpectating) return;

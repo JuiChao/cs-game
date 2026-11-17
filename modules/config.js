@@ -1,12 +1,26 @@
 // #region 全局状态与配置
 // --- GLOBAL STATE & UI LOGIC ---
 function checkIsTouchDevice() {
-    return Boolean(
-        (typeof window !== 'undefined' && window.isTouchDevice) ||
-        (typeof window !== 'undefined' && 'ontouchstart' in window) ||
-        (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
-        (typeof window !== 'undefined' && window.matchMedia && window.matchMedia("(pointer: coarse)").matches)
-    );
+    if (typeof window === 'undefined') return false;
+    if (window.isTouchDevice !== undefined && typeof window.isTouchDevice === 'boolean') {
+        return window.isTouchDevice;
+    }
+    const ua = (typeof navigator !== 'undefined') ? (navigator.userAgent || '') : '';
+    const maxTouch = (typeof navigator !== 'undefined') ? (navigator.maxTouchPoints || 0) : 0;
+    const hasTouch = maxTouch > 0 || ('ontouchstart' in window);
+    if (!hasTouch) return false;
+
+    const isMobileOS = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+    const isIPadOS = ua.includes('Macintosh') && hasTouch;
+    if (isMobileOS || isIPadOS) return true;
+
+    const hasFine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+    const hasCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const isSmallScreen = Math.min(window.innerWidth, window.innerHeight) <= 1024;
+
+    if (hasFine && !isMobileOS) return false;
+    if (hasCoarse && !hasFine && isSmallScreen) return true;
+    return false;
 }
 var isTouchDevice = checkIsTouchDevice();
 if (typeof window !== 'undefined') {
@@ -36,8 +50,7 @@ if (typeof window !== 'undefined') window.shouldAutoLockPointer = shouldAutoLock
 
 function updateAdaptivePrompts() {
     if (typeof document === 'undefined') return;
-    var isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice))
-        || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    var isTouch = (typeof checkIsTouchDevice === 'function' ? checkIsTouchDevice() : Boolean(typeof isTouchDevice !== 'undefined' && isTouchDevice));
 
     // 1. Spectator Prompt
     var sp = document.getElementById('spectator-prompt');
