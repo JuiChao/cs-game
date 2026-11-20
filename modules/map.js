@@ -249,11 +249,12 @@ function init3DGame() {
                         document.removeEventListener('pointerlockchange', onPointerlockChange);
                     };
                     this.lock = function() {
-                        if (this.domElement && typeof this.domElement.requestPointerLock === 'function') {
-                            this.domElement.requestPointerLock();
-                        } else {
-                            document.body.requestPointerLock();
-                        }
+                        try {
+                            const p = (this.domElement && typeof this.domElement.requestPointerLock === 'function')
+                                ? this.domElement.requestPointerLock()
+                                : document.body.requestPointerLock();
+                            if (p && typeof p.catch === 'function') p.catch(() => {});
+                        } catch (e) {}
                     };
                     this.unlock = function() {
                         if (document.exitPointerLock) document.exitPointerLock();

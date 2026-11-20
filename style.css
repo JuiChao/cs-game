@@ -154,16 +154,17 @@ body {
 .damage-text {
     position: absolute;
     color: var(--color-crimson);
-    font-weight: 800;
-    font-size: 24px;
+    font-weight: 700;
+    font-size: 13px;
     font-family: var(--font-display);
     font-variant-numeric: var(--tabular-numerics);
     font-feature-settings: 'tnum' 1, 'lnum' 1;
-    text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 0 12px var(--color-crimson-glow);
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8), -1px -1px 0 rgba(0, 0, 0, 0.6), 0 0 3px rgba(255, 42, 75, 0.3);
     pointer-events: none;
     z-index: var(--z-modal);
     transform: translate(-50%, -50%);
     will-change: transform, opacity, left, top;
+    letter-spacing: 0.02em;
 }
 
 h1, h2, h3, h4 {
@@ -3265,7 +3266,7 @@ body:has(#mortar-map-overlay:not(.hidden)) #touch-ui * {
     #ch-top, #ch-bottom { height: 8px; }
     #ch-left, #ch-right { width: 8px; }
     /* Damage numbers */
-    .damage-text { font-size: 16px; }
+    .damage-text { font-size: 10px; }
     /* Prompts & Alerts */
     #controls-hint { display: none !important; }
     #buy-prompt { display: none !important; }

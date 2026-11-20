@@ -139,7 +139,10 @@
 
 			this.lock = function () {
 
-				this.domElement.requestPointerLock();
+				try {
+					const p = this.domElement.requestPointerLock();
+					if (p && typeof p.catch === 'function') p.catch(() => {});
+				} catch (e) {}
 
 			};
 

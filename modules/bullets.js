@@ -1383,18 +1383,20 @@ function showFloatingDamage(amount, worldPos, isHeadshot = false) {
     if (isHeadshot) elem.style.color = '#ff4d4d';
     elem.innerText = Math.ceil(amount);
     
+    // Offset slightly higher and with subtle lateral dispersion to avoid stacking directly on the crosshair
     const offsetPos = worldPos.clone();
-    offsetPos.x += (Math.random() - 0.5) * 1.5;
-    offsetPos.y += 0.5 + Math.random() * 1.0;
-    offsetPos.z += (Math.random() - 0.5) * 1.5;
+    offsetPos.x += (Math.random() - 0.5) * 1.0;
+    offsetPos.y += 0.4 + Math.random() * 0.6;
+    offsetPos.z += (Math.random() - 0.5) * 1.0;
     
     container.appendChild(elem);
     
     floatingDamages.push({
         elem: elem,
         pos: offsetPos,
-        life: 1.5,
-        maxLife: 1.5
+        isHeadshot: Boolean(isHeadshot),
+        life: 0.9,
+        maxLife: 0.9
     });
 }
 
@@ -1408,7 +1410,7 @@ function updateFloatingDamages(delta) {
             continue;
         }
         
-        fd.pos.y += 1.0 * delta; // float up
+        fd.pos.y += 1.2 * delta; // float up gently
         
         const temp = fd.pos.clone();
         temp.project(camera);
@@ -1422,9 +1424,25 @@ function updateFloatingDamages(delta) {
             fd.elem.style.left = `${x}px`;
             fd.elem.style.top = `${y}px`;
             
-            const alpha = Math.min(1, fd.life / (fd.maxLife * 0.5)); // fade out
-            fd.elem.style.opacity = alpha;
-            fd.elem.style.transform = `translate(-50%, -50%) scale(${1 + (1 - fd.life/fd.maxLife)*0.5})`;
+            // Reduced peak opacity: normal hits max 0.55, headshots max 0.70
+            const peakOpacity = fd.isHeadshot ? 0.70 : 0.55;
+            const progress = 1 - (fd.life / fd.maxLife); // 0 at spawn -> 1 at death
+            let alpha;
+            if (progress < 0.15) {
+                alpha = (progress / 0.15) * peakOpacity;
+            } else {
+                alpha = (1 - (progress - 0.15) / 0.85) * peakOpacity;
+            }
+            fd.elem.style.opacity = Math.max(0, Math.min(peakOpacity, alpha)).toFixed(3);
+
+            // Subtle scale: starts compact (0.85), soft pop to 0.98, then gently shrinks to 0.76 as it rises
+            let scale;
+            if (progress < 0.15) {
+                scale = 0.85 + (progress / 0.15) * 0.13;
+            } else {
+                scale = 0.98 - (progress - 0.15) * 0.24;
+            }
+            fd.elem.style.transform = `translate(-50%, -50%) scale(${scale.toFixed(2)})`;
         }
     }
 }
