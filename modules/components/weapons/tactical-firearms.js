@@ -156,6 +156,10 @@
             magGroup.add(cartridge);
         }
 
+        // Attach geometry & material reference on magGroup to support mesh-like property checks
+        magGroup.geometry = magShellGeo;
+        magGroup.material = magShellMat;
+
         p90Group.add(magGroup);
 
         return p90Group;
@@ -488,12 +492,158 @@
         return ashGroup;
     }
 
+    /**
+     * 6. AN-94 5.45x39mm Russian Assault Rifle
+     * Features:
+     * - Stamped steel receiver housing and dark Russian polymer lower chassis
+     * - Iconic figure-8 double-chamber muzzle brake (two cylindrical ports stacked vertically)
+     * - Reciprocating barrel assembly with under-barrel guide rail
+     * - Canted magazine well & 30-round plum/bakelite magazine tilted ~12° to starboard
+     * - Ribbed ergonomic polymer handguard with heat vents
+     * - Skeletonized folding polymer stock with rubber buttpad
+     * - Star-wheel rotary aperture rear sight and hooded front post
+     */
+    function createAN94ViewModel(weaponDef) {
+        weaponDef = weaponDef || { length: 0.85, color: 0x2b3038 };
+        const mats = getMaterials();
+
+        const an94Group = new THREE.Group();
+        an94Group.name = 'an94';
+
+        // 1. Stamped Steel Upper Receiver
+        const receiverGeo = new THREE.BoxGeometry(0.065, 0.082, 0.44);
+        const receiver = new THREE.Mesh(receiverGeo, mats.gunmetal);
+        receiver.position.set(0, 0.038, 0.02);
+        an94Group.add(receiver);
+
+        // 2. Polymer Lower Receiver / Chassis (Dark Russian Plum/Polymer)
+        const chassisMat = new THREE.MeshStandardMaterial({
+            color: 0x1c1e22,
+            metalness: 0.25,
+            roughness: 0.75
+        });
+        const chassisGeo = new THREE.BoxGeometry(0.062, 0.065, 0.40);
+        const chassis = new THREE.Mesh(chassisGeo, chassisMat);
+        chassis.position.set(0, -0.028, 0.02);
+        an94Group.add(chassis);
+
+        // 3. Top Optics Rail (Picatinny/Dovetail)
+        if (typeof WeaponBase !== 'undefined' && WeaponBase.createPicatinnyTopRail) {
+            const topRail = WeaponBase.createPicatinnyTopRail(0.28);
+            topRail.position.set(0, 0.048, -0.02);
+            receiver.add(topRail);
+        }
+
+        // 4. Reciprocating Barrel Assembly & Guide Rod
+        const barrelGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.38, 14);
+        barrelGeo.rotateX(Math.PI / 2);
+        const barrel = new THREE.Mesh(barrelGeo, mats.darkMetal);
+        barrel.position.set(0, 0.045, -0.32);
+        an94Group.add(barrel);
+
+        const guideGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.26, 12);
+        guideGeo.rotateX(Math.PI / 2);
+        const guide = new THREE.Mesh(guideGeo, mats.gunmetal);
+        guide.position.set(0, 0.015, -0.27);
+        an94Group.add(guide);
+
+        // 5. Legendary Figure-8 Muzzle Compensator
+        const brakeUpperGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.075, 14);
+        brakeUpperGeo.rotateX(Math.PI / 2);
+        const brakeUpper = new THREE.Mesh(brakeUpperGeo, mats.darkMetal);
+        brakeUpper.position.set(0, 0.045, -0.52);
+        an94Group.add(brakeUpper);
+
+        const brakeLowerGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.075, 14);
+        brakeLowerGeo.rotateX(Math.PI / 2);
+        const brakeLower = new THREE.Mesh(brakeLowerGeo, mats.darkMetal);
+        brakeLower.position.set(0, 0.018, -0.52);
+        an94Group.add(brakeLower);
+
+        const brakeBridgeGeo = new THREE.BoxGeometry(0.028, 0.035, 0.07);
+        const brakeBridge = new THREE.Mesh(brakeBridgeGeo, mats.darkMetal);
+        brakeBridge.position.set(0, 0.0315, -0.52);
+        an94Group.add(brakeBridge);
+
+        // 6. Ribbed Polymer Handguard with Heat Vents
+        const handguardGeo = new THREE.BoxGeometry(0.068, 0.070, 0.22);
+        const handguard = new THREE.Mesh(handguardGeo, chassisMat);
+        handguard.position.set(0, 0.022, -0.18);
+        an94Group.add(handguard);
+
+        const ribMat = new THREE.MeshStandardMaterial({ color: 0x141518, roughness: 0.9 });
+        for (let r = 0; r < 4; r++) {
+            const rib = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.012, 0.018), ribMat);
+            rib.position.set(0, 0.015, -0.25 + r * 0.045);
+            an94Group.add(rib);
+        }
+
+        // 7. Ergonomic Russian Pistol Grip & Trigger
+        const gripGeo = new THREE.BoxGeometry(0.042, 0.14, 0.065);
+        const grip = new THREE.Mesh(gripGeo, chassisMat);
+        grip.position.set(0, -0.11, 0.08);
+        grip.rotation.x = -0.32;
+        an94Group.add(grip);
+
+        const guardGeo = new THREE.BoxGeometry(0.02, 0.045, 0.08);
+        const guard = new THREE.Mesh(guardGeo, mats.gunmetal);
+        guard.position.set(0, -0.068, 0.03);
+        an94Group.add(guard);
+
+        const triggerGeo = new THREE.BoxGeometry(0.008, 0.03, 0.015);
+        const trigger = new THREE.Mesh(triggerGeo, mats.darkMetal);
+        trigger.position.set(0, -0.065, 0.04);
+        trigger.rotation.x = 0.25;
+        an94Group.add(trigger);
+
+        // 8. Canted 30-Round Magazine (Invariant: Named `magazine`)
+        // The AN-94 magazine is canted ~12° to the right (starboard)
+        const magPlumMat = new THREE.MeshStandardMaterial({
+            color: 0x2e1e1e, // Russian plum polymer
+            roughness: 0.55,
+            metalness: 0.2
+        });
+        const magGeo = new THREE.BoxGeometry(0.042, 0.21, 0.078);
+        const magMesh = new THREE.Mesh(magGeo, magPlumMat);
+        magMesh.name = 'magazine';
+        magMesh.position.set(0.016, -0.125, -0.05);
+        magMesh.rotation.z = -0.18; // ~10.3 degrees canted to the right!
+        magMesh.rotation.x = 0.15;  // Slight forward sweep
+        an94Group.add(magMesh);
+
+        // 9. Side-Folding Skeleton Stock
+        const stockStrutGeo = new THREE.BoxGeometry(0.035, 0.042, 0.26);
+        const stockStrut = new THREE.Mesh(stockStrutGeo, chassisMat);
+        stockStrut.position.set(0, 0.012, 0.32);
+        an94Group.add(stockStrut);
+
+        const buttpadGeo = new THREE.BoxGeometry(0.050, 0.13, 0.025);
+        const buttpad = new THREE.Mesh(buttpadGeo, mats.darkMetal);
+        buttpad.position.set(0, -0.015, 0.44);
+        an94Group.add(buttpad);
+
+        // 10. Star-wheel Aperture Rear Sight & Hooded Front Sight
+        const rearSightGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.018, 10);
+        rearSightGeo.rotateZ(Math.PI / 2);
+        const rearSight = new THREE.Mesh(rearSightGeo, mats.darkMetal);
+        rearSight.position.set(0, 0.092, 0.12);
+        an94Group.add(rearSight);
+
+        const frontSightGeo = new THREE.BoxGeometry(0.012, 0.042, 0.015);
+        const frontSight = new THREE.Mesh(frontSightGeo, mats.darkMetal);
+        frontSight.position.set(0, 0.078, -0.46);
+        an94Group.add(frontSight);
+
+        return an94Group;
+    }
+
     const TacticalFirearmsComponents = {
         createP90ViewModel,
         createMK4ViewModel,
         createMarksmanViewModel,
         createM249ViewModel,
-        createASH12ViewModel
+        createASH12ViewModel,
+        createAN94ViewModel
     };
 
     root.TacticalFirearmsComponents = TacticalFirearmsComponents;

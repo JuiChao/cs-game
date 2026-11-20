@@ -820,6 +820,7 @@ function resetRound() {
     playerState.burstQueue = 0;
     playerState.burstWeapon = null;
     playerState.burstNextShot = 0;
+    playerState.an94BurstCount = 0;
 
     if (typeof showZombieFilter === 'function') showZombieFilter(false);
     const _zcd = document.getElementById('zombie-countdown');

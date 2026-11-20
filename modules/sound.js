@@ -16,6 +16,7 @@ const WEAPON_SOUND_KEYS = {
     m249: 'm249_shoot',
     gatling: 'm249_shoot',
     ash12: 'ash12_shoot',
+    an94: 'rifle_shoot',
     deagle: 'deagle_shoot'
 };
 
@@ -31,6 +32,7 @@ const RELOAD_SEQUENCES = {
     m249:     { out: 'reload_m249_out',     in: 'reload_m249_in',     bolt: null,                  boltAt: 1.0 },
     gatling:  { out: 'reload_m249_out',     in: 'reload_m249_in',     bolt: null,                  boltAt: 1.0 },
     ash12:    { out: 'reload_ash12_out',    in: 'reload_ash12_in',    bolt: null,                  boltAt: 1.0 },
+    an94:     { out: 'reload_rifle_out',    in: 'reload_rifle_in',    bolt: 'reload_rifle_bolt',   boltAt: 0.80 },
     deagle:   { out: 'reload_deagle_out',   in: 'reload_deagle_in',   bolt: null,                  boltAt: 1.0 }
 };
 

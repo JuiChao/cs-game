@@ -68,6 +68,7 @@ function handleShooting(initialClick = false, isRelease = false) {
     if (!canAutoFire && !initialClick && !burstShotDue && !isRelease) return;
     if (!isShooting && !burstShotDue && !isRelease) {
         playerState.gatlingFireStartFrame = 0;
+        playerState.an94BurstCount = 0;
         return;
     }
     playerState.isInspecting = false;
@@ -80,6 +81,18 @@ function handleShooting(initialClick = false, isRelease = false) {
         let elapsedSec = (frameCount - playerState.gatlingFireStartFrame) / 60;
         let rampMult = Math.min(9.5, 0.625 + elapsedSec * 0.6);
         requiredCooldown /= rampMult;
+    }
+
+    if (weapon.id === 'an94') {
+        if (initialClick || !playerState.an94BurstCount || (frameCount - playerState.lastShot > 15)) {
+            playerState.an94BurstCount = 0;
+        }
+        // 前三发射速是 1800 RPM (2 帧/发)，后续射速归为 560 RPM (3600 / 560 ≈ 6.43 帧/发)
+        if (playerState.an94BurstCount < 3) {
+            requiredCooldown = 3600 / 1800; // 2.0 frames
+        } else {
+            requiredCooldown = 3600 / 560; // 6.42857 frames
+        }
     }
 
     if (hasLightBullet) {
@@ -150,6 +163,9 @@ function handleShooting(initialClick = false, isRelease = false) {
     }
 
     playerState.lastShot = frameCount;
+    if (weapon.id === 'an94') {
+        playerState.an94BurstCount = (playerState.an94BurstCount || 0) + 1;
+    }
     if (initialClick && !isRelease && isSingleMode && (playerState.hasBinaryTrigger || (typeof binaryTriggerPurchased !== 'undefined' && binaryTriggerPurchased))) {
         playerState.binaryTriggerPressed = true;
     }
@@ -1063,6 +1079,10 @@ function handleTriggerRelease(wasShooting = undefined) {
     const hasLightBullet = playerState.bulletType === 'light' || (playerState.bulletStacking && playerState.bulletTypes && playerState.bulletTypes.includes('light'));
     const awpLightAuto = weapon.id === 'sniper' && hasLightBullet;
     let requiredCooldown = weapon.fireRate;
+    if (weapon.id === 'an94') {
+        if (playerState.an94BurstCount < 3) requiredCooldown = 3600 / 1800;
+        else requiredCooldown = 3600 / 560;
+    }
     if (hasLightBullet) {
         if (awpLightAuto) requiredCooldown = 60 / 7;
         else requiredCooldown *= 0.30;

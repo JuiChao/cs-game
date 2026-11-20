@@ -638,6 +638,7 @@ function switchWeapon(slot) {
     inventory.currentSlot = slot;
     playerState.gatlingFireStartFrame = 0;
     playerState.gatlingBarrelSpin = 0;
+    playerState.an94BurstCount = 0;
     
     document.querySelectorAll('.inv-slot').forEach(el => el.classList.remove('active'));
     document.getElementById(`slot-${slot}`).classList.add('active');
@@ -659,6 +660,7 @@ function handleReload() {
     playerState.burstQueue = 0; // 换弹中断三连发
     playerState.binaryReleaseDueFrame = 0;
     playerState.binaryTriggerPressed = false;
+    playerState.an94BurstCount = 0;
     showKillFeed(`正在换弹...`); // Reusing kill feed for HUD message
 
     // CS换弹音效序列: 退弹匣 -> 插弹匣 -> 拉栓
@@ -668,9 +670,15 @@ function handleReload() {
         const mag = playerState.viewModel.getObjectByName('magazine');
         if (mag) {
             mag.visible = false;
-            const dropGeo = mag.geometry.clone();
-            const dropMat = mag.material.clone();
-            const dropMesh = new THREE.Mesh(dropGeo, dropMat);
+            let dropMesh;
+            if (mag.geometry && mag.material) {
+                const dropGeo = mag.geometry.clone();
+                const dropMat = mag.material.clone();
+                dropMesh = new THREE.Mesh(dropGeo, dropMat);
+            } else {
+                dropMesh = mag.clone(true);
+                dropMesh.visible = true;
+            }
             const worldPos = new THREE.Vector3();
             mag.getWorldPosition(worldPos);
             dropMesh.position.copy(worldPos);
@@ -696,6 +704,9 @@ function handleReload() {
         clearTimeout(reloadTimer);
         reloadTimer = null;
     }
+    const reloadDur = (typeof weapon.reloadTime === 'number' && weapon.reloadTime > 0)
+        ? (weapon.reloadTime * 1000)
+        : 2000;
     reloadTimer = setTimeout(() => {
         if (typeof reloadTimer !== 'undefined') reloadTimer = null;
         if (!isReloading) return; // Cancelled by weapon switch
@@ -712,7 +723,7 @@ function handleReload() {
         }
         
         updateHUD();
-    }, weapon.reloadTime * 1000 || 2000); 
+    }, reloadDur); 
 }
 
 function endRound(msg, tWin, reason = 'elimination') {

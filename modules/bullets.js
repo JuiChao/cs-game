@@ -1453,10 +1453,20 @@ function updateMagazines(delta) {
         mag.life -= delta;
         if (mag.life <= 0) {
             scene.remove(mag.mesh);
-            if (mag.mesh.geometry) mag.mesh.geometry.dispose();
-            if (mag.mesh.material) {
-                if (Array.isArray(mag.mesh.material)) mag.mesh.material.forEach(m => m.dispose());
-                else mag.mesh.material.dispose();
+            if (mag.mesh && typeof mag.mesh.traverse === 'function') {
+                mag.mesh.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                        else child.material.dispose();
+                    }
+                });
+            } else if (mag.mesh) {
+                if (mag.mesh.geometry) mag.mesh.geometry.dispose();
+                if (mag.mesh.material) {
+                    if (Array.isArray(mag.mesh.material)) mag.mesh.material.forEach(m => m.dispose());
+                    else mag.mesh.material.dispose();
+                }
             }
             droppedMagazines.splice(i, 1);
             continue;

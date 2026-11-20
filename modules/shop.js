@@ -150,7 +150,7 @@ function buyWeapon(type, cost) {
             if (typeof showKillFeed === 'function') showKillFeed('僵尸无法购买装备！');
             return;
         }
-        const isGun = ['rifle', 'sniper', 'marksman', 'smg', 'mk4', 'shotgun', 'm249', 'gatling', 'flamethrower', 'ash12', 'mortar'].includes(type)
+        const isGun = ['rifle', 'sniper', 'marksman', 'smg', 'mk4', 'shotgun', 'm249', 'gatling', 'flamethrower', 'ash12', 'an94', 'mortar'].includes(type)
             || ['pistol', 'deagle'].includes(type);
         if (isGun && !zombieState.pending) {
             if (typeof showKillFeed === 'function') showKillFeed('感染爆发后只能补给弹药与投掷物！');
@@ -162,7 +162,7 @@ function buyWeapon(type, cost) {
         cost = Math.floor(cost / 2);
     }
     if (playerCurrency >= cost) {
-        if (type === 'rifle' || type === 'sniper' || type === 'marksman' || type === 'smg' || type === 'mk4' || type === 'shotgun' || type === 'm249' || type === 'gatling' || type === 'flamethrower' || type === 'ash12' || type === 'mortar') {
+        if (type === 'rifle' || type === 'sniper' || type === 'marksman' || type === 'smg' || type === 'mk4' || type === 'shotgun' || type === 'm249' || type === 'gatling' || type === 'flamethrower' || type === 'ash12' || type === 'an94' || type === 'mortar') {
             playerCurrency -= cost;
             inventory.primary = type;
             const effMag = typeof getEffectiveMag === 'function' ? getEffectiveMag(WEAPONS[type]) : WEAPONS[type].mag;

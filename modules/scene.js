@@ -65,6 +65,7 @@ let playerState = {
     inspectStartTime: 0,
     gatlingFireStartFrame: 0,
     gatlingBarrelSpin: 0,
+    an94BurstCount: 0,
     maxHp: 100,
     isZombie: false,
     isSource: false,

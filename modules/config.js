@@ -312,8 +312,9 @@ const WEAPONS = {
     rifle: { id: 'rifle', name: '突击步枪 (AK-47)', type: 'rifle', adsSpeed: 7, damage: 35, fireRate: 6, spread: 0.005, mag: 30, reserve: 90, auto: true, range: 200, color: 0x8b4513, length: 0.8, killReward: 300, dropRate: 0.000020 },
     sniper: { id: 'sniper', name: '狙击步枪 (AWP)', type: 'sniper', adsSpeed: 4.5, damage: 110, fireRate: 64, spread: 0.00025, mag: 10, reserve: 30, auto: false, range: 500, color: 0x1a4314, length: 1.2, killReward: 100, dropRate: 0.000008 },
     marksman: { id: 'marksman', name: '射手步枪 (DMR)', type: 'marksman', adsSpeed: 5.5, damage: 34, fireRate: 6.86, spread: 0.002, mag: 25, reserve: 90, auto: true, range: 450, color: 0x2e4a23, length: 1.1, killReward: 300, dropRate: 0.000012 },
-    smg: { id: 'smg', name: '冲锋枪 (P90)', type: 'smg', adsSpeed: 9.5, damage: 27.8, fireRate: 3.4, spread: 0.00625, mag: 50, reserve: 150, auto: true, range: 120, color: 0x444444, length: 0.5, killReward: 600, dropRate: 0.000035 },
+    smg: { id: 'smg', name: '冲锋枪 (P90)', type: 'smg', adsSpeed: 9.5, damage: 27.8, fireRate: 3.4, spread: 0.00625, mag: 50, reserve: 150, auto: true, range: 120, color: 0x444444, length: 0.5, killReward: 600, reloadTime: 2.8, dropRate: 0.000035 },
     mk4: { id: 'mk4', name: 'MK4 冲锋枪 (三连发)', type: 'smg', adsSpeed: 9, damage: 32, fireRate: 6.16, burst: 3, burstDelay: 3, spread: 0.004, mag: 30, reserve: 90, auto: false, range: 160, color: 0x3a4a5a, length: 0.55, killReward: 600, reloadTime: 2.2, dropRate: 0.000030 },
+    an94: { id: 'an94', name: '突击步枪 (AN-94)', type: 'rifle', adsSpeed: 7.5, damage: 34, fireRate: 6.43, burstFireRate: 2.0, spread: 0.0035, mag: 30, reserve: 90, auto: true, range: 240, color: 0x2b3038, length: 0.85, killReward: 300, reloadTime: 2.5, dropRate: 0.000020 },
     shotgun: { id: 'shotgun', name: '连发霰弹枪 (Auto)', type: 'shotgun', adsSpeed: 7.5, damage: 6, fireRate: 13.5, spread: 0.00511, mag: 12, reserve: 36, auto: true, range: 50, color: 0x222222, length: 0.9, killReward: 900, dropRate: 0.000080 },
     m249: { id: 'm249', name: '重机枪 (M249)', type: 'machinegun', adsSpeed: 4, damage: 30, fireRate: 5.19, spread: 0.02, mag: 100, reserve: 200, auto: true, range: 180, color: 0x113311, length: 1.0, killReward: 300, dropRate: 0.000030 },
     gatling: { id: 'gatling', name: '加特林 (Gatling)', type: 'heavy', adsSpeed: 3, damage: 12.5, fireRate: 8, spread: 0.015, mag: 400, reserve: 800, auto: true, range: 200, color: 0x2a2a3a, length: 0.7, killReward: 300, reloadTime: 5, dropRate: 0.000035 },
@@ -342,6 +343,10 @@ const RECOIL_PATTERNS = {
     rifle: [
         [0.025, 0], [0.025, 0], [0.022, 0.003], [0.020, 0.006], [0.018, -0.002],
         [0.015, -0.008], [0.012, 0.005], [0.010, -0.006], [0.008, 0.008], [0.008, -0.008]
+    ],
+    an94: [
+        [0.003, 0], [0.005, 0], [0.008, 0.001], [0.020, 0.003], [0.018, 0.005],
+        [0.016, -0.003], [0.014, -0.005], [0.012, 0.004], [0.010, -0.004]
     ],
     pistol: [
         [0.015, 0], [0.015, 0.002], [0.012, -0.003], [0.010, 0.003], [0.010, -0.002],

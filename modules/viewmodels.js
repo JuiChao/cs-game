@@ -392,6 +392,8 @@ function buildViewModel() {
         playerState.viewModel = TacticalFirearmsComponents.createM249ViewModel(w);
     } else if (w.id === 'ash12' && typeof TacticalFirearmsComponents !== 'undefined' && TacticalFirearmsComponents.createASH12ViewModel) {
         playerState.viewModel = TacticalFirearmsComponents.createASH12ViewModel(w);
+    } else if (w.id === 'an94' && typeof TacticalFirearmsComponents !== 'undefined' && TacticalFirearmsComponents.createAN94ViewModel) {
+        playerState.viewModel = TacticalFirearmsComponents.createAN94ViewModel(w);
     } else {
         const geo = new THREE.BoxGeometry(0.1, 0.1, w.length);
         const mat = new THREE.MeshStandardMaterial({ color: w.color });

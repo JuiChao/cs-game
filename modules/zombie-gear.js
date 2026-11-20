@@ -141,7 +141,7 @@ function damageAirdrop(a, dmg) {
 function claimAirdrop(a, claimer) {
     if (claimer === 'player') {
         if (a.content === 'weapon') {
-            const pool = ['m249', 'gatling', 'ash12'];
+            const pool = ['m249', 'gatling', 'ash12', 'an94'];
             const g = pool[Math.floor(Math.random() * pool.length)];
             inventory.primary = g;
             ammoState.primary.clip = getEffectiveMag(WEAPONS[g]);
